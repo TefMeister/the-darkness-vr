@@ -151,8 +151,18 @@ What has actually been seen, hands-off, no input sent, captured from the game's 
 
 It is **not hung**: ~2.65 cores of CPU continuously, memory 403→650 MB, threads rising `[measured]`.
 
-❌ **No real-time 3D has been seen yet.** `[verified-live 2026-09-16, n=1]` The Butcher Joyce card was
-**the attract trailer**: with verbose logging on, a normal run opened
+✅ **REAL-TIME 3D GAMEPLAY CONFIRMED** `[verified-live 2026-09-16, n=2]`. Pressing START and A on a
+**virtual Xbox 360 pad** (ViGEmBus + `vgamepad`, see `dev-archive/build-scripts/padpress.py`) walks title → menu →
+new game. The verbose log then resolves **`NY1_Tunnel_00001010.XDF`** and its `_Load`, `_Common` and `_Precache`
+companions, memory climbs **632 → 1,111 MB** through a loading screen, and the window shows **first-person hands
+in the back of the car with the tutorial prompt "Use to look around"**, then the full opening car chase: the
+driver, the gesturing passenger, the tunnel with passing lights, traffic ahead, dust particles and the opening
+cast credits. **The flat bar for VR is met, and the game is first-person.**
+
+⚠️ **Not yet shown: that the right stick turns the camera.** A first test was confounded (frames 5 s apart during a
+moving, scripted sequence). It needs a burst comparison taken a fraction of a second either side of a stick hold.
+
+**How it was established that the earlier "Butcher Joyce" card was not this:** with verbose logging a normal idle run opened the **attract trailer**: with verbose logging on, a normal run opened
 `Content/Videos/Wmv/DarknessAttractionVideo.wmv` at about 94 s — exactly when the card appears — and opened
 **no level file at all**. An earlier lean towards "probably in-engine", including reading isolated bright
 pixels as real-time artefacts, was **wrong** `[disproved 2026-09-16]`. The trailer plays because a hands-off
@@ -169,7 +179,7 @@ successfully resolved file and was what settled the trailer question. Leave it o
 game and produced 26 MB of logs in a few minutes.
 
 Then, in order:
-1. **Reach a level** — start a new game from the menu with input, or fix the `QUICKMAP` trap — and confirm real-time 3D.
+1. ~~Reach a level and confirm real-time 3D~~ — **DONE 2026-09-16** via the virtual pad. Next: prove the look stick turns the camera.
 2. Find the **stereo seam** — `rex::ui::d3d12::D3D12Presenter` / `D3D12CommandProcessor::IssueSwap`,
    where the one finished frame reaches the swapchain. Shared SDK code, so the same work lands on
    Condemned 2 and every other ReXGlue title.
