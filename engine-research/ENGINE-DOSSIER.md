@@ -159,8 +159,34 @@ in the back of the car with the tutorial prompt "Use to look around"**, then the
 driver, the gesturing passenger, the tunnel with passing lights, traffic ahead, dust particles and the opening
 cast credits. **The flat bar for VR is met, and the game is first-person.**
 
-⚠️ **Not yet shown: that the right stick turns the camera.** A first test was confounded (frames 5 s apart during a
-moving, scripted sequence). It needs a burst comparison taken a fraction of a second either side of a stick hold.
+✅ **The look stick turns the camera** `[verified-live 2026-09-16, n=1 run; 3 directions, 3 clean controls]`.
+`dev-archive/build-scripts/looktest.py` — one process owns launch, virtual pad, window capture and analysis — takes
+a burst of frames just before and just after each stick hold, interleaved with no-input controls, and measures the
+picture's slide by phase correlation (validated on known shifts of +24/−24/+60/0 px). At full deflection for 0.8 s,
+on the **lower half of the frame**:
+
+| trial | lower-half shift | reading |
+| --- | --- | --- |
+| control | 0 | still |
+| **right** | **dx −52** | picture slides left = camera turned right ✓ |
+| control | 0 | still |
+| **left** | **dx +60** | picture slides right = camera turned left ✓ |
+| control | 0 | still |
+| **up** | **dy +56** | vertical ✓ — and **by eye** the hands drop well down the frame |
+
+Opposite signs on cue, zero between: the car's own motion cannot do that. The game had focus throughout, so
+whether it reads the pad **without** focus is still untested.
+
+⚠️ **Two measurement traps, both hit before getting this right:**
+1. **Whole-frame correlation is pinned at zero by fixed HUD overlays.** The "Use to look around" prompt never
+   moves, so it anchors the match at no shift even while the scene turns. Measure a region that excludes the HUD.
+2. **A small nudge (0.55 deflection for 0.35 s) produced no visible turn at all**, not even by eye. The game very
+   likely ramps look speed up over the first moments of a hold. A null result from a short nudge is not evidence
+   that looking is disabled.
+
+One oddity, not explained: the control taken straight after the up-look showed a large vertical change with a poor
+match quality — most likely the camera **easing back down** after the look, which seated scripted scenes often do.
+`[hypothesis]`
 
 **How it was established that the earlier "Butcher Joyce" card was not this:** with verbose logging a normal idle run opened the **attract trailer**: with verbose logging on, a normal run opened
 `Content/Videos/Wmv/DarknessAttractionVideo.wmv` at about 94 s — exactly when the card appears — and opened
@@ -179,7 +205,7 @@ successfully resolved file and was what settled the trailer question. Leave it o
 game and produced 26 MB of logs in a few minutes.
 
 Then, in order:
-1. ~~Reach a level and confirm real-time 3D~~ — **DONE 2026-09-16** via the virtual pad. Next: prove the look stick turns the camera.
+1. ~~Reach a level and confirm real-time 3D~~ — **DONE 2026-09-16** via the virtual pad. Look stick turning the camera: **proven**. Next: the stereo seam.
 2. Find the **stereo seam** — `rex::ui::d3d12::D3D12Presenter` / `D3D12CommandProcessor::IssueSwap`,
    where the one finished frame reaches the swapchain. Shared SDK code, so the same work lands on
    Condemned 2 and every other ReXGlue title.
