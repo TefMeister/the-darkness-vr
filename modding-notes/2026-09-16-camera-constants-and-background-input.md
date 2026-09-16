@@ -71,3 +71,18 @@ pattern. That removes the object-mix noise that sank both reductions above, and 
 ## SDK changes (`dev-archive/sdk-patches/`)
 - `04-input-background-events.patch` — off by default; likely worth offering upstream once proven.
 - `05-gpu-dump-draw-constants.patch` — diagnostic, off by default (empty path).
+
+## ⭐ Addendum, same session — the per-eye injection point was found statically
+
+The reader's second job overtook the "how to settle the constants" plan above. It traced the recompiled game and found
+that the **projection matrix P is held separately** (`RC+17088`), set **once per viewport apply** by `sub_82249580`, and
+that `sub_82248A78` is the **only** writer of c0–c7, computing c0–c3 as transpose(M without translation) × P — checked
+against an emulation on 50 random cases `[verified-numerically 2026-09-16, n=50]`.
+
+**So giving one eye its own camera is a single change: P → T(e)·P at the end of `sub_82249580`, for perspective viewports
+only.** That makes the live correlation of c4–c6 a confirmation rather than a blocker. The next live step is to log P at
+that function (it must not change when the look stick turns) and then apply the offset and watch the scene shift sideways
+while the HUD stays put. Full detail: dossier §6.
+
+It also corrected an earlier statement in these notes: **c4–c6 is the full object-to-view 3×4** (translation in `.w`), not
+rotation alone.
