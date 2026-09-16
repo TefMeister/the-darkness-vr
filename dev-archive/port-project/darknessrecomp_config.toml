@@ -7,3 +7,259 @@
 # Branch target of `b 0x828BC2A0` at 0x828BCC04 - the analyser saw the branch but did not
 # recognise the destination as the start of a function. Added 2026-09-16, first codegen pass.
 0x828BC2A0 = { name = "sub_828BC2A0" }
+
+# Run 002 (2026-09-16): FATAL "Call to invalid or unregistered function at guest
+# address 0x823CEF48" during startup file loading. Same class as the codegen fault -
+# a function the analyser never registered.
+0x823CEF48 = { name = "sub_823CEF48" }
+
+# Run 003: next one in the chain, same class.
+0x82654948 = { name = "sub_82654948" }
+
+# Auto-registered by the bring-up loop, iteration 1.
+0x8237EB08 = { name = "sub_8237EB08" }
+
+# Auto-registered by the bring-up loop, iteration 2.
+0x827686E8 = { name = "sub_827686E8" }
+
+# ===== BULK REGISTRATION, 2026-09-16 =====
+# Candidate function starts from tools/find_missing_functions.py: absolute pointers in
+# data sections (vtable slots) plus lis/addi address materialisation in code. Filtered to
+# those preceded by blr/bctr/tail-branch/padding, so they cannot split an existing function.
+# Address-only on purpose - no size/end - because ReXGlue rejects the entire config on the
+# first overlapping boundary.
+# Validated: 0x827686E8 was predicted by this scan BEFORE the bring-up loop crashed on it.
+0x820C71D8 = { name = "sub_820C71D8" }  # M=1 from 0x820C84AC
+0x820DE058 = { name = "sub_820DE058" }  # D=1 from 0x8205555C
+0x820EFCE0 = { name = "sub_820EFCE0" }  # D=1 from 0x8205FEEC
+0x8227C710 = { name = "sub_8227C710" }  # D=1 from 0x82067BE0
+0x822D9450 = { name = "sub_822D9450" }  # D=1 from 0x8206BA00
+0x8236A7E0 = { name = "sub_8236A7E0" }  # D=2 from 0x82071A88 0x82075E98
+0x8236F310 = { name = "sub_8236F310" }  # M=1 from 0x8236D774
+0x8236F320 = { name = "sub_8236F320" }  # M=1 from 0x8236D838
+0x8236F330 = { name = "sub_8236F330" }  # M=1 from 0x8236D870
+0x8236F340 = { name = "sub_8236F340" }  # M=1 from 0x8236D7AC
+0x8236F350 = { name = "sub_8236F350" }  # M=1 from 0x8236D800
+0x8236F360 = { name = "sub_8236F360" }  # M=1 from 0x8236D88C
+0x8236F370 = { name = "sub_8236F370" }  # M=1 from 0x8236D8E0
+0x8236F380 = { name = "sub_8236F380" }  # M=1 from 0x8236D81C
+0x8236F390 = { name = "sub_8236F390" }  # M=1 from 0x8236D8A8
+0x8236F3A0 = { name = "sub_8236F3A0" }  # M=1 from 0x8236D8FC
+0x8236F3B0 = { name = "sub_8236F3B0" }  # M=1 from 0x8236D7C8
+0x8236F3C0 = { name = "sub_8236F3C0" }  # M=1 from 0x8236D758
+0x8236F3D0 = { name = "sub_8236F3D0" }  # M=1 from 0x8236D7E4
+0x8236F3E0 = { name = "sub_8236F3E0" }  # M=1 from 0x8236D8C4
+0x8237EA88 = { name = "sub_8237EA88" }  # M=1 from 0x8237E768
+0x8237EA98 = { name = "sub_8237EA98" }  # M=1 from 0x8237E878
+0x8237EAA8 = { name = "sub_8237EAA8" }  # M=1 from 0x8237E820
+0x8237EAB8 = { name = "sub_8237EAB8" }  # M=1 from 0x8237E674
+0x8237EAC8 = { name = "sub_8237EAC8" }  # M=1 from 0x8237E7E8
+0x8237EAD8 = { name = "sub_8237EAD8" }  # M=1 from 0x8237E8C0
+0x8237EAE8 = { name = "sub_8237EAE8" }  # M=1 from 0x8237E83C
+0x8237EAF8 = { name = "sub_8237EAF8" }  # M=1 from 0x8237E690
+0x8237EB18 = { name = "sub_8237EB18" }  # M=1 from 0x8237E804
+0x8237EB28 = { name = "sub_8237EB28" }  # M=1 from 0x8237E6AC
+0x8237EB38 = { name = "sub_8237EB38" }  # M=1 from 0x8237E71C
+0x8237EB48 = { name = "sub_8237EB48" }  # M=1 from 0x8237E7CC
+0x8237EB58 = { name = "sub_8237EB58" }  # D=1 from 0x820730A0
+0x8238DB10 = { name = "sub_8238DB10" }  # M=1 from 0x82389D24
+0x8238DB20 = { name = "sub_8238DB20" }  # M=1 from 0x82389DD0
+0x8238DB30 = { name = "sub_8238DB30" }  # M=1 from 0x82389D58
+0x8238DB40 = { name = "sub_8238DB40" }  # M=1 from 0x82389D80
+0x823CEF60 = { name = "sub_823CEF60" }  # D=1 from 0x8207CC68
+0x823DE178 = { name = "sub_823DE178" }  # D=1 from 0x8207D290
+0x823E3C38 = { name = "sub_823E3C38" }  # D=1 from 0x8207DD90
+0x82401240 = { name = "sub_82401240" }  # D=1 from 0x82080CF0
+0x82401268 = { name = "sub_82401268" }  # D=1 from 0x82080CF4
+0x82401320 = { name = "sub_82401320" }  # M=1 from 0x823FF6B8
+0x82401330 = { name = "sub_82401330" }  # M=1 from 0x82400318
+0x82401340 = { name = "sub_82401340" }  # M=1 from 0x823FFCD8
+0x82401350 = { name = "sub_82401350" }  # M=1 from 0x824004A8
+0x82401360 = { name = "sub_82401360" }  # M=1 from 0x823FF8B8
+0x82401370 = { name = "sub_82401370" }  # M=1 from 0x8240069C
+0x82401380 = { name = "sub_82401380" }  # M=1 from 0x824008BC
+0x82401390 = { name = "sub_82401390" }  # M=1 from 0x823FFE58
+0x824013A0 = { name = "sub_824013A0" }  # M=1 from 0x824000C0
+0x824013B0 = { name = "sub_824013B0" }  # M=1 from 0x823FF27C
+0x824013C0 = { name = "sub_824013C0" }  # M=1 from 0x82400844
+0x824013D0 = { name = "sub_824013D0" }  # M=1 from 0x823FF40C
+0x824013E0 = { name = "sub_824013E0" }  # M=1 from 0x82400124
+0x824013F0 = { name = "sub_824013F0" }  # M=1 from 0x823FF59C
+0x82401400 = { name = "sub_82401400" }  # M=1 from 0x82400984
+0x82401410 = { name = "sub_82401410" }  # M=1 from 0x823FF72C
+0x82401420 = { name = "sub_82401420" }  # M=1 from 0x8240037C
+0x82401430 = { name = "sub_82401430" }  # M=1 from 0x823FFC74
+0x82401440 = { name = "sub_82401440" }  # M=1 from 0x8240050C
+0x82401450 = { name = "sub_82401450" }  # M=1 from 0x823FF96C
+0x82401460 = { name = "sub_82401460" }  # M=1 from 0x82400700
+0x82401470 = { name = "sub_82401470" }  # M=1 from 0x823FFB48
+0x82401480 = { name = "sub_82401480" }  # M=1 from 0x824008E4
+0x82401490 = { name = "sub_82401490" }  # M=1 from 0x823FFECC
+0x824014A0 = { name = "sub_824014A0" }  # M=1 from 0x824009F8
+0x824014B0 = { name = "sub_824014B0" }  # M=1 from 0x823FF2E0
+0x824014C0 = { name = "sub_824014C0" }  # M=1 from 0x823FFFF8
+0x824014D0 = { name = "sub_824014D0" }  # M=1 from 0x823FF46C
+0x824014E0 = { name = "sub_824014E0" }  # M=1 from 0x82400188
+0x824014F0 = { name = "sub_824014F0" }  # M=1 from 0x823FF600
+0x82401500 = { name = "sub_82401500" }  # M=1 from 0x8240024C
+0x82401510 = { name = "sub_82401510" }  # M=1 from 0x823FFBAC
+0x82401520 = { name = "sub_82401520" }  # M=1 from 0x824003E0
+0x82401530 = { name = "sub_82401530" }  # M=1 from 0x823FF790
+0x82401540 = { name = "sub_82401540" }  # M=1 from 0x82400570
+0x82401550 = { name = "sub_82401550" }  # M=1 from 0x823FF9D0
+0x82401560 = { name = "sub_82401560" }  # M=1 from 0x82400638
+0x82401570 = { name = "sub_82401570" }  # M=1 from 0x823FFAE4
+0x82401580 = { name = "sub_82401580" }  # M=1 from 0x8240090C
+0x82401590 = { name = "sub_82401590" }  # M=1 from 0x8240086C
+0x824015A0 = { name = "sub_824015A0" }  # M=1 from 0x823FFF84
+0x824015B0 = { name = "sub_824015B0" }  # M=1 from 0x823FFDA0
+0x824015C0 = { name = "sub_824015C0" }  # M=1 from 0x823FF344
+0x824015D0 = { name = "sub_824015D0" }  # M=1 from 0x8240005C
+0x824015E0 = { name = "sub_824015E0" }  # M=1 from 0x823FF4D4
+0x824015F0 = { name = "sub_824015F0" }  # M=1 from 0x824001EC
+0x82401600 = { name = "sub_82401600" }  # M=1 from 0x823FF664
+0x82401610 = { name = "sub_82401610" }  # M=1 from 0x824002B4
+0x82401620 = { name = "sub_82401620" }  # M=1 from 0x823FFC10
+0x82401630 = { name = "sub_82401630" }  # M=1 from 0x82400444
+0x82401640 = { name = "sub_82401640" }  # M=1 from 0x823FF7E4
+0x82401650 = { name = "sub_82401650" }  # M=1 from 0x824005D4
+0x82401660 = { name = "sub_82401660" }  # M=1 from 0x823FFA34
+0x82401670 = { name = "sub_82401670" }  # M=1 from 0x82400894
+0x82401680 = { name = "sub_82401680" }  # M=1 from 0x823FFD38
+0x82401690 = { name = "sub_82401690" }  # M=1 from 0x82400934
+0x824016A0 = { name = "sub_824016A0" }  # M=1 from 0x823FF210
+0x824016B0 = { name = "sub_824016B0" }  # M=1 from 0x823FFE04
+0x824016C0 = { name = "sub_824016C0" }  # M=1 from 0x823FF3A8
+0x824016D0 = { name = "sub_824016D0" }  # M=1 from 0x823FFF30
+0x824016E0 = { name = "sub_824016E0" }  # M=1 from 0x823FF538
+0x8240F800 = { name = "sub_8240F800" }  # M=1 from 0x8240E068
+0x8240F810 = { name = "sub_8240F810" }  # M=1 from 0x8240E014
+0x8240F820 = { name = "sub_8240F820" }  # M=1 from 0x8240E084
+0x8240F830 = { name = "sub_8240F830" }  # M=1 from 0x8240E030
+0x8240F840 = { name = "sub_8240F840" }  # M=1 from 0x8240E0A0
+0x8240F850 = { name = "sub_8240F850" }  # M=1 from 0x8240DFDC
+0x8240F860 = { name = "sub_8240F860" }  # M=1 from 0x8240E04C
+0x8240F870 = { name = "sub_8240F870" }  # D=1 from 0x82081BF0
+0x8241C198 = { name = "sub_8241C198" }  # D=1 from 0x820827AC
+0x82480E20 = { name = "sub_82480E20" }  # M=1 from 0x82480B98
+0x824A3658 = { name = "sub_824A3658" }  # D=1 from 0x820859F4
+0x824A36B8 = { name = "sub_824A36B8" }  # D=1 from 0x820859F8
+0x824A36E8 = { name = "sub_824A36E8" }  # D=1 from 0x82066714
+0x824A3768 = { name = "sub_824A3768" }  # M=2 from 0x824A24D0 0x824A253C
+0x824A3778 = { name = "sub_824A3778" }  # M=1 from 0x824A26CC
+0x824A3788 = { name = "sub_824A3788" }  # M=1 from 0x824A29EC
+0x824A3798 = { name = "sub_824A3798" }  # M=1 from 0x824A284C
+0x824A37A8 = { name = "sub_824A37A8" }  # M=1 from 0x824A2C3C
+0x824A37B8 = { name = "sub_824A37B8" }  # M=1 from 0x824A2DD4
+0x824A37C8 = { name = "sub_824A37C8" }  # M=1 from 0x824A2FC8
+0x824A37D8 = { name = "sub_824A37D8" }  # M=1 from 0x824A2924
+0x824A37E8 = { name = "sub_824A37E8" }  # M=1 from 0x824A25A0
+0x824A37F8 = { name = "sub_824A37F8" }  # M=1 from 0x824A2728
+0x824A3808 = { name = "sub_824A3808" }  # M=1 from 0x824A2A50
+0x824A3818 = { name = "sub_824A3818" }  # M=1 from 0x824A28C0
+0x824A3828 = { name = "sub_824A3828" }  # M=1 from 0x824A2CA8
+0x824A3838 = { name = "sub_824A3838" }  # M=1 from 0x824A2E9C
+0x824A3848 = { name = "sub_824A3848" }  # M=1 from 0x824A2E38
+0x824A3858 = { name = "sub_824A3858" }  # M=1 from 0x824A2978
+0x824A3868 = { name = "sub_824A3868" }  # M=1 from 0x824A2604
+0x824A3878 = { name = "sub_824A3878" }  # M=1 from 0x824A2794
+0x824A3888 = { name = "sub_824A3888" }  # M=1 from 0x824A2AB4
+0x824A3898 = { name = "sub_824A3898" }  # M=1 from 0x824A2B7C
+0x824A38A8 = { name = "sub_824A38A8" }  # M=1 from 0x824A2D0C
+0x824A38B8 = { name = "sub_824A38B8" }  # M=1 from 0x824A2F00
+0x824A38C8 = { name = "sub_824A38C8" }  # M=1 from 0x824A30F4
+0x824A38D8 = { name = "sub_824A38D8" }  # M=1 from 0x824A2668
+0x824A38E8 = { name = "sub_824A38E8" }  # M=1 from 0x824A27F8
+0x824A38F8 = { name = "sub_824A38F8" }  # M=1 from 0x824A2B18
+0x824A3908 = { name = "sub_824A3908" }  # M=1 from 0x824A2BE0
+0x824A3918 = { name = "sub_824A3918" }  # M=1 from 0x824A2D70
+0x824A3928 = { name = "sub_824A3928" }  # M=1 from 0x824A2F64
+0x824FCD60 = { name = "sub_824FCD60" }  # D=1 from 0x8208868C
+0x8259D888 = { name = "sub_8259D888" }  # M=7 from 0x8259F6B4 0x825E80C4
+0x825DC790 = { name = "sub_825DC790" }  # D=1 from 0x8208EB10
+0x82639CA0 = { name = "sub_82639CA0" }  # M=1 from 0x82639D5C
+0x82661258 = { name = "sub_82661258" }  # D=1 from 0x8208E148
+0x8277B8A0 = { name = "sub_8277B8A0" }  # M=1 from 0x82779DC0
+0x8277B8B0 = { name = "sub_8277B8B0" }  # M=1 from 0x82779E60
+0x8277B8C0 = { name = "sub_8277B8C0" }  # M=1 from 0x82779C80
+0x8277B8D0 = { name = "sub_8277B8D0" }  # M=1 from 0x82779D48
+0x8277B8E0 = { name = "sub_8277B8E0" }  # M=1 from 0x82779DE8
+0x8277B8F0 = { name = "sub_8277B8F0" }  # M=2 from 0x8240E0BC 0x82779E38
+0x8277B900 = { name = "sub_8277B900" }  # M=1 from 0x82779F7C
+0x8277B910 = { name = "sub_8277B910" }  # M=2 from 0x8237E6E4 0x82779BCC
+0x8277B920 = { name = "sub_8277B920" }  # M=1 from 0x82779CA8
+0x8277B930 = { name = "sub_8277B930" }  # M=1 from 0x82779D98
+0x8277B940 = { name = "sub_8277B940" }  # M=1 from 0x82779E10
+0x8277B950 = { name = "sub_8277B950" }  # M=1 from 0x82779ED8
+0x8277B960 = { name = "sub_8277B960" }  # M=1 from 0x82779FA4
+0x8277B970 = { name = "sub_8277B970" }  # M=1 from 0x82779EB0
+0x8277B980 = { name = "sub_8277B980" }  # M=2 from 0x8236D790 0x82779C04
+0x8277B990 = { name = "sub_8277B990" }  # D=1 from 0x82096748
+0x8277B9B0 = { name = "sub_8277B9B0" }  # M=1 from 0x82779CD0
+0x8277B9C0 = { name = "sub_8277B9C0" }  # M=1 from 0x82779E88
+0x8277B9D0 = { name = "sub_8277B9D0" }  # M=1 from 0x82779D20
+0x8277B9E0 = { name = "sub_8277B9E0" }  # M=1 from 0x82779F54
+0x8277DA00 = { name = "sub_8277DA00" }  # D=1 from 0x82080D18
+0x8279FAC8 = { name = "sub_8279FAC8" }  # D=1 from 0x82097E84
+0x827A6668 = { name = "sub_827A6668" }  # D=1 from 0x82098440
+0x827B4668 = { name = "sub_827B4668" }  # D=1 from 0x820989D4
+0x827B7628 = { name = "sub_827B7628" }  # M=1 from 0x827B76F4
+0x827C2D48 = { name = "sub_827C2D48" }  # D=1 from 0x820991F8
+0x827C4A78 = { name = "sub_827C4A78" }  # D=1 from 0x82099B00
+0x827EF6A0 = { name = "sub_827EF6A0" }  # D=3 from 0x82098C40 0x8209A298
+0x8287A1A0 = { name = "sub_8287A1A0" }  # D=1 from 0x8209DBD0
+0x828A0118 = { name = "sub_828A0118" }  # D=1 from 0x8209F588
+0x828B2300 = { name = "sub_828B2300" }  # D=1 from 0x82007AB8
+0x828B5A90 = { name = "sub_828B5A90" }  # D=11 from 0x8200791C 0x82007930
+0x828BCBD0 = { name = "sub_828BCBD0" }  # D=1 from 0x82007DA8
+0x828BCBF0 = { name = "sub_828BCBF0" }  # D=2 from 0x82007DA4 0x82007EAC
+0x828BCBF8 = { name = "sub_828BCBF8" }  # D=1 from 0x82007D98
+0x828BDB70 = { name = "sub_828BDB70" }  # D=1 from 0x82007D84
+0x828BECF0 = { name = "sub_828BECF0" }  # D=1 from 0x82007E6C
+0x828BECF8 = { name = "sub_828BECF8" }  # D=1 from 0x82007EB0
+0x828BED10 = { name = "sub_828BED10" }  # D=2 from 0x82007E70 0x82007E74
+0x828BED18 = { name = "sub_828BED18" }  # D=1 from 0x82007E98
+0x828BED30 = { name = "sub_828BED30" }  # D=2 from 0x82007D7C 0x82007E84
+0x828BED38 = { name = "sub_828BED38" }  # D=1 from 0x82007EA0
+0x828C12B8 = { name = "sub_828C12B8" }  # D=5 from 0x82007BF0 0x82007C50
+0x828C1300 = { name = "sub_828C1300" }  # D=5 from 0x82007BE4 0x82007C44
+0x828D86FC = { name = "sub_828D86FC" }  # D=1 from 0x8209F648
+0x828D8A18 = { name = "sub_828D8A18" }  # D=1 from 0x8209F660
+0x828D8AB0 = { name = "sub_828D8AB0" }  # D=1 from 0x8209F678
+0x828D8D10 = { name = "sub_828D8D10" }  # D=1 from 0x8209F690
+0x828D8FB8 = { name = "sub_828D8FB8" }  # D=1 from 0x8209F6A8
+0x828D9530 = { name = "sub_828D9530" }  # D=1 from 0x8209F6C0
+0x828D99CC = { name = "sub_828D99CC" }  # D=1 from 0x8209F6D8
+0x828D9A3C = { name = "sub_828D9A3C" }  # D=1 from 0x8209F6F0
+0x828D9B68 = { name = "sub_828D9B68" }  # D=1 from 0x8209F708
+0x828D9E2C = { name = "sub_828D9E2C" }  # D=1 from 0x8209F720
+0x828DA18C = { name = "sub_828DA18C" }  # D=1 from 0x8209F738
+0x828DA9E8 = { name = "sub_828DA9E8" }  # D=1 from 0x8200AD64
+0x828E2838 = { name = "sub_828E2838" }  # D=1 from 0x8200B3F0
+0x828E2850 = { name = "sub_828E2850" }  # D=1 from 0x8200B40C
+0x828E2870 = { name = "sub_828E2870" }  # D=2 from 0x8200B3AC 0x8200B410
+0x828E29E8 = { name = "sub_828E29E8" }  # D=1 from 0x8200B458
+0x828E2A08 = { name = "sub_828E2A08" }  # D=1 from 0x8200B45C
+0x828E2A28 = { name = "sub_828E2A28" }  # D=1 from 0x8200B460
+0x828E2A48 = { name = "sub_828E2A48" }  # D=1 from 0x8200B464
+0x828E2A68 = { name = "sub_828E2A68" }  # D=1 from 0x8200B468
+0x828E2A88 = { name = "sub_828E2A88" }  # D=1 from 0x8200B46C
+0x828E2AA8 = { name = "sub_828E2AA8" }  # D=1 from 0x8200B470
+0x828E2AC8 = { name = "sub_828E2AC8" }  # D=1 from 0x8200B474
+0x828E2AE8 = { name = "sub_828E2AE8" }  # D=1 from 0x8200B478
+0x828E2B08 = { name = "sub_828E2B08" }  # D=1 from 0x8200B47C
+0x828E9BC8 = { name = "sub_828E9BC8" }  # D=2 from 0x8200B394 0x8200B3E4
+0x828F4EC4 = { name = "sub_828F4EC4" }  # D=2 from 0x8209F748 0x8209F750
+# REMOVED (import thunk - declared but no body, caused an undefined-symbol link error): 0x829C5854 = { name = "sub_829C5854" }  # M=1 from 0x8289C688
+# REMOVED (import thunk - declared but no body, caused an undefined-symbol link error): 0x829C5864 = { name = "sub_829C5864" }  # M=1 from 0x8289C678
+# REMOVED (import thunk - declared but no body, caused an undefined-symbol link error): 0x829C5874 = { name = "sub_829C5874" }  # M=1 from 0x8289C670
+# REMOVED (import thunk - declared but no body, caused an undefined-symbol link error): 0x829C6034 = { name = "sub_829C6034" }  # D=1 from 0x82A28F94
+# REMOVED (import thunk - declared but no body, caused an undefined-symbol link error): 0x829C6044 = { name = "sub_829C6044" }  # D=1 from 0x82A28F7C
+# REMOVED (import thunk - declared but no body, caused an undefined-symbol link error): 0x829C6054 = { name = "sub_829C6054" }  # D=1 from 0x82A28FA0
+# REMOVED (import thunk - declared but no body, caused an undefined-symbol link error): 0x829C6094 = { name = "sub_829C6094" }  # D=1 from 0x82A28F88
+# REMOVED (import thunk - declared but no body, caused an undefined-symbol link error): 0x829C60B4 = { name = "sub_829C60B4" }  # D=1 from 0x82A28F84
+# REMOVED (import thunk - declared but no body, caused an undefined-symbol link error): 0x829C61A4 = { name = "sub_829C61A4" }  # D=1 from 0x82A28F9C
+# REMOVED (import thunk region - no body, link error): 0x829C61B4 = { name = "sub_829C61B4" }  # D=1 from 0x82A28F98
+# REMOVED (import thunk region - no body, link error): 0x829C62A4 = { name = "sub_829C62A4" }  # D=1 from 0x82A28F80
+# REMOVED (import thunk region - no body, link error): 0x829C6334 = { name = "sub_829C6334" }  # D=1 from 0x82A28F90
+# REMOVED (import thunk region - no body, link error): 0x829C6344 = { name = "sub_829C6344" }  # D=1 from 0x82A28F8C
