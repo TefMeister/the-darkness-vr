@@ -1,0 +1,15 @@
+# ===== Display =====
+# Windowed, so a screen capture of a running build is reliable (exclusive fullscreen
+# D3D12 often captures as solid black even when the game is drawing correctly).
+fullscreen = false
+window_width = 1280
+window_height = 720
+video_mode_width = 1280
+video_mode_height = 720
+video_mode_refresh_rate = 60.0
+
+# ===== Video Settings =====
+render_target_path_d3d12 = "rov"
+resolution_scale = 1
+native_2x_msaa = false
+vsync = false
