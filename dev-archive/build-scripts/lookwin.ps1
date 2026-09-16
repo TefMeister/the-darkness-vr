@@ -14,8 +14,18 @@ public class GW {
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
 }
 "@
+
+# Focus guard: name the process that owns the foreground window. Records the program only,
+# never the window title, so nothing about the user's own work is captured.
+function FgProc {
+  $h = [GW]::GetForegroundWindow(); $fpid = 0
+  [void][GW]::GetWindowThreadProcessId($h, [ref]$fpid)
+  $n = (Get-Process -Id $fpid -ErrorAction SilentlyContinue).ProcessName
+  if ($n) { return $n } else { return "none" }
+}
 
 $fgBefore = [GW]::GetForegroundWindow()
 Get-Process darknessrecomp -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -50,7 +60,7 @@ for ($t = 0; $t -lt $WaitSec; $t += 5) {
   $q = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
   if (-not $q) { Write-Output "EXITED by t=$($t+5)s"; break }
   $s = SnapWin $q ("t" + ($t + 5))
-  Write-Output "t=$($t+5)s  cpuSec=$([math]::Round($q.CPU,1))  mem=$([math]::Round($q.WorkingSet64/1MB))MB  -> $s"
+  Write-Output "t=$($t+5)s  cpuSec=$([math]::Round($q.CPU,1))  mem=$([math]::Round($q.WorkingSet64/1MB))MB  focus=$(FgProc)  -> $s"
 }
 
 $fgAfter = [GW]::GetForegroundWindow()
