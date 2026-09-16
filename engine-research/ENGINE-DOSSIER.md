@@ -265,7 +265,7 @@ game calls VdSwap (Xbox kernel)
 
 ### ✅ The camera constants, identified — no guessing needed (2026-09-16)
 
-**c0–c3 is the full object × camera × screen matrix; c4–c6 is rotation into view space; c7 is translation.**
+**c0–c3 is the full object × camera × screen matrix; c4–c6 is the object-to-view 3×4 (rotation in .xyz, translation in .w); c7 is a translation term.**
 Established two independent ways:
 
 1. **The engine's own shader template says so**, in plain words — `System/Gl/VP.xrg` lines 58–60:
@@ -285,8 +285,53 @@ as the host-order IEEE-754 bit pattern `[inferred-static]`.
 
 **What it means for VR** `[hypothesis]`: because c0–c3 already has the camera baked in *per object*, the cleanest per-eye
 change is not to decompose c0–c3 after the fact but to shift the **view** before the game multiplies it in. Where the game
-does that multiplication is the open question now with the reader. For static world geometry, c4–c6 should be the pure
-camera rotation and the most common value across a frame's draws — the cleanest signal to confirm live.
+does that multiplication is the open question now with the reader. For geometry drawn with an identity object matrix, c4–c6 would be the whole camera view matrix, position included
+(`[hypothesis]` — whether world geometry is drawn that way is unconfirmed). **Correction:** an earlier version said
+"pure camera rotation"; the emulation below shows c4–c6 also carries translation in `.w` `[verified-numerically]`.
+
+### ⭐⭐ THE PER-EYE INJECTION POINT — found statically and checked numerically (2026-09-16)
+
+**Offsetting the camera for one eye is a single change at one function.** From disassembly of the recompiled game,
+with the key function emulated in Python and its algebra checked against random inputs:
+
+- **The projection matrix P is held separately**, at **`RC+17088..17151` (0x82A6DCC0)**, where `RC = 0x82A69B00` is the
+  global render context. `[inferred-static]`
+- **`sub_82249580` ("apply viewport") sets it**: it copies the current viewport's projection into `RC+17088`, marks the
+  matrices dirty (`[RC+8228] |= 1`), then scales column 0 by 2/width and column 1 by 2/height. It runs **once per viewport
+  apply — a few times per frame, not per object.** `[inferred-static]`
+- **`sub_8275EEF8` builds that projection**: FOV in **degrees at viewport `+260`** (clamped 0.1–179), aspect at `+264`,
+  near/far planes at `+300`/`+304`; a D3D-style row-vector perspective, with an orthographic branch for 2D. Who *sets*
+  the FOV is not traced — `vp_fov` / `vp_zoom` / `vp_frontplane` / `vp_backplane` are registered as entity keys in
+  `sub_82389D18`, most likely a camera/viewport entity `[hypothesis]`.
+- **`sub_82248A78` is the only function that writes c0–c7** — a scan of every generated function found no other writer.
+  It is called only from the pre-draw commit `sub_82249488`, when the matrix-dirty bits are set. `[inferred-static]`
+- **What it computes, verified against the emulation** `[verified-numerically 2026-09-16, n=50 random M and P]`:
+
+  | output | equals | error |
+  | --- | --- | --- |
+  | c0–c3 | transpose(M with translation zeroed) × P | 9e-16 |
+  | c4–c6 | first three columns of M, translation in `.w` | 0 |
+  | c7.xyz | t·R⁻¹ (t = M's translation, R = its 3×3); c7.w = 0 | 8e-6 |
+  | shader path (add c7, dp4) | reproduces v·M·P and v·M | 7e-8 |
+
+  where **M** is the object's model-to-view matrix from the render context's matrix stack.
+
+**⭐ The change for one eye:** at the **end of `sub_82249580`**, after the width/height scaling, replace **P** with
+**T(e)·P**, where T(e) is the identity matrix with row 3 = (e, 1) — a sideways shift of `e` in view space. The emulation
+gives exactly **P((v·M) + e)**, error 2e-6 `[verified-numerically, n=1 case on top of the 50-case base path]`.
+
+- **Apply it only to perspective viewports:** `RC+17132 == 1.0` and `RC+17148 == 0`. The HUD, menus and other orthographic
+  viewports go through the same function and must be left untouched, or the interface would be doubled and shifted.
+- User clip planes (`sub_82249250`) read the same P, so they stay consistent. `[inferred-static]`
+- ⚠️ Culling uses the viewport's own frustum planes, built from the *unshifted* projection, so objects right at the edge
+  may be culled slightly early in one eye. `[hypothesis]`
+- ⚠️ **The emulation's own assumption:** that its reading of each AltiVec vector operation matches the SDK's translation
+  (checked for `vmrghw`, `vmsum*`, `dp_ps` against the generated C++) and that `vupkd3d128` yields w = 1. The exact c7 match
+  supports it, but **nothing here has run in the game yet.**
+
+**Live sanity check before building on it:** log `RC+17088..17151` and `RC+17132` at each return of `sub_82249580`. Expect a
+few distinct values per frame, and the perspective P should **not** change when the look stick turns — the camera turn
+lives in M, not P.
 
 ### ⚠️ The design choice this exposes — decide it deliberately, it is the foundation
 
