@@ -263,6 +263,31 @@ game calls VdSwap (Xbox kernel)
 - **The alternative, which only a source-built port allows:** hook The Darkness's own camera function in the recompiled
   C++. No slot-guessing and more robust, but written per game.
 
+### ✅ The camera constants, identified — no guessing needed (2026-09-16)
+
+**c0–c3 is the full object × camera × screen matrix; c4–c6 is rotation into view space; c7 is translation.**
+Established two independent ways:
+
+1. **The engine's own shader template says so**, in plain words — `System/Gl/VP.xrg` lines 58–60:
+   `c[0..3] Model*Projection (Model-space to clip-space)`, `c[4..6] Model rotate (3x3) (Model-space to view-space)`,
+   `c[7] Model translate (Model-space to view-space)`; and lines 1070–1074 build the position as
+   `ADD R4, R8, c[7]` then `DP4 oPos.xyzw, c[0..3], R4`. `[verified-live 2026-09-16 — read directly from the file]`
+2. **Every shader the game actually ships agrees.** All **420** vertex shaders in `System/Xenon/ProgramCache.xpc`,
+   decoded against the SDK's `ucode.h` layout, write the position from `dp4` against **c0, c1, c2, c3** after `add … c7`,
+   each with one `float4 c[128]` table at register 0 `[verified-numerically 2026-09-16, n=420]`.
+
+⚠️ **The trap this avoided — a frame-end snapshot is unsound.** Constants live in one persistent array
+(`RegisterFile::values`), overwritten on every write with no per-draw history. c0–c3 is rewritten **for every object
+drawn**, so at `IssueSwap` it holds whatever was drawn *last* — probably a HUD or post-processing pass. **Sample per draw
+in `D3D12CommandProcessor::IssueDraw` (~line 2271), right after the vertex shader is fetched (~2290)** and before its early
+returns. Reading a constant: `memcpy(&v, &regs[XE_GPU_REG_SHADER_CONSTANT_000_X + (i<<2) + c], 4)` — base `0x4000`, stored
+as the host-order IEEE-754 bit pattern `[inferred-static]`.
+
+**What it means for VR** `[hypothesis]`: because c0–c3 already has the camera baked in *per object*, the cleanest per-eye
+change is not to decompose c0–c3 after the fact but to shift the **view** before the game multiplies it in. Where the game
+does that multiplication is the open question now with the reader. For static world geometry, c4–c6 should be the pure
+camera rotation and the most common value across a frame's draws — the cleanest signal to confirm live.
+
 ### ⚠️ The design choice this exposes — decide it deliberately, it is the foundation
 
 How to produce two eyes, in rough order of effort:
