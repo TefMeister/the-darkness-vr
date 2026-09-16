@@ -1,0 +1,9 @@
+# Per-title bring-up configuration for The Darkness (2007).
+#
+# [functions] declares function START addresses that the automatic analyser could not
+# work out for itself. Each entry turns an "unresolved call" error into a real function.
+
+[functions]
+# Branch target of `b 0x828BC2A0` at 0x828BCC04 - the analyser saw the branch but did not
+# recognise the destination as the start of a function. Added 2026-09-16, first codegen pass.
+0x828BC2A0 = { name = "sub_828BC2A0" }
