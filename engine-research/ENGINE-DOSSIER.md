@@ -147,24 +147,29 @@ What has actually been seen, hands-off, no input sent, captured from the game's 
 | ~20 s | storm clouds, crows, **Union Entertainment** logo | the intro chain runs |
 | ~50 s | black frame; memory **+180 MB**, CPU spike | a large load |
 | ~70 s | **THE DARKNESS** title screen | the front end runs |
-| ~95 s | **"BUTCHER JOYCE"** name card over a lit close-up | ⚠️ **see below** |
+| ~95 s | **"BUTCHER JOYCE"** name card over a lit close-up | ❌ **the attract trailer** — see below |
 
 It is **not hung**: ~2.65 cores of CPU continuously, memory 403→650 MB, threads rising `[measured]`.
 
-⚠️ **Whether any real-time 3D has been seen is UNDETERMINED — do not round it up.** The Butcher Joyce
-card is *probably* in-engine: the name is string-table text (`CHAR_NAME_AI_NY1_CHARACTER_BUTCHER`), built
-in `sub_82145E60`, and his face animation is loaded by the `NY1_Tunnel` level `[measured]`. **But
-`DarknessAttractionVideo.wmv` — the 27 MB trailer — plays automatically after sitting idle at the main
-menu, and a hands-off run sits idle.** The trailer could contain exactly that shot. The run log cannot
-settle it, because **this build logs only *failed* file opens** — zero hits for either the trailer or the
-level files is not evidence of anything. A few isolated bright pixels on the face *suggest* real-time
-artefacts, but that is weak.
+❌ **No real-time 3D has been seen yet.** `[verified-live 2026-09-16, n=1]` The Butcher Joyce card was
+**the attract trailer**: with verbose logging on, a normal run opened
+`Content/Videos/Wmv/DarknessAttractionVideo.wmv` at about 94 s — exactly when the card appears — and opened
+**no level file at all**. An earlier lean towards "probably in-engine", including reading isolated bright
+pixels as real-time artefacts, was **wrong** `[disproved 2026-09-16]`. The trailer plays because a hands-off
+run sits idle at the main menu.
 
-**The clean test:** `QUICKMAP=NY1_Tunnel` (§3) goes straight into the level with no menu and therefore
-no trailer. If a lit 3D scene appears, the flat bar for VR is met beyond doubt.
+**`QUICKMAP` is read but traps.** `QUICKMAP=NY1_Tunnel` in `EnvironmentXbox.cfg` is resolved and does skip the
+videos, but about a second later the runtime hits a deliberate debug break (`0x80000003`) with no logged
+message. A control run without the switch survives, so the switch is the trigger. Two tempting explanations
+were tested and **ruled out**: no `.xw` world file is ever found in *either* run (there is no `WORLDS` folder
+on the disc), and the font `MONOPRO.XFC` is missing in *both* runs too — neither is the cause.
+
+**Verbose logging** (`log_verbose = true`, `log_flush_interval = 1` in `darknessrecomp.toml`) records every
+successfully resolved file and was what settled the trailer question. Leave it off by default: it slows the
+game and produced 26 MB of logs in a few minutes.
 
 Then, in order:
-1. Confirm real-time 3D via `QUICKMAP`.
+1. **Reach a level** — start a new game from the menu with input, or fix the `QUICKMAP` trap — and confirm real-time 3D.
 2. Find the **stereo seam** — `rex::ui::d3d12::D3D12Presenter` / `D3D12CommandProcessor::IssueSwap`,
    where the one finished frame reaches the swapchain. Shared SDK code, so the same work lands on
    Condemned 2 and every other ReXGlue title.
