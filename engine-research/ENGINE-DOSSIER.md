@@ -214,7 +214,77 @@ Then, in order:
 The other community port remains worth watching — its fixes may save us time — but **we are no longer
 blocked on it.**
 
-## 6. Not yet looked at
+## 6. ⭐ The stereo seams — where VR attaches (found 2026-09-16)
+
+All of this was established **by reading the ReXGlue SDK source** (`rexglue-sdk` v0.10.0, our self-built copy). How
+the code *behaves* is `[inferred-static 2026-09-16]` — nothing below has been compiled or run in a modified form.
+The line numbers are exact for that source tree.
+
+**The single most important point, and it is not obvious:** the place a frame reaches the screen is **not** where 3D
+depth comes from. By the time a frame gets there it is already a flat picture — doubling it only gives both eyes the
+same flat image. **Real stereo needs each eye *drawn* from a slightly different camera position.** So VR has two
+separate seams, and needs both.
+
+### Seam A — OUTPUT: where finished frames can go to the headset
+
+The full path of every presented frame:
+
+```
+game calls VdSwap (Xbox kernel)
+  -> PM4 packet with kSwapSignature        graphics/command_processor.cpp  ~948
+  -> IssueSwap(frontbuffer_ptr, w, h)       graphics/command_processor.cpp   961   then ++counter_
+  -> D3D12CommandProcessor::IssueSwap       graphics/d3d12/command_processor.cpp 1894
+       RequestSwapTexture()                                                   1919   <- THE FINISHED FRAME
+       presenter->RefreshGuestOutput(...)                                     1988   (gamma, FXAA)
+  -> Presenter::PaintAndPresent             ui/presenter.cpp                 1497
+  -> D3D12Presenter::PaintAndPresentImpl    ui/d3d12/d3d12_presenter.cpp      557
+  -> swap_chain->Present()                  ui/d3d12/d3d12_presenter.cpp     1158   <- reaches the monitor
+```
+
+- **`IssueSwap` runs exactly once per game frame**, and `++counter_` right after it is a clean frame counter — its
+  even/odd parity is a natural "which eye" switch.
+- **`swap_texture_resource`** (line 1919) is the game's final frame as an `ID3D12Resource`. For OpenXR, this — or the
+  gamma-corrected guest output — is what gets copied into the headset's swapchain image for the current eye, with
+  `xrEndFrame` submitted from the same place. The existing `Present()` can stay as a desktop mirror.
+- **This is shared SDK code**, so it is the part that reaches every ReXGlue title, Condemned 2 included.
+- The DXGI swapchain is created with `swap_chain_desc.Stereo = FALSE` (d3d12_presenter.cpp:394) — that is the old
+  quad-buffer 3D-monitor mode, **not** relevant to OpenXR; noted only so nobody chases it.
+
+### Seam B — RENDER: where each eye gets its own camera
+
+- The game uploads its shader numbers — **including the camera's view and projection matrices** — by writing the
+  emulated Xenos GPU's constant registers, `XE_GPU_REG_SHADER_CONSTANT_000_X + i`. **Indices 0–255 are vertex-shader
+  constants, 256–511 pixel-shader** (`D3D12CommandProcessor`, the register-write handler around **line 1776**, plus a
+  range writer around **line 1841**). A write marks `cbuffer_binding_float_vertex_` stale and it is re-uploaded as the
+  `kFloatConstants` constant buffer.
+- **So every camera matrix passes through one SDK function.** Offsetting the view matrix there per eye is possible
+  *without touching the game's own code* — but **which constant slots hold the matrix is game-specific** (and can vary
+  between shaders). The plumbing would be shared; the payload would not.
+- **The alternative, which only a source-built port allows:** hook The Darkness's own camera function in the recompiled
+  C++. No slot-guessing and more robust, but written per game.
+
+### ⚠️ The design choice this exposes — decide it deliberately, it is the foundation
+
+How to produce two eyes, in rough order of effort:
+
+| approach | what it needs | quality / cost |
+| --- | --- | --- |
+| **Alternate-eye rendering** — camera offset left on even frames, right on odd, each frame sent to its eye | Seam A + a view-matrix offset (Seam B) + OpenXR head pose | **least invasive**; halves each eye's framerate, can shimmer. Painful on the dev PC's CPU, fine on the home PC. The UEVR-style route. |
+| **Depth reprojection** — one render plus the depth buffer, second eye synthesised | Seam A + depth buffer access | cheapest to build; visible artefacts at edges |
+| **True dual render** — whole frame drawn twice per swap | the guest to issue its draws twice | best quality; **very hard**, because a recompiled console game issues each frame's draws exactly once, interleaved with state |
+
+**Current recommendation, not a decision:** alternate-eye rendering, because it uses *both* seams now found and changes
+the least. But the comfort and framerate trade-offs are real, and this choice is the foundation everything after it
+builds on — make it with eyes open, ideally informed by the next step below.
+
+### Next concrete step — connects the look test to Seam B
+
+**Find which vertex-constant slots hold The Darkness's view matrix, by measurement.** Log every vertex float-constant
+write around the Seam B handler while `looktest.py` pushes the right stick. **The constants that change in lock-step
+with the stick are the camera.** This needs the game running (`[FLAT]`), but no design decision — and its answer decides
+whether Seam B is usable game-agnostically.
+
+## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version
 offers anything easier. None of it is blocked by anything except §4.
