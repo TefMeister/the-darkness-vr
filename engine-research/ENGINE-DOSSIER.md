@@ -37,62 +37,141 @@ $SystemUpdate/
 Largest files: `Waves_Xenon/Streamed_Music.xwc` 785 MB, `Textures/AllTextures.000.xtc.xt0` 604 MB,
 `Streamed_Vo.xwc` 404 MB, `Anim/All.xac` 194 MB `[measured 2026-09-16]`.
 
-## 3. ⭐ Two promising leads for VR
+## 3. VR leads — two checked and closed, one better one found
 
-### `User.cfg` is plain text, and tiny
+### `User.cfg` keys cannot be listed from the binary — `[disproved 2026-09-16]`
 
-The entire retail file is three lines `[verified-live 2026-09-16, n=1]`:
+The retail `User.cfg` is three lines (`SENSITIVITYX=0.16`, `SENSITIVITYY=0.06`, `SYNC=0`), so the
+engine does read plain `KEY=VALUE` text. The hope was that the executable held a findable list of every
+key it accepts. **It does not.** With the image properly unpacked, `SENSITIVITYX` appears **nowhere** in
+the executable — not ASCII, not UTF-16, not any capitalisation — and the only copy on the disc is
+`User.cfg` itself `[measured]`. The search method is sound (it does find `User.cfg`, `QUICKMAP`,
+`Videos/` and the WMV class names), so this is a real absence, not a broken search.
 
-```
-SENSITIVITYX=0.16
-SENSITIVITYY=0.06
-SYNC=0
-```
+**Why:** the engine loads `.cfg` files into a generic settings store and looks keys up by name at run
+time. Field-of-view or camera settings, if they exist, have to be found by following the code that
+*reads* that store — not by string search.
 
-**The engine reads simple `KEY=VALUE` text settings.** A three-line file almost certainly means the
-executable recognises many more keys than the retail config bothers to set — field of view, camera
-and debug options are the obvious hopes. **Unverified**, and the way to test it is §4.
-`[hypothesis]`
+### `Registry/SvDebug.xcr` is not a debug switch — `[disproved 2026-09-16]`
 
-### `Registry/SvDebug.xcr` shipped on the retail disc
+A `MOS DATAFILE2.0` container holding one tiny settings file, stored twice (once per byte order). Its
+entire content is `GAMEMENU=GameMenu` and `GAMECLASS=GameDebug` `[measured]` — a **game-mode template**,
+not a free camera, skip or debug-start flag. It does confirm a `GameDebug` game class exists in the
+engine, which may be worth tracing later.
 
-Alongside `Sv.xcr`, `SvCampaign.xcr`, `SvDM.xcr`, `SvCTF.xcr` there is a **`SvDebug.xcr`**
-`[verified-live 2026-09-16, n=1]`. A debug configuration left in a shipping game is exactly the kind
-of thing that unlocks free cameras and developer commands. Its format is unknown and unopened.
-`[hypothesis]`
+### ⭐ The lead found instead: built-in quick-start switches
 
-## 4. ⛔ The current blocker — the executable is packed
+The front-end start routine `sub_82367AA0` reads the engine's **ENV** settings `[inferred-static, from
+disassembly]`:
 
-**`default.xex` cannot be read statically as it stands.** `[verified-live 2026-09-16, n=1]`
+- **`QUICKMAP`** set → `campaignmap('<map>')` immediately. **`QUICKMAP=NY1_Tunnel` should drop straight
+  into the first 3D level with no menus.**
+- else **`QUICKMENU`** set → `cg_rootmenu('<menu>')`. `QUICKMENU=main` should skip only the logos.
+- else → `cg_rootmenu('intro')`, the normal chain.
 
-This was established with a **control test rather than a guess**, which matters: searching for
-strings that *might* exist proves nothing if the search itself is broken. So the search was run for
-`SENSITIVITYX` — a string we know for certain the program must contain, because the retail config
-uses it. **Zero matches.** The handful of apparent hits for "fov", "camera" and so on are random
-byte noise (`fOVm`, `GOd>`).
+ENV comes from (`sub_827784F0`) `[inferred-static]`: **`EnvironmentXbox.cfg`** beside the executable,
+falling back to **`Environment.cfg`**; **`-env <file>`** overrides the name; a `COMMANDLINE` setting in it
+is appended to the command line, whose parser accepts **`-MAP <name>`**, **`-DEMO`** and **`-EXEC`**.
+**Neither file ships on the disc** `[measured]`.
 
-Retail Xbox 360 executables are normally **compressed and encrypted**, and this one behaves exactly
-that way. Everything in §3 stays a hypothesis until it is unpacked.
+⚠️ **Untested.** File format is `[hypothesis]` — probably `KEY=VALUE`, since the executable keeps
+`.xrg`, `.cfg` and `User.cfg` together (suggesting one loader dispatching on extension); if that does
+nothing, try the `.xrg` style `*QUICKMAP "NY1_Tunnel"`. Whether ReXGlue counts `game-files/` as "the
+executable's folder" is also untested. **For VR work this is worth more than any single fix** — every
+test run can land directly in 3D instead of sitting through the logos.
 
-**Next step:** decrypt/decompress the XEX — `xextool`, or whatever the recompilation toolchain uses
-as its first stage — and re-run the same control test. **If `SENSITIVITYX` then appears, the
-analysis is trustworthy; if it does not, something else is wrong and no conclusion drawn from string
-searching is safe.**
+### Where the intro comes from `[measured 2026-09-16]`
 
-## 5. The road to VR
+`Content/Gui/CubeWnd.xcr` chains **`logo_topcow → logo_union → logo_2k → logo_sbz → main`**. Every video
+on the disc — **none is Bink**:
 
-The route runs **through** the PC recompilation, not around it:
+- **Logos (WMV):** `logo_topcow` 6.3 MB, `logo_union` 4.0 MB, `logo_2k` 4.8 MB, `sbz` 10.6 MB.
+- **Other WMV:** `DarknessAttractionVideo` 27.2 MB (the trailer), `Consite_FinalRender-1s` 8.0 MB,
+  `Endcredits_Logo` 8.2 MB; ExtraContent adds two unlockable WMVs.
+- **Theora `.ogg`:** 7 in `IngameMisc` (in-world TV screens) and **53 files, 710 MB, in `DarknessTV`** —
+  the in-game television channels (Popeye, Flash Gordon, music videos, old films).
+- No `Content_<lang>` folder contains a `Videos` folder.
 
-1. Someone releases a working recompilation (a build has been shown publicly; source not yet out at
-   the time of writing) `[reported 2026-09-16]` — Tefa saw the announcement and video; this session
-   could not reach the post to confirm details, and no public repository exists under an obvious name.
-2. It is rebuilt from source here, the way [`condemned-2-vr`](https://github.com/TefMeister/condemned-2-vr)
-   was — that project's seven build fixes and toolchain notes apply directly.
-3. Stereo rendering is added **at the presenter**, in source, rather than injected.
+## 4. The executable — packing was never the real blocker
 
-⚠️ **Step 1 is entirely outside our control, and step 2 fails if the port ships binaries only.**
-Then this becomes a far harder problem and the cheap route is gone. Worth watching for the source
-release specifically, not just the build.
+⛔→✅ **The earlier "packed executable" blocker is resolved.** `[verified-live 2026-09-16]`
+
+The original control test was right: string-searching the raw `default.xex` found nothing, because it is
+packed. But **ReXGlue unpacks it itself** during codegen, and the reader reconstructed the format
+independently: **encryption=1, compression=1 (basic)** — AES-128-CBC with the retail key, then plain
+`(data, zero)` blocks, no LZX `[verified-numerically]`.
+
+⚠️ **One trap worth keeping:** the unpacked image is laid out **by RVA** (file offset = guest address −
+`0x82000000`), **not** by PE raw pointer. Using raw pointers produces a plausible-looking but entirely
+wrong disassembly from `.text` onward — the reader built a confident, wrong set of conclusions that way
+before catching it.
+
+### Why every run crashed on a missing function — root cause `[verified-numerically 2026-09-16]`
+
+ReXGlue's `VTableScanner` finds virtual-function tables **only** through MSVC RTTI Complete Object
+Locators. **The Darkness is a `/GR-` no-RTTI build — there are zero of them in `.rdata`.** So that
+entire discovery path contributes nothing on this game, and every function reached only through a
+vtable or a stored pointer went unregistered. `.pdata` gives 15,722 entries, all already registered, so
+that source is fully mined.
+
+The missed functions are not ordinary functions: **98.39% of real function starts here begin with
+`mflr r12` (`0x7D8802A6`), and 0% of the missed ones do** `[verified-numerically, n=15722]`. They are
+four-instruction **vtable dispatch stubs** — `lwz r12,0(r3); lwz r11,0x350(r12); mtctr r11; bctr` — so a
+prologue-pattern scan is the wrong instrument.
+
+**Fixed in bulk** by `dev-archive/tools/find_missing_functions.py`: absolute pointers in data sections
+plus `lis`/`addi` address materialisation in code, filtered to addresses preceded by
+`blr`/`bctr`/tail-branch/padding. Of 11,107 raw hits, **97.3% were addresses ReXGlue already knew** —
+good precision. **235 candidates; 13 were bodiless import thunks (`0x829C5xxx`–`0x829C6xxx`) and had to
+be removed; 226 active.** One address, `0x827686E8`, was **in the list before** a crash independently
+hit it — a genuine prediction, not a retrofit.
+
+- **No knob does this already** `[verified-numerically]`: raising `max_discovery_iterations` and the
+  other caps does nothing, since those passes already converge. `functionPointerScan()` exists in the SDK
+  but its call is commented out as *"causes too many false positives"* — it lacks the use-filter above.
+- **Permanent fix:** the `Genesis5500/ArmyOfTwo-Recomp-rexglue` fork adds data-pointer discovery (~80
+  lines, one bool cvar) to `phase_discover.cpp`. Porting it would make this self-heal for every title.
+- ⚠️ **Expect more.** The generated C++ has **27,790** indirect-call sites, and unrecognised jump tables
+  are a separate class needing `[[switch_tables]]`, not `[functions]` `[measured]`.
+
+## 5. The road to VR — we no longer wait on anyone
+
+**Our own recompilation now runs.** `[verified-live 2026-09-16, n=2]` Project at
+`E:\the-darkness\src\DarknessRecomp\`, working source mirrored in `dev-archive/port-project/`.
+
+What has actually been seen, hands-off, no input sent, captured from the game's own window:
+
+| time | on screen | what it proves |
+| --- | --- | --- |
+| ~10 s | the moon over a starfield | video decode + presenter work |
+| ~20 s | storm clouds, crows, **Union Entertainment** logo | the intro chain runs |
+| ~50 s | black frame; memory **+180 MB**, CPU spike | a large load |
+| ~70 s | **THE DARKNESS** title screen | the front end runs |
+| ~95 s | **"BUTCHER JOYCE"** name card over a lit close-up | ⚠️ **see below** |
+
+It is **not hung**: ~2.65 cores of CPU continuously, memory 403→650 MB, threads rising `[measured]`.
+
+⚠️ **Whether any real-time 3D has been seen is UNDETERMINED — do not round it up.** The Butcher Joyce
+card is *probably* in-engine: the name is string-table text (`CHAR_NAME_AI_NY1_CHARACTER_BUTCHER`), built
+in `sub_82145E60`, and his face animation is loaded by the `NY1_Tunnel` level `[measured]`. **But
+`DarknessAttractionVideo.wmv` — the 27 MB trailer — plays automatically after sitting idle at the main
+menu, and a hands-off run sits idle.** The trailer could contain exactly that shot. The run log cannot
+settle it, because **this build logs only *failed* file opens** — zero hits for either the trailer or the
+level files is not evidence of anything. A few isolated bright pixels on the face *suggest* real-time
+artefacts, but that is weak.
+
+**The clean test:** `QUICKMAP=NY1_Tunnel` (§3) goes straight into the level with no menu and therefore
+no trailer. If a lit 3D scene appears, the flat bar for VR is met beyond doubt.
+
+Then, in order:
+1. Confirm real-time 3D via `QUICKMAP`.
+2. Find the **stereo seam** — `rex::ui::d3d12::D3D12Presenter` / `D3D12CommandProcessor::IssueSwap`,
+   where the one finished frame reaches the swapchain. Shared SDK code, so the same work lands on
+   Condemned 2 and every other ReXGlue title.
+3. Find where the game builds its view/projection matrix, so each eye gets its own camera.
+
+The other community port remains worth watching — its fixes may save us time — but **we are no longer
+blocked on it.**
 
 ## 6. Not yet looked at
 
