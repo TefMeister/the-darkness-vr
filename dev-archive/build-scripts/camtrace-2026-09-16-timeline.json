@@ -1,0 +1,153 @@
+{
+ "launch_epoch_ms": 1789580674808.02,
+ "menu": [
+  {
+   "t": 55.18,
+   "button": "START",
+   "game_has_focus": false
+  },
+  {
+   "t": 60.16,
+   "button": "A",
+   "game_has_focus": true
+  },
+  {
+   "t": 65.18,
+   "button": "A",
+   "game_has_focus": true
+  },
+  {
+   "t": 70.17,
+   "button": "START",
+   "game_has_focus": true
+  },
+  {
+   "t": 75.19,
+   "button": "A",
+   "game_has_focus": true
+  },
+  {
+   "t": 80.16,
+   "button": "A",
+   "game_has_focus": true
+  },
+  {
+   "t": 85.19,
+   "button": "A",
+   "game_has_focus": true
+  },
+  {
+   "t": 90.17,
+   "button": "A",
+   "game_has_focus": true
+  }
+ ],
+ "events": [
+  {
+   "label": "idle",
+   "x": 0,
+   "y": 0,
+   "start_ms": 1789580787031.4744,
+   "end_ms": 1789580791032.2542,
+   "game_has_focus": true
+  },
+  {
+   "label": "right",
+   "x": 1.0,
+   "y": 0,
+   "start_ms": 1789580791032.2542,
+   "end_ms": 1789580792233.0808,
+   "game_has_focus": true
+  },
+  {
+   "label": "idle",
+   "x": 0,
+   "y": 0,
+   "start_ms": 1789580792233.0808,
+   "end_ms": 1789580795233.8462,
+   "game_has_focus": true
+  },
+  {
+   "label": "left",
+   "x": -1.0,
+   "y": 0,
+   "start_ms": 1789580795233.8462,
+   "end_ms": 1789580796434.5884,
+   "game_has_focus": true
+  },
+  {
+   "label": "idle",
+   "x": 0,
+   "y": 0,
+   "start_ms": 1789580796434.5884,
+   "end_ms": 1789580799436.174,
+   "game_has_focus": true
+  },
+  {
+   "label": "up",
+   "x": 0,
+   "y": 1.0,
+   "start_ms": 1789580799436.174,
+   "end_ms": 1789580800437.4773,
+   "game_has_focus": true
+  },
+  {
+   "label": "idle",
+   "x": 0,
+   "y": 0,
+   "start_ms": 1789580800437.4773,
+   "end_ms": 1789580803439.0188,
+   "game_has_focus": true
+  },
+  {
+   "label": "down",
+   "x": 0,
+   "y": -1.0,
+   "start_ms": 1789580803439.0188,
+   "end_ms": 1789580804440.3677,
+   "game_has_focus": true
+  },
+  {
+   "label": "idle",
+   "x": 0,
+   "y": 0,
+   "start_ms": 1789580804440.3677,
+   "end_ms": 1789580807441.773,
+   "game_has_focus": true
+  },
+  {
+   "label": "right",
+   "x": 1.0,
+   "y": 0,
+   "start_ms": 1789580807441.773,
+   "end_ms": 1789580808642.391,
+   "game_has_focus": true
+  },
+  {
+   "label": "idle",
+   "x": 0,
+   "y": 0,
+   "start_ms": 1789580808642.391,
+   "end_ms": 1789580811644.2847,
+   "game_has_focus": true
+  },
+  {
+   "label": "left",
+   "x": -1.0,
+   "y": 0,
+   "start_ms": 1789580811644.2847,
+   "end_ms": 1789580812845.8325,
+   "game_has_focus": true
+  },
+  {
+   "label": "idle",
+   "x": 0,
+   "y": 0,
+   "start_ms": 1789580812845.8325,
+   "end_ms": 1789580816846.867,
+   "game_has_focus": true
+  }
+ ],
+ "notes": [],
+ "closed_epoch_ms": 1789580818042.524
+}

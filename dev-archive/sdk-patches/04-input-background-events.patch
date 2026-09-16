@@ -1,0 +1,29 @@
+diff --git a/src/input/sdl/sdl_input_driver.cpp b/src/input/sdl/sdl_input_driver.cpp
+index c7c440d..965f1b5 100644
+--- a/src/input/sdl/sdl_input_driver.cpp
++++ b/src/input/sdl/sdl_input_driver.cpp
+@@ -23,6 +23,13 @@
+ REXCVAR_DEFINE_STRING(hid_mappings_file, "gamecontrollerdb.txt", "Input",
+                       "Path to SDL gamecontroller mappings file");
+ 
++// Off by default, so upstream behaviour is unchanged. SDL ignores gamepad input while the
++// window is not focused; enabling this lets automated tools, streaming and remote play drive
++// the game from a background window. Must be applied before the gamepad subsystem starts.
++REXCVAR_DEFINE_BOOL(input_background_events, false, "Input",
++                    "Accept gamepad input while the game window is not focused")
++    .lifecycle(rex::cvar::Lifecycle::kRequiresRestart);
++
+ namespace rex::input::sdl {
+ 
+ namespace {
+@@ -89,6 +96,10 @@ void SDLInputDriver::OnWindowAvailable(rex::ui::Window* window) {
+           this);
+ 
+       // Initialize game controller subsystem
++      if (REXCVAR_GET(input_background_events)) {
++        SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
++        REXLOG_INFO("SDL: gamepad input accepted while unfocused (input_background_events)");
++      }
+       if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
+         REXLOG_ERROR("SDL: Failed to init gamecontroller subsystem: {}", SDL_GetError());
+         return;

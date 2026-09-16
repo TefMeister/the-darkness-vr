@@ -16,6 +16,7 @@ It is our own preparation and research around it, with VR as the goal.
 | --- | --- |
 | [`engine-research/`](engine-research/) | [`ENGINE-DOSSIER.md`](engine-research/ENGINE-DOSSIER.md) — what is actually known about the game's files and engine, with confidence tags |
 | [`dev-archive/`](dev-archive/) | Working source, scripts and reverse-engineering evidence |
+| [`modding-notes/`](modding-notes/) | Dated field notes from each working session, including what did **not** work |
 
 ## Status
 
