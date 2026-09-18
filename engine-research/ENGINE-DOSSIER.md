@@ -92,6 +92,20 @@ on the disc — **none is Bink**:
   the in-game television channels (Popeye, Flash Gordon, music videos, old films).
 - No `Content_<lang>` folder contains a `Videos` folder.
 
+### 🔎 Open lead: a Starbreeze debug menu / free camera via the `.xrg` registry (from `/gr`, 2026-09-17)
+
+Starbreeze's **Riddick: Assault on Dark Athena** (PC, 2009) opens a console with **Ctrl+Alt+~**, accepts
+**`cmd(cyclecamera)`** and **`cmd(noclip)`**, and a **debug menu is enabled by editing `CubeWnd.xrg`**
+`[reported]`. The Darkness ships the same `.xrg` / `.xcr` registry family in `Content/Registry/` and
+`Content/Gui/`, and its own intro chain already lives in `CubeWnd.xcr` (above), so the same switch may
+exist here `[hypothesis]`. A free camera or `cyclecamera` would be directly useful to the VR work — it is
+the cheapest route to moving a camera independently of the player.
+
+⚠️ **Not yet checked against this game's own files** — under investigation 2026-09-18. Related: the
+`GameDebug` game class that `SvDebug.xcr` confirms exists.
+
+Source: `external-research/topics/2026-09-17-starbreeze-dark-athena-xrg-debug-menu-and-rexglue-landscape.md`.
+
 ## 4. The executable — packing was never the real blocker
 
 ⛔→✅ **The earlier "packed executable" blocker is resolved.** `[verified-live 2026-09-16]`

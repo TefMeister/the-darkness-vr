@@ -44,7 +44,7 @@ idle gaps, and the game was in gameplay (screenshot: hands, "Use to look around"
   1. **Grouping by the recording's frame field was invalid.** That field is `CommandProcessor::counter()`,
      which increments on every swap **and every vblank** (`GraphicsSystem::MarkVblank`), so it ran at ~136
      per second and split each real frame into many tiny groups. The "most common c4–c6 per group" then just
-     picked whichever object repeated. Result: flat. `[verified-static 2026-09-16]`
+     picked whichever object repeated. Result: flat. `[inferred-static 2026-09-16 — read from the SDK source]`
   2. **Averaging per 100 ms slice** showed a *directional hint* — in about five independent components a right
      turn and a left turn drove the value in opposite directions — but the change during stick moves was only
      ~1.2× the change during idle, because the car and scene move on their own. **This method also failed its
