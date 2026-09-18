@@ -1,0 +1,167 @@
+// VR stereo probe, step 1 of 2: READ-ONLY observation of the projection matrix.
+//
+// Dossier §6 says the per-eye injection point is the end of sub_82249580 ("apply
+// viewport"), which copies the current viewport's projection P into the render
+// context at RC+17088 and then scales column 0 by 2/width and column 1 by 2/height.
+// All of that was established statically and checked against a Python emulation.
+// NOTHING has been observed in the running game. This file is that observation, and
+// it changes nothing: it calls the original first and only reads afterwards.
+//
+// The three questions it answers, in order of what would hurt most if wrong:
+//   1. Does the function run a handful of times per frame, one per viewport apply?
+//   2. Is there a perspective P at all (p[11] == 1.0 and p[15] == 0.0), distinct
+//      from the orthographic HUD/menu ones?
+//   3. Does the perspective P stay put while the look stick turns the camera? The
+//      §6 model says the turn lives in M, not P. If P moves with the stick, the
+//      model is wrong and the injection point moves.
+//
+// Why a weak-symbol hook and not [[midasm_hook]]: the generated code defines every
+// guest function as a weak alias of __imp__<name> precisely so a strong definition
+// can replace it, and all nine call sites call sub_82249580 rather than __imp__.
+// midasm_hook passes only named registers -- no ctx, no base -- so it cannot read
+// guest memory, which is the whole job here. It would also force a codegen re-run.
+
+// ---------------------------------------------------------------------------
+// Step 2, added after step 1 passed: OPTIONAL per-eye shift, off unless asked for.
+//
+// Step 1 established, live, that the two projections applied per frame are
+// bit-identical whether the look stick is held hard over or not, while the picture
+// plainly changes. So the camera turn lives in the view matrix M and P is fixed --
+// which is what the injection point depends on.
+//
+// The shift is P' = T(e) * P with T(e) = identity whose translation row is (e,0,0,1).
+// In this engine's row-vector convention that is v*M*T(e)*P = (v*M + e_x)*P: the eye
+// moves sideways in VIEW space, which is exactly one eye of a stereo pair. Because
+// rows 0..2 of T are identity, the whole operation is "add e * row0 to row3", four
+// multiply-adds, and it is applied AFTER the original has written and scaled P.
+//
+// Controlled by environment variables so no rebuild is needed to change the test:
+//   DK_STEREO_EYE     eye offset in view-space units (default 0 = observe only)
+//   DK_STEREO_TARGET  which viewport to shift: "near" (the one with the closer near
+//                     plane), "far", or "all" (default "near")
+// ---------------------------------------------------------------------------
+
+#include "darknessrecomp_pch.h"
+
+#include <rex/hook.h>
+
+#include <cstdlib>
+#include <cstring>
+
+DECLARE_REX_FUNC(sub_82249580);
+
+namespace {
+
+// Render context, confirmed inside sub_82249580 itself:
+// lis r11,-32089; addi r31,r11,-25856  ->  0x82A69B00.
+constexpr uint32_t kRenderContext = 0x82A69B00;
+constexpr uint32_t kProjection = kRenderContext + 17088;  // 16 floats
+constexpr int kMatrixFloats = 16;
+
+// The function runs a few times per frame and logging goes through a lock on the
+// render thread, so only distinct matrices are printed. The repeat counter keeps
+// the "how often was each one applied" information that filtering would lose.
+float g_last[kMatrixFloats];
+bool g_have_last = false;
+uint32_t g_repeats = 0;
+uint64_t g_calls = 0;
+
+inline float LoadGuestFloat(uint8_t* base, uint32_t guest_address) {
+  const uint32_t bits = REX_LOAD_U32(guest_address);
+  float value;
+  std::memcpy(&value, &bits, sizeof(value));
+  return value;
+}
+
+inline void StoreGuestFloat(uint8_t* base, uint32_t guest_address, float value) {
+  uint32_t bits;
+  std::memcpy(&bits, &value, sizeof(bits));
+  REX_STORE_U32(guest_address, bits);
+}
+
+// Read once: getenv on every viewport apply would be silly, and the test never
+// changes the offset mid-run.
+struct StereoSettings {
+  float eye = 0.0f;
+  enum Target { kNear, kFar, kAll } target = kNear;
+};
+
+const StereoSettings& Stereo() {
+  static const StereoSettings s = [] {
+    StereoSettings out;
+    if (const char* e = std::getenv("DK_STEREO_EYE")) {
+      out.eye = static_cast<float>(std::atof(e));
+    }
+    if (const char* t = std::getenv("DK_STEREO_TARGET")) {
+      if (std::strcmp(t, "far") == 0) {
+        out.target = StereoSettings::kFar;
+      } else if (std::strcmp(t, "all") == 0) {
+        out.target = StereoSettings::kAll;
+      }
+    }
+    REXGPU_INFO("[VP] stereo eye offset = {:.3f}, target = {}", out.eye,
+                out.target == StereoSettings::kNear  ? "near"
+                : out.target == StereoSettings::kFar ? "far"
+                                                     : "all");
+    return out;
+  }();
+  return s;
+}
+
+}  // namespace
+
+REX_HOOK_RAW(sub_82249580) {
+  // The original, unchanged and first. Everything below is observation.
+  __imp__sub_82249580(ctx, base);
+
+  float p[kMatrixFloats];
+  for (int i = 0; i < kMatrixFloats; ++i) {
+    p[i] = LoadGuestFloat(base, kProjection + static_cast<uint32_t>(i) * 4u);
+  }
+
+  ++g_calls;
+
+  // The two viewports applied per frame during gameplay are told apart by their near
+  // plane: p[14] is -Q*zn, about -1.80 for one and -4.01 for the other, and both are
+  // rock steady [verified-live 2026-09-18]. Which of the two actually draws the world
+  // is the open question this shift answers.
+  const StereoSettings& stereo = Stereo();
+  if (stereo.eye != 0.0f) {
+    const bool is_near_plane_viewport = (p[14] > -3.0f);
+    const bool shift_this_one =
+        stereo.target == StereoSettings::kAll ||
+        (stereo.target == StereoSettings::kNear && is_near_plane_viewport) ||
+        (stereo.target == StereoSettings::kFar && !is_near_plane_viewport);
+
+    if (shift_this_one) {
+      // P' = T(e) * P: rows 0..2 of T are identity, so only row 3 changes, by
+      // e * row0. Write it back and keep reporting the SHIFTED matrix, so the log
+      // shows what the game actually used.
+      for (int i = 0; i < 4; ++i) {
+        p[12 + i] += stereo.eye * p[i];
+        StoreGuestFloat(base, kProjection + static_cast<uint32_t>(12 + i) * 4u, p[12 + i]);
+      }
+    }
+  }
+
+  if (g_have_last && std::memcmp(p, g_last, sizeof(p)) == 0) {
+    ++g_repeats;
+    return;
+  }
+
+  // p[11] is RC+17132 and p[15] is RC+17148 -- the perspective test from §6.
+  const bool perspective = (p[11] == 1.0f && p[15] == 0.0f);
+
+  REXGPU_INFO(
+      "[VP] {} call={} prevx{} | {: .5f} {: .5f} {: .5f} {: .5f} | {: .5f} {: .5f} {: .5f} {: .5f} "
+      "| {: .5f} {: .5f} {: .5f} {: .5f} | {: .5f} {: .5f} {: .5f} {: .5f}",
+      perspective ? "PERSP" : "ortho", g_calls, g_repeats,
+      p[0], p[1], p[2], p[3],
+      p[4], p[5], p[6], p[7],
+      p[8], p[9], p[10], p[11],
+      p[12], p[13], p[14], p[15]);
+
+  std::memcpy(g_last, p, sizeof(p));
+  g_have_last = true;
+  g_repeats = 0;
+}

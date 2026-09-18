@@ -479,9 +479,48 @@ gives exactly **P((v·M) + e)**, error 2e-6 `[verified-numerically, n=1 case on 
   (checked for `vmrghw`, `vmsum*`, `dp_ps` against the generated C++) and that `vupkd3d128` yields w = 1. The exact c7 match
   supports it, but **nothing here has run in the game yet.**
 
-**Live sanity check before building on it:** log `RC+17088..17151` and `RC+17132` at each return of `sub_82249580`. Expect a
-few distinct values per frame, and the perspective P should **not** change when the look stick turns — the camera turn
-lives in M, not P.
+### ✅✅ RUN LIVE 2026-09-18 — THE MODEL HOLDS AND THE SHIFT WORKS
+
+Everything above this line was static. It has now been observed in the running game with a read-only
+weak-symbol hook (`src/vr_viewport_probe.cpp`). Full write-up:
+`modding-notes/2026-09-18-the-stereo-injection-point-works.md`.
+
+**Two viewport applies per frame during gameplay, in exact 1:1 alternation**
+`[verified-live 2026-09-18, n=3 runs]`:
+
+| | P00 | vertical FOV | near | far | where |
+| --- | --- | --- | --- | --- | --- |
+| **A** | 1.07111 | 55.4° | **1.80** | ~5000 | gameplay; varies slightly between runs |
+| **B** | 0.75000 | 73.7° | **4.00** | ~2045 | gameplay **and** menus; never varies |
+
+⚠️ **CORRECTION to the perspective filter above.** The plan was to shift only viewports with
+`RC+17132 == 1.0 && RC+17148 == 0` so the orthographic HUD would be spared. **Every one of the 9,004
+matrices logged in the longest run was perspective — not a single orthographic viewport passes
+through this function** `[verified-live 2026-09-18, n=3 runs]`. That filter passes everything and
+protects nothing; the HUD does not come through here at all. **Tell the viewports apart by their near
+plane instead** (1.80 vs 4.00), which is what the probe does.
+
+✅ **P does not change when the camera turns** — with the look stick at **full** deflection, right
+then left, the set of applied matrices is bit-identical to a no-input control seconds earlier, while
+the picture plainly changed `[verified-live 2026-09-18, n=1 run, 2 turns + 1 control]`. ⚠️ A first
+attempt with a 0.55 deflection moved nothing at all and proved nothing; the control profile's
+"look speed ramps" note is the reason. **So the turn lives in M, not P, exactly as assumed.**
+
+✅ **The shift itself works.** `P' = T(e)·P` reduces to "add e × row0 to row3". With
+`DK_STEREO_EYE=0.5` applied to viewport A during gameplay: `row3[0]/P00 = 0.50000` exactly, over 600
+applications with **no drift** (checked, because a compounding offset looks correct for one second
+and then destroys the picture), viewport B bit-identical to the control, and the game rendering
+normally `[verified-live 2026-09-18, n=1 run]`. At deliberately absurd offsets (3 and 50) the 3D
+content distorts violently **while the 2D overlay stays exactly put** `[verified-live, n=2]` — the
+clearest demonstration that the hook reaches 3D geometry and nothing else.
+
+⚠️ **Still open:** which viewport the player actually looks through is not confirmed by eye (A is
+very probably it `[hypothesis]`); no left/right pair has been produced; the right scale for `e` in
+this engine's units is unknown; nothing has been seen in a headset.
+
+**Original static plan, kept for the record:** log `RC+17088..17151` and `RC+17132` at each return of
+`sub_82249580`. Expect a few distinct values per frame, and the perspective P should **not** change
+when the look stick turns — the camera turn lives in M, not P.
 
 ### ⚠️ The design choice this exposes — decide it deliberately, it is the foundation
 
