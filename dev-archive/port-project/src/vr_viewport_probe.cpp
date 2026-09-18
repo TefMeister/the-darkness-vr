@@ -41,6 +41,7 @@
 //                     plane), "far", or "all" (default "near")
 //   DK_CAM_EYE        eye offset applied to the CAMERA instead of to P (see below).
 //                     Use this OR DK_STEREO_EYE, not both.
+//   DK_FREEZE         1 = hold the world still on the second eye's frame (see below).
 //   DK_STEREO_PERIOD  frames per eye. 0 (default) = one fixed eye, the step-2 test.
 //                     N > 0 = alternate the SIGN of the offset every N frames: left
 //                     eye, then right eye. 1 is true alternate-eye rendering; a large
@@ -113,9 +114,29 @@ inline void StoreGuestFloat(uint8_t* base, uint32_t guest_address, float value) 
 // it, sees the true eye. sub_823F9B00(client, out) builds the client view into the
 // buffer in r4: rows at +0 forward, +16 right, +32 up, +48 position. Moving the
 // position along the camera's own right axis is the eye offset.
+// Step 5 (2026-09-18): hold the world still for the second eye.
+//
+// The two eyes of a pair must show the SAME instant, or the pair is not a pair - and
+// with the simulation running they are ~130 ms apart, which is also why no measurement
+// of the pair has been possible.
+//
+// The game uses no fixed time step: everything time-dependent reads one wall clock and
+// differences it itself. That clock is sub_828A7DB8 (QueryPerformanceCounter -> mftb),
+// the only engine-visible timer, 47 callers [measured 2026-09-18]. So pinning its
+// answer for the duration of the second eye's frame holds the whole simulation.
+//
+// Two deliberate choices:
+//  - ADVANCE BY ONE TICK (20 ns) per call rather than freezing hard, so any guest loop
+//    that polls the clock waiting for a timeout can still expire instead of hanging.
+//  - NEVER GO BACKWARDS. The pinned value starts from the latest real reading; a
+//    negative time step would throw geometry across the level.
+//
+// Not the SDK's guest_time_scalar: its vblank worker reads the same scaled clock, so
+// slowing guest time also stops vblanks and the swap queue never drains.
 struct StereoSettings {
   float eye = 0.0f;
   float cam_eye = 0.0f;
+  bool freeze = false;
   int period = 0;  // frames per eye; 0 = fixed eye
   enum Target { kNear, kFar, kAll } target = kNear;
 };
@@ -128,6 +149,12 @@ float g_eye_sign = 1.0f;
 // really are per frame, since assuming "one" was wrong once already.
 uint32_t g_applies_this_frame = 0;
 uint32_t g_applies_histogram[8] = {};
+// Guest clock pinning, for the second eye of each pair.
+uint64_t g_last_tick = 0;
+bool g_pin_clock = false;
+uint64_t g_pinned_frames = 0;
+uint64_t g_clock_calls = 0, g_clock_pinned = 0;
+double g_max_hold_ms = 0.0;   // largest gap between the real clock and the value handed back
 
 const StereoSettings& Stereo() {
   static const StereoSettings s = [] {
@@ -137,6 +164,9 @@ const StereoSettings& Stereo() {
     }
     if (const char* c = std::getenv("DK_CAM_EYE")) {
       out.cam_eye = static_cast<float>(std::atof(c));
+    }
+    if (const char* f = std::getenv("DK_FREEZE")) {
+      out.freeze = (f[0] == '1');
     }
     if (const char* n = std::getenv("DK_STEREO_PERIOD")) {
       out.period = std::atoi(n);
@@ -148,8 +178,8 @@ const StereoSettings& Stereo() {
         out.target = StereoSettings::kAll;
       }
     }
-    REXGPU_INFO("[VP] P-offset = {:.3f}, CAMERA-offset = {:.3f}, period = {}, target = {}",
-                out.eye, out.cam_eye, out.period,
+    REXGPU_INFO("[VP] P-offset = {:.3f}, CAMERA-offset = {:.3f}, period = {}, freeze = {}, target = {}",
+                out.eye, out.cam_eye, out.period, out.freeze ? 1 : 0,
                 out.target == StereoSettings::kNear  ? "near"
                 : out.target == StereoSettings::kFar ? "far"
                                                      : "all");
@@ -245,6 +275,25 @@ REX_HOOK_RAW(sub_82867620) {
     }
   }
 
+  // The swap hook runs at the END of a frame, so g_frames is now the index of the frame
+  // about to be drawn. With period 1 the pair is (even, odd): the odd frame is the second
+  // eye and must see the same instant as the even one.
+  if (stereo.freeze && stereo.period > 0) {
+    const bool second_eye = ((g_frames / static_cast<uint64_t>(stereo.period)) & 1u) != 0u;
+    if (second_eye != g_pin_clock) {
+      g_pin_clock = second_eye;
+      if (second_eye) {
+        ++g_pinned_frames;
+      }
+    }
+  }
+
+  if ((g_frames % 300u) == 0u) {
+    REXGPU_INFO("[VP] FREEZE frames={} pinned_frames={} clock_calls={} pinned_calls={} max_hold={:.1f}ms",
+                g_frames, g_pinned_frames, g_clock_calls, g_clock_pinned, g_max_hold_ms);
+    g_max_hold_ms = 0.0;
+  }
+
   if ((g_frames % 600u) == 0u) {
     REXGPU_INFO("[VP] frames={} near-viewport applies per frame: 0:{} 1:{} 2:{} 3:{} 4:{} 5:{} 6:{} 7+:{}",
                 g_frames, g_applies_histogram[0], g_applies_histogram[1], g_applies_histogram[2],
@@ -291,4 +340,43 @@ REX_HOOK_RAW(sub_823F9B00) {
     REXGPU_INFO("[VP] camera view: right=({:.4f} {:.4f} {:.4f}) |right|={:.4f} pos=({:.2f} {:.2f} {:.2f})",
                 right[0], right[1], right[2], len, pos[0], pos[1], pos[2]);
   }
+}
+
+// The engine's one wall clock. Pinned while the second eye of a pair is being drawn, so
+// both eyes see the same instant. See the StereoSettings comment for why it advances by
+// a single tick rather than freezing dead.
+DECLARE_REX_FUNC(sub_828A7DB8);
+
+REX_HOOK_RAW(sub_828A7DB8) {
+  const uint32_t out = ctx.r3.u32;
+
+  __imp__sub_828A7DB8(ctx, base);
+
+  if (out == 0u) {
+    return;
+  }
+
+  const uint64_t real = (static_cast<uint64_t>(REX_LOAD_U32(out)) << 32) |
+                        static_cast<uint64_t>(REX_LOAD_U32(out + 4u));
+
+  ++g_clock_calls;
+
+  if (!g_pin_clock) {
+    // Free-running: follow the real clock, and remember where we are.
+    if (real > g_last_tick) {
+      g_last_tick = real;
+    }
+    return;
+  }
+
+  // Pinned: hand back the held value, nudged one 20 ns tick so a polling loop can finish.
+  // The guest tick is the console's real 50 MHz, so one tick is 20 ns.
+  ++g_clock_pinned;
+  const double hold_ms = (real > g_last_tick) ? (real - g_last_tick) / 50000.0 : 0.0;
+  if (hold_ms > g_max_hold_ms) {
+    g_max_hold_ms = hold_ms;
+  }
+  ++g_last_tick;
+  REX_STORE_U32(out, static_cast<uint32_t>(g_last_tick >> 32));
+  REX_STORE_U32(out + 4u, static_cast<uint32_t>(g_last_tick & 0xFFFFFFFFu));
 }

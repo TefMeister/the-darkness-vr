@@ -702,6 +702,128 @@ the stereo split to the P injection.
 ends up inside the scenery `[verified-live 2026-09-18, n=1]`. So `sub_823F9B00`'s output does drive the
 render matrices, which makes this function the place for both the eye offset and, later, head tracking.
 
+### 🔓 THE EXECUTABLE UNPACKS IN 80 LINES — every guest address is now readable (2026-09-18)
+
+`default.xex` is **encrypted but not LZX-compressed**, so it decrypts with plain Python: retail XEX2
+key, AES-ECB unwrap of the file key, AES-CBC the body, copy the two "basic" blocks. The result is a
+real PE image at `ImageBase 0x82000000`, verified by reproducing this dossier's own `.rdata` viewport
+defaults exactly `[verified-numerically 2026-09-18]`. **45,101 strings are readable** and every
+`lis`/`addi` pair resolves to a real constant. The engine names itself: Starbreeze's **"XReality"**
+(`CXRealityApp`, `CSystemXenon`).
+
+Tools in `dev-archive/tools/`: `xex_unpack.py`, `img.py` (VA to file offset; ⚠️ the sections are
+**not** flat — `.text` VA 0x820C0000 sits at file offset 0xBE400), `idx.py` (21,414-function index),
+`callers.py`, `fn.py` (annotated disassembly with constants read out), `xref.py`, `g.py`, `xcr.py`
+(reads the shipped `.xcr` registries). The large derived indexes live in the private `staging` repo.
+
+### ⏱️ THE GUEST CLOCK, FRAME PACING, AND HOLDING THE WORLD STILL (2026-09-18)
+
+**There is no fixed time step.** Everything time-dependent reads one wall clock and differences it
+itself: `sub_820C86A8` ("now, in seconds", 37 callers) then **`sub_828A7DB8`** =
+`QueryPerformanceCounter` then `mftb` — **the only engine-visible timer, 47 callers**
+`[measured 2026-09-18]`. In ReXGlue that is `rex::chrono::Clock::QueryGuestTickCount()`, pinned to the
+console's real **50 MHz**, so one tick is 20 ns.
+
+✅ **So the world is held still by hooking that one function** — the same weak-symbol mechanism used
+for the viewport. Built and running:
+
+- The pin is switched on for the **second eye's frame**, from the existing `sub_82867620` swap hook.
+- It **advances by one tick per call rather than freezing dead**, so a guest loop polling for a
+  timeout can still expire instead of hanging.
+- It **never goes backwards** — the held value starts from the latest real reading. A negative step
+  would throw geometry across the level.
+- ✅ **Verified engaging:** exactly half of all frames pinned (900 of 1800, 1050 of 2100, 1350 of
+  2700), with the clock held back by up to **~82 ms**, about one frame, on each pinned frame
+  `[verified-live 2026-09-18, n=1 run]`. ⚠️ That the **clock** is held is measured; that the **world
+  visibly holds still** is inferred from it being the only engine timer, and is not yet separately
+  confirmed.
+- ⚠️ The engine polls it **~40,000 times per frame** (72.7 M calls across 1,800 frames), so the hook
+  sits on a hot path. No stutter was observed, but it is worth knowing.
+
+❌ **Do NOT use the SDK's `Clock::set_guest_time_scalar()`** — the vblank worker reads the same scaled
+clock, so slowing guest time also stops vblanks and the swap queue never drains. It cannot be set to
+0 either (`10.0 / scalar`). There is no freeze or step-on-command API in the SDK clock.
+
+**What a pinned clock costs** `[inferred-static 2026-09-18]`: animation, physics and camera stop
+(wanted); input is still polled, but time-based ramps advance at half rate, so the look-speed ramp
+will feel different; **audio is the likeliest visible casualty**, since engine-side sound scheduling
+reads the same clock; streaming budgets see zero elapsed.
+
+**The 30 fps lock is real, named, and currently not biting.** `sub_8223E268` (the game's D3D device
+create) sets `D3DPRESENT_PARAMETERS.PresentationInterval` to **`D3DPRESENT_INTERVAL_TWO`** when the
+vsync bit (0x80000000 of `renderer+308`) is on — from config key **`VID_VSYNC`, which defaults to 1
+when absent**, or the console command `r_vsync`. **But `darknessrecomp.toml` already sets
+`vsync = false`**, which makes the SDK's vblank worker run at `guest_tick_frequency/1000` ≈ **1,000
+vblanks a second**, a ~500 fps ceiling. **So the dev PC's ~15 fps is the dev PC, and there is no cap
+to raise right now.** If one ever appears, cheapest first: keep `vsync = false`; or
+`video_mode_refresh_rate = 120` with `vsync = true`; or one line in the swap hook we already have
+(`REX_STORE_U32(ctx.r3.u32 + 13572, 1)`, whose `r3` *is* the device); or `VID_VSYNC = 0` guest-side.
+
+**Byproduct:** the simulation tick is **30 Hz**, and the registry's `SPEED_*` values are per tick
+`[inferred-static 2026-09-18]`.
+
+### 📏 ONE WORLD UNIT IS ABOUT ONE INCH — half an IPD is 1.26 units (2026-09-18)
+
+`[inferred-static 2026-09-18]`, honest band 2.5–3.2 cm per unit. **So the eye offset should be about
+1.25 units**, roughly twice the 0.6 used in the first experiments.
+
+Seventeen shipped constants from `Content/Registry/Sv.xcr` only make sense at that scale
+`[measured 2026-09-18]`: `CAMERA_STAND_HEAD_OFFSET = 0,0,58`, `CAMERA_CROUCH_HEAD_OFFSET = 0,0,50`,
+`AI_HEIGHT = 56`, `AI_BASESIZE = 24` (a 61 cm navmesh footprint), `AI_STEP_HEIGHT = 14` (36 cm),
+`PHYS_STEPSIZE = 23.5`, `AI_RUN_STEPLENGTH = 64` (a 1.63 m stride), `AI_MELEE_MAXRANGE = 50` (1.27 m),
+`AI_SIGHTRANGE = 750` (19 m). The live cross-check holds: the measured 17.5 units to the car's seat
+backs is **44 cm**, right for sitting behind a front seat, and viewport A's 1.80 near plane is
+**4.6 cm** — what you would choose to just clear the hands. **There is no conversion constant anywhere
+in the binary** — no 0.0254, no metres, no physics middleware.
+
+⚠️ **Tell Tefa before the first headset test:** at true separation the hands and gun sit some 10–20 cm
+from the eye and **will be hard to fuse**. That is the known VR first-person-arms problem, not a bug;
+the fix is to push the arm and weapon model out, or give it a smaller separation of its own.
+
+**To turn this into a measurement:** stand in a doorway, step to the far jamb, and read the two
+positions from `client+2032` row 3. A standard interior door is 2.03 m by 0.81 m.
+
+### 🎞️ THE FOUR VIEWPORTS, DECODED — and V and B are both already cleared (2026-09-18)
+
+Inverting the builder `sub_8275EEF8` recovers the FOV numbers the designers actually typed, and they
+come out **round**, which is the check that the inversion is right `[measured 2026-09-18, logs
+040-050]`:
+
+| | P00 | near | far | FOV as authored | what it is |
+| --- | --- | --- | --- | --- | --- |
+| **A** | 1.07111 | 1.80 | 5002 | **70.0°** | the player's view — the only tuned near plane |
+| **A2** | 1.07371 | 0.80 then 2.10 | ~2045 | ≈69.9° | the same camera in an earlier scene, not a second pass |
+| **V** | 0.68725 | 4.00 | 2045 | **95.0°** | differs from the defaults in FOV alone |
+| **B** | 0.75000 | 4.00 | 2045 | **90.0°** | **exactly the constructor defaults** — nobody configured it |
+
+All four are 16:9, so none is a cube face or a square shadow map.
+
+✅ **V and B are both already cleared.** The run that shifted "far" selected by the larger near plane —
+and **V and B both have near 4.00, so that run shifted both** (B at ±0.45, V at ±0.412, A at 0.000
+throughout). Nothing moved: five pairs, match quality ≥ 0.99. So **neither carries anything that has
+to match the player's eye**, at least in the car `[verified-live 2026-09-18, n=5 pairs]`. Neither
+could be bound to a named render target statically; the best remaining guess is full-screen post or
+deferred-light work whose projection is irrelevant `[hypothesis]`.
+
+### 🩻 THE STENCIL DECISION — a winding flip, which the eye offset cannot touch (2026-09-18)
+
+`sub_825D31E8` (shadow-volume driver) calls `sub_825CBDB0` / `sub_825CC150`. The only runtime choice
+in either is a flag that swaps which face gets `INCR` and which gets `DECR`; every other stencil field
+is hard-coded. The flag is bit 0x80000000 of `[view_context + 2180]`, computed in `sub_825DF8D0` as
+`dot(row1, cross(row0, v)) < 0` — **a handedness test of the view basis, using the rotation rows
+only** `[inferred-static 2026-09-18]`. A pure sideways translation leaves the basis untouched, so the
+flag is identical in both eyes. There is no near-plane capping either: extrusion happens in the
+**vertex shader, in model space**, by a fixed per-light distance, with no CPU per-caster test.
+
+⚠️ **Which is a real constraint on the camera route: add the offset to the POSITION ROW ONLY.** If a
+hook ever leaves the basis non-orthonormal, that handedness flag flips and **every stencil shadow in
+the frame inverts**. (`sub_823FAD28` re-orthogonalises after copying the player camera, which says the
+engine expects a clean basis.)
+
+✅ **And it narrows the lighting defect:** with z-pass/z-fail and near-plane capping both ruled out,
+**`sub_825C3918`'s per-light scissor rectangles are the only camera-dependent CPU decision left in
+the lighting path.**
+
 ### ⭐⭐ THE EYE OFFSET MOVED OUT OF P AND INTO THE CAMERA (2026-09-18)
 
 **Putting the offset in P is geometrically exact but invisible to the host.** Only `sub_82248A78`
