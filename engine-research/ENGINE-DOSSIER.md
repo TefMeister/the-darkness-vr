@@ -121,20 +121,50 @@ its own four movement actions and two look axes: a real one, not a stub.**
 ⚠️ **The Riddick *console* half is NOT confirmed here** — no `console` string, no Ctrl+Alt+~ binding.
 Only the *menu* half.
 
-**🚧 THE GATE, AND IT IS SHUT SO FAR.** Every entrance is wrapped in `cheat(...)`, e.g.
-`GUI_BUTTON2,,cheat("cg_submenu('DevMenu')")` on MainMenu and `cheat("cg_rootmenu('GAMEMENU2')")` on
-the in-game pause menu. `cheat` is registered at 0x8236D860, handler 0x8236F300 — a vtable stub
-calling the front-end object's virtual at **vtable+260**. What that virtual tests is not yet traced
-`[inferred-static]`.
+**🚧 THE GATE: `cheat()` IS NOT LOCKED — IT IS EMPTY. NO CONFIG LINE CAN EVER OPEN IT.**
+`[verified-numerically 2026-09-18]`
 
-Beside `QUICKMAP`/`QUICKMENU` in the same string block sit **`SHOW_CONFIDENTIAL`** (0x82071134) and
-**`SHOW_DEVELOPMENT`** (0x82071148), read at front-end start in `sub_82367AA0` (0x82367DEC /
-0x82367DFC) through the same ENV lookup, results stored at object +1026 / +1027 `[inferred-static]`.
+Both doorways are wrapped in it — `GUI_BUTTON2,,cheat("cg_submenu('DevMenu')")` on MainMenu and
+`cheat("cg_rootmenu('GAMEMENU2')")` on the in-game pause menu. The chain is: name 0x82071894 →
+handler **0x8236F300** (exactly one xref in the whole executable, so it is `cheat`-only) → a vtable
+stub reading **+260** → front-end vtable 0x82071A10 (installed by constructor `sub_82367510`); the
+derived front end installs 0x82075E20. **Both** have slot +260 = **`sub_8276AA20`**, which in full is
+`mr r3,r4; b sub_821F8AD0` — and `sub_821F8AD0` is a **destructor**. `cheat()` takes the string,
+destroys it and returns. It tests nothing.
 
-❌ **Tried live, both keys set, and the menu did not open** `[verified-live 2026-09-18, n=1]`: from
-the main menu, `X` (`GUI_BUTTON2`) twice and `Space` as a fallback changed nothing. **So the two ENV
-keys alone are not the switch.** Until `cheat()`'s condition is known, record the free camera as
-*present in the data and not reachable*, never as available.
+The comparison is what settles it — every other GUI command's slot lands on a real front-end
+implementation, `cheat` alone lands on a shared destructor in a different module:
+
+| command | slot | implementation |
+| --- | --- | --- |
+| `cg_grabscreen` | +256 | `sub_8236D338` |
+| **`cheat`** | **+260** | **`sub_8276AA20`** ← the only outsider |
+| `cachecommand` | +264 | `sub_8236D420` |
+| `cg_backout` | +272 | `sub_8236D4F0` |
+| `cg_showdevtext` | +300 | `sub_8236D720` |
+
+**The retail build shipped the base class's default for that one virtual.** So there is no condition
+to satisfy: reaching the dev menu needs **code**, not configuration.
+
+❌ **`SHOW_DEVELOPMENT` is a dead flag.** A complete `.text` scan of every byte access at +1027 shows
+it is **written in three places and read nowhere** `[measured 2026-09-18]`; `cg_showdevtext` sets the
+same dead flag. `SHOW_CONFIDENTIAL` (+1026) is read exactly once, at 0x823A757C in `sub_823A73D0`,
+where it makes a GUI element named "Confidential Text" — **a cosmetic watermark**. Confirmed live:
+with both set, `X` twice and `Space` on the main menu changed nothing
+`[verified-live 2026-09-18, n=1]`.
+
+✅ **The gate is only those two doorways, though.** Everything *inside* is unwrapped: DevMenu's
+`Zones`, `Load Scriptlayer`, `Soakmode`, `Unlock all` and the `Milestone*` level jumps; GAMEMENU2's
+`Noclip`, `God-mode`, `FreezeCam On`, `cg_rootmenu('INGAME_DEBUG')`.
+
+**⭐ The way in, and it is surgical: hook `sub_8236F300`** — one xref, `cheat`-only — with the same
+weak-symbol `REX_HOOK_RAW` route used for the stereo probe, forwarding to whichever front-end virtual
+executes a command string immediately. Reading `sub_8236D420` (+264) and `sub_8236D570` (+276) is the
+small static step that names it. ⚠️ **Do NOT hook `sub_8276AA20`** — it is shared, fills two vtable
+slots and has four code references.
+
+⚠️ **Until that hook exists, record the free camera as *present in the data and not reachable*,**
+never as available.
 
 Source: `external-research/topics/2026-09-17-starbreeze-dark-athena-xrg-debug-menu-and-rexglue-landscape.md`;
 live results in `modding-notes/2026-09-18-quick-start-switches-guest-asserts-and-the-dev-menu.md`.
@@ -154,11 +184,58 @@ Three corrections to the `QUICKMAP` / `QUICKMENU` entry above, all live.
    a guest `DbgBreakPoint` now logs and continues (`sdk-patches/06-…`), because that is what retail
    hardware does with no debugger attached.
 3. **Past the assert it stops on a missing font**, not on the level:
-   `d:\content\fonts\text.xfc` → `XamShowDirtyDiscErrorUI` `[verified-live 2026-09-18, n=1]`.
-   `NY1_Tunnel` is a real map (218 `.XDF` files, `NY1_*` and `NY2_*`), so the name is fine. There is
-   **no `Fonts/` folder and no `*.xfc`** anywhere in the 498-file extraction — yet the front-end
-   renders text perfectly, so the fonts are reaching the game some other way (most likely packed
-   inside the `.XDF` archives). **Unresolved. `QUICKMAP` is not a usable shortcut yet.**
+   `d:\content\fonts\text.xfc` → `XamShowDirtyDiscErrorUI` `[verified-live 2026-09-18, n=2 —
+   `QUICKMAP=NY1_Tunnel` and `QUICKMENU=DevMenu` fail identically]`. `NY1_Tunnel` is a real map, so
+   the name is fine. **Every ENV quick-start route fails this way**, which rules out anything
+   level-specific.
+
+### ✅ The fonts are inside the `.XDF` archives, and the disc dump is byte-perfect (2026-09-18)
+
+Answered by parsing the XDVDFS directory of the image directly (game partition 0x0FD90000, root
+sector 14077) and diffing it against the extraction `[verified-numerically 2026-09-18]`:
+
+| | disc | extracted |
+| --- | --- | --- |
+| files | **498** | 498 (+2 of ours) |
+| bytes | **7,237,617,483** | 7,237,617,542 (+59 = our two `.cfg` files) |
+| on disc but missing | **0** | |
+| size mismatches | **0** | |
+
+The 7.8 GB image against 6.8 GB of files is the XGD2 video partition (~266 MB) plus filesystem
+padding. **Nothing is missing. There is no `Fonts/`, `Models/`, `Worlds/` or `Surfaces/` folder on
+the disc at all.**
+
+**The `.XDF` format, validated on 6 archives** `[measured 2026-09-18]`: `u32 0x101` version, `u32`
+name-blob length, NUL-separated lower-case source names, `u32` source count, 24-byte source records
+(name offset, first/last resource index, **file size**, FILETIME), `u32` resource count, 20-byte
+resource records (id, owning source, size, offset-within-source, arena offset), then the packed
+payload. The size field is trustworthy: **of every referenced file that does exist on disc, 278 of
+278 matched their declared size exactly** `[verified-numerically, n=278]`.
+
+Across all XDFs, 1,512 distinct names are referenced, and the classes with **zero** presence on disc
+are whole file types folded into the payloads at build time with their original path kept only as
+provenance: `.xmd` models (9,162 refs), `.xsa` (3,100), `.xah` (439), `.xw` worlds (276), **`.xfc`
+fonts (185)**, most `.xtc`. `GUIPrecache.XDF` carries **11,313,452 bytes** of payload behind 33,559
+bytes of tables; `Content/Xdf/` totals ~2.9 GB. **`fonts\text.xfc` is resource 308, size 175,043,
+offset 82.**
+
+Third line of evidence, from our own logs: across all 49 run logs, **127 guest paths resolved and 12
+failed — and not one resolved path is a `.xfc` or `.xmd`.** What does resolve is
+`d:\content\xdf\guiprecache.xdf`, and in the failing runs it is never opened at all.
+
+**So the mechanism is** `[hypothesis]`, though it fits every observation: the ENV quick-start skips
+the front-end sequence that precaches the GUI; the font is therefore not in the arena; the resource
+manager falls back to opening the original source path; that path was never a real file; dirty disc.
+Likely the surviving `DbgBreakPoint` and the font failure are **the same event** — a "not precached"
+assertion.
+
+❌ **`QUICKMENU` does NOT sidestep it.** Predicted to, because the front end still runs; tried, and
+`QUICKMENU=DevMenu` failed at exactly the same font with the same dirty-disc error
+`[disproved 2026-09-18, n=1]`.
+
+⭐ **Therefore: prefer routes that keep the normal front end running** — the main menu's
+`CHECKPOINTS` selector, or a `campaignmap(...)` issued from inside a menu. **The ENV quick-start
+switches are a dead end until the precache question is solved.**
 
 ⭐ **Meanwhile the supported route exists and is untried:** the main menu offers
 `CONTINUE / NEW GAME / CHECKPOINTS / MULTIPLAYER / OPTIONS / EXTRA CONTENT`
@@ -469,6 +546,48 @@ inside it; call `__imp__sub_82249580(ctx, base)` first, then read the 16 floats 
 is `p[11] == 1.0 && p[15] == 0.0`. **Log only when P changes**, with a repeat counter: the function
 runs a few times per frame and unfiltered that is hundreds of lines a second through a spdlog lock
 on the render thread.
+
+### ⭐⭐ The debug camera is a full second camera, seeded from the player camera (2026-09-18)
+
+`[verified-numerically 2026-09-18]` for the layout, `[inferred-static]` for the substitution.
+
+Client vtable base **0x820807E0** (two constructors install it; it holds `sub_823FF1D0` at +32 and
+`sub_823FB188` at **+1236**, the exact slot `toggledebugcamera`'s stub reads).
+
+**State, offsets from the client object:**
+
+| offset | what |
+| --- | --- |
+| **+2032** | the live **player** camera matrix |
+| **+8816** | mode byte; code reads `(b>>1)&3` → 0 = off, **1 and 3 = active** (three states cycled, which is why the menu's "Off" calls the toggle twice) |
+| **+8880…+8943** | the **debug camera's own 4×4 matrix**, 16-byte rows: +8880 forward axis, +8896 right axis, +8912, **+8928 = position** |
+| +8944…+8964 | the six `dbgcam_*` inputs (one-line setters: `stfs f1,N(this); blr`) |
+| +8968 | movement speed |
+
+- **`sub_823FAD28` (set mode)** — when the mode leaves 0 it copies **64 bytes (4× `lvx128`/`stvx128`)
+  from `client+2032` into `client+8880`**, then re-orthogonalises. **The debug camera starts as a
+  copy of the player camera, in the same space and the same layout** — the strongest single piece of
+  evidence that the two are interchangeable.
+- **`sub_823FABC0` (per-frame update)** — textbook free-fly:
+  `pos += forward*(fwd-back)*speed*dt; pos += right*(left-right)*speed*dt; rotate(lookvel_x*dt, lookvel_y*dt)`.
+- **`sub_823F9B00` (client view build, vtable slot +428)** — calls `sub_82499C88(this, buf)` to fetch
+  the player camera from `+2032`, then immediately
+  `if ((client[8816] & 6) != 0) { m = client+8880; …rebuild basis… }`. **That branch is the
+  substitution point.**
+
+**Why it matters for VR** `[hypothesis]`: if that function's output reaches the render context's
+matrix stack, the debug camera moves the view **without moving the player, entirely inside M** —
+upstream of the `P` this section replaces at the end of `sub_82249580`. That makes it both a test
+instrument and a plausible 6DoF path: write the headset pose into `client+8880` rows 0–3 and leave
+the stereo split to the P injection.
+
+⚠️ **The last link is NOT proved** — nobody has traced `sub_823F9B00`'s output into the render
+context at 0x82A69B00. Two ways to settle it: statically, follow its output buffer to its consumer
+and check it reaches the matrix stack `sub_82248A78` reads when it writes c0–c7; or live, with the
+debug camera on and the P probe running — the picture should move while the player does not, and the
+perspective P should **not** change. If P *does* change, this section's model needs revisiting first.
+
+⚠️ And none of it is reachable yet: see §3, `cheat()` is an empty stub.
 
 ### Next concrete step — connects the look test to Seam B
 
