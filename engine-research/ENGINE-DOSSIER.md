@@ -698,11 +698,39 @@ upstream of the `P` this section replaces at the end of `sub_82249580`. That mak
 instrument and a plausible 6DoF path: write the headset pose into `client+8880` rows 0–3 and leave
 the stereo split to the P injection.
 
-⚠️ **The last link is NOT proved** — nobody has traced `sub_823F9B00`'s output into the render
-context at 0x82A69B00. Two ways to settle it: statically, follow its output buffer to its consumer
-and check it reaches the matrix stack `sub_82248A78` reads when it writes c0–c7; or live, with the
-debug camera on and the P probe running — the picture should move while the player does not, and the
-perspective P should **not** change. If P *does* change, this section's model needs revisiting first.
+✅ **The last link IS proved (2026-09-18).** At `DK_CAM_EYE=40` the camera plainly moves — the view
+ends up inside the scenery `[verified-live 2026-09-18, n=1]`. So `sub_823F9B00`'s output does drive the
+render matrices, which makes this function the place for both the eye offset and, later, head tracking.
+
+### ⭐⭐ THE EYE OFFSET MOVED OUT OF P AND INTO THE CAMERA (2026-09-18)
+
+**Putting the offset in P is geometrically exact but invisible to the host.** Only `sub_82248A78`
+(vertex constants) and the clip-plane path read the shifted P; **per-light scissor rectangles, culling
+and the world-space eye position given to the lighting shaders are all computed host-side from the
+unshifted viewport and camera** `[measured 2026-09-18]`. `sub_825C3918` builds each light's screen
+rectangle from sphere tangents with the eye at the view-space origin — the centre eye — so with
+geometry displaced 47–190 px a light or its shadow is cut in the wrong place, in opposite directions
+for +e and −e `[hypothesis]`. That is the red/dark heads.
+
+**So the offset now goes in the camera:** `REX_HOOK_RAW(sub_823F9B00)` adds `e × right` to the
+position row of the view buffer in `r4` (rows +0 forward, +16 right, +32 up, +48 position; the layout
+was a guess and the one-shot log confirms it — `|right| = 1.0000` exactly, plausible world position
+`[verified-live 2026-09-18, n=1]`). `DK_CAM_EYE` selects this route, `DK_STEREO_EYE` the old one, so
+they can be compared without a rebuild. **P is left for the projection alone**, which is also what
+OpenXR will want to replace wholesale per eye.
+
+- ✅ Real per-eye geometry: hands **133–134 px**, HUD **0 px**, six pairs at `DK_CAM_EYE=4`
+  `[verified-live 2026-09-18, n=6 pairs]`.
+- ✅ **The lighting defect did not reappear** — 21 eye-labelled frames, redness negative in both eyes,
+  nothing above +2, against +6.8 locked to the eye on the P route `[verified-live 2026-09-18, n=21]`.
+  ⚠️ **Not the same scene moment**, so suggestive, not settled; re-confirm once the world can be held
+  still. (The earlier "lighting is fine" was retracted for exactly this kind of gap.)
+- ⚠️ **Camera units ≠ P-offset units.** 0.6 in P gave 47–190 px; 0.6 at the camera gave nothing
+  measurable. 4 units ≈ a metre apart, 40 puts the camera through the scenery. The usable value is
+  under 1 and the world-unit question is still open.
+- 🚧 **Measuring the pair is BLOCKED until the world can be held still.** With the simulation running
+  the two eyes are ~130 ms apart in a moving car, so a disparity measurement cannot separate "the eye
+  moved" from "the car moved". Holding the world still is now a prerequisite, not a polish step.
 
 ⚠️ And none of it is reachable yet: see §3, `cheat()` is an empty stub.
 
