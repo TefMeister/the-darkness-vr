@@ -1,0 +1,39 @@
+diff --git a/src/kernel/xboxkrnl/xboxkrnl_debug.cpp b/src/kernel/xboxkrnl/xboxkrnl_debug.cpp
+index 670c446..3058c82 100644
+--- a/src/kernel/xboxkrnl/xboxkrnl_debug.cpp
++++ b/src/kernel/xboxkrnl/xboxkrnl_debug.cpp
+@@ -12,6 +12,8 @@
+ // Disable warnings about unused parameters for kernel functions
+ #pragma GCC diagnostic ignored "-Wunused-parameter"
+ 
++#include <cstdlib>
++
+ #include <rex/dbg.h>
+ #include <rex/kernel/xboxkrnl/private.h>
+ #include <rex/logging.h>
+@@ -25,8 +27,24 @@
+ namespace rex::kernel::xboxkrnl {
+ using namespace rex::system;
+ 
++// A guest DbgBreakPoint() is the game's own assertion, not a host fault. On retail
++// hardware with no debugger attached it is ignored and the title carries on; breaking
++// the host process here turns every surviving debug assert into a hard exit.
++//
++// The Darkness hits one immediately on its ENV quick-start path (QUICKMAP / QUICKMENU),
++// at guest 0x820DFC60 -> sub_828A7518, on a null field that the normal front-end route
++// fills in [verified-live 2026-09-18, n=3]. Logging and continuing matches console
++// behaviour and keeps the assert visible. Set REXGLUE_BREAK_ON_GUEST_ASSERT=1 in the
++// environment to get the old hard break back when you WANT to catch one in a debugger.
+ void DbgBreakPoint_entry() {
+-  rex::debug::Break();
++  static const bool break_on_assert = [] {
++    const char* v = std::getenv("REXGLUE_BREAK_ON_GUEST_ASSERT");
++    return v && v[0] == '1';
++  }();
++  REXKRNL_WARN("guest DbgBreakPoint() - debug assert in the title, continuing");
++  if (break_on_assert) {
++    rex::debug::Break();
++  }
+ }
+ 
+ // https://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
