@@ -46,11 +46,15 @@
 //                     window capture can see and a log line can label.
 //
 // Step 3, the pair (decision recorded in the dossier, 2026-09-18): stereo is made by
-// rendering the SAME world twice, one eye per guest frame, offset flipped here. A
-// "frame" is counted as one apply of the near-plane viewport, which happens exactly
-// once per frame in gameplay [verified-live 2026-09-18]. That is good enough while
-// N is large; at N = 1 the frame boundary must come from the swap instead, because
-// the other viewport may be applied before this one within a frame.
+// rendering the SAME world twice, one eye per guest frame, offset flipped per frame.
+//
+// A FRAME IS A SWAP, NOT A VIEWPORT APPLY. The first version counted applies of the
+// near-plane viewport, on the belief that it happens once per frame. It does not: the
+// interval histogram shows bursts of about three applies within a few milliseconds,
+// then a ~66 ms gap [measured 2026-09-18, n=1200 applies]. Flipping on applies
+// therefore changed eye in the middle of frames. The eye now flips only in the hook on
+// sub_82867620, the one guest function that calls VdSwap, so every draw of a frame
+// shares one eye by construction.
 // ---------------------------------------------------------------------------
 
 #include "darknessrecomp_pch.h"
@@ -99,9 +103,14 @@ struct StereoSettings {
   enum Target { kNear, kFar, kAll } target = kNear;
 };
 
-// Frames seen so far, counted by near-plane viewport applies, and the eye in force.
+// Frames seen so far, counted by guest swaps, and the eye in force for the frame now
+// being built. Both are touched only on the guest render thread.
 uint64_t g_frames = 0;
 float g_eye_sign = 1.0f;
+// Near-plane viewport applies since the last swap - kept to measure how many there
+// really are per frame, since assuming "one" was wrong once already.
+uint32_t g_applies_this_frame = 0;
+uint32_t g_applies_histogram[8] = {};
 
 const StereoSettings& Stereo() {
   static const StereoSettings s = [] {
@@ -150,15 +159,7 @@ REX_HOOK_RAW(sub_82249580) {
     const bool is_near_plane_viewport = (p[14] > -3.0f);
 
     if (is_near_plane_viewport) {
-      ++g_frames;
-      if (stereo.period > 0) {
-        const float sign = ((g_frames / static_cast<uint64_t>(stereo.period)) & 1u) ? -1.0f : 1.0f;
-        if (sign != g_eye_sign) {
-          g_eye_sign = sign;
-          // +e slides the scene right, which is what the LEFT eye sees.
-          REXGPU_INFO("[VP] EYE={} frame={}", sign > 0.0f ? "L" : "R", g_frames);
-        }
-      }
+      ++g_applies_this_frame;
     }
 
     const bool shift_this_one =
@@ -197,4 +198,36 @@ REX_HOOK_RAW(sub_82249580) {
   std::memcpy(g_last, p, sizeof(p));
   g_have_last = true;
   g_repeats = 0;
+}
+
+// The end of a guest frame. sub_82867620 is the only generated function that calls
+// VdSwap (three call sites reach it), so it is the frame boundary for everything the
+// game draws. The eye for the NEXT frame is chosen here, on the guest thread, which
+// also means swap number N on the GPU side carries the same parity with no
+// cross-thread signalling.
+DECLARE_REX_FUNC(sub_82867620);
+
+REX_HOOK_RAW(sub_82867620) {
+  __imp__sub_82867620(ctx, base);
+
+  ++g_frames;
+  ++g_applies_histogram[g_applies_this_frame < 7 ? g_applies_this_frame : 7];
+  g_applies_this_frame = 0;
+
+  const StereoSettings& stereo = Stereo();
+  if (stereo.eye != 0.0f && stereo.period > 0) {
+    const float sign = ((g_frames / static_cast<uint64_t>(stereo.period)) & 1u) ? -1.0f : 1.0f;
+    if (sign != g_eye_sign) {
+      g_eye_sign = sign;
+      // +e slides the scene right, which is what the LEFT eye sees.
+      REXGPU_INFO("[VP] EYE={} frame={}", sign > 0.0f ? "L" : "R", g_frames);
+    }
+  }
+
+  if ((g_frames % 600u) == 0u) {
+    REXGPU_INFO("[VP] frames={} near-viewport applies per frame: 0:{} 1:{} 2:{} 3:{} 4:{} 5:{} 6:{} 7+:{}",
+                g_frames, g_applies_histogram[0], g_applies_histogram[1], g_applies_histogram[2],
+                g_applies_histogram[3], g_applies_histogram[4], g_applies_histogram[5],
+                g_applies_histogram[6], g_applies_histogram[7]);
+  }
 }

@@ -559,9 +559,10 @@ frame parity at Seam A. This is "synced sequential" in UEVR's vocabulary. Depth 
   viewport selection, the untouched HUD — and its one new requirement (hold the world still on
   alternate frames) is a small, testable thing.
 
-**What it costs, stated plainly:** the pair rate is **half the guest frame rate**. The guest averages
-**29.4 fps** on the dev PC (mean 34.0 ms over 600 gameplay frames `[measured 2026-09-18]`), which looks
-like the console's 30 fps cap, so as things stand that is **~15 stereo pairs a second**. Head rotation
+**What it costs, stated plainly:** the pair rate is **half the guest frame rate**. On the dev PC the opening scene runs at about **15 real frames a second** (swap to swap ~66 ms
+`[measured 2026-09-18]` — an earlier "29.4 fps" counted viewport applies, not frames), so here that is
+**~7 pairs a second**. The dev PC is known to be slow and is not the judge: **what the home PC
+reaches, and whether the guest is capped at 30, is unmeasured.** Head rotation
 is smoothed by the OpenXR runtime's reprojection regardless, but world motion at 15 Hz will look
 choppy. **So raising the guest above 30 fps is now on the critical path**, not a nicety — and if it
 cannot be raised and 15 Hz proves unusable in the headset, that is the trigger for the depth fallback.
@@ -575,12 +576,32 @@ cannot be raised and 15 Hz proves unusable in the headset, that is the trigger f
   further right in the left eye. Evidence: `dev-archive/recon/2026-09-18-first-stereo-pair/`.
 - ✅ **Only viewport A matters.** Shifting viewport B alone moved **nothing** — interior, hands and
   HUD all 0 px at match quality ≥ 0.99 across five pairs `[verified-live 2026-09-18, n=5 pairs]`.
-  A draws the world **and** the first-person hands; B draws nothing visible here. So the frame
-  boundary can simply be "one apply of A", and the HUD needs no protection at this site.
-- ✅ **The shift does not disturb lighting.** A red tint that looked eye-specific in the first three
-  pairs is the chase's passing red light: across 50 labelled frames it appears in both eyes alike
-  (red heads in 11 of 27 L frames and 6 of 23 R frames, same extremes) `[measured 2026-09-18, n=50]`.
-  Recorded because the first three pairs all pointed the wrong way, and n=3 felt convincing.
+  A draws the world **and** the first-person hands; B draws nothing visible here (its 73.7° FOV,
+  near 4 / far 2045 would suit a light's shadow view `[hypothesis]`). The HUD needs no protection
+  at this site.
+- ⚠️ **CORRECTION, same day — a frame is a SWAP, not an apply of A.** This section first said the
+  frame boundary could be "one apply of A". **Wrong:** in gameplay A is applied **three times per
+  frame** (histogram over 2,400 frames: 847 frames with 3 applies, 99 with 2, menus 0)
+  `[measured 2026-09-18]`, in a burst a few ms wide, then a ~66 ms gap. Flipping on applies
+  therefore changed eye mid-frame. **The eye now flips only in a hook on `sub_82867620`, the one
+  guest function that calls `VdSwap`** (three call sites), so every draw of a frame shares one eye.
+- ✅ **With frame-true eyes the pair is repeatable:** interior **47 px**, hands **182–208 px**, HUD
+  **0 px** in 7 of 7 usable pairs `[verified-live 2026-09-18, n=7 pairs]`. From
+  `px = 2e·P00·640 / w`: seat backs ≈ 17.5 units away, hands ≈ 4 units. ⚠️ The measured sign came
+  out inverted against the hook's labels — consistently — which fits the window showing the frame
+  built one eye-span earlier (GPU queue + present) `[hypothesis]`. **Which grab is which eye cannot
+  be settled from outside the process; it is exact at Seam A**, one more reason the next step
+  lives there.
+- ❌ **RETRACTED: "the shift does not disturb lighting".** That was concluded from 50 frames whose
+  eye labels were scrambled by the mid-frame flipping, so the test could not have found the effect
+  `[disproved 2026-09-18]`. With frame-true labels, **the two front-seat heads render red-lit in one
+  eye and as dark silhouettes in the other, in lock-step with the eye for 12 consecutive
+  alternations** `[verified-live 2026-09-18, n=12 alternations]`; a fixed `+0.5` run shows the red
+  too, the unshifted control does not. So **something in the frame reads P and does not get a
+  consistent answer per eye** — a light, a projected texture, a clip plane, or one of the three
+  passes. **Open defect, cause unknown.** It does not change the decision (every geometry route has
+  to make the eyes consistent), but it is the first real cost of it, and the depth-reprojection
+  fallback would not have this class of problem.
 
 **The parity rule for Seam A** `[hypothesis]`: flip the eye at the **guest's `VdSwap` call**, on the
 guest thread, not at the viewport apply. The command processor executes swaps in order, so
