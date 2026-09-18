@@ -92,19 +92,78 @@ on the disc — **none is Bink**:
   the in-game television channels (Popeye, Flash Gordon, music videos, old films).
 - No `Content_<lang>` folder contains a `Videos` folder.
 
-### 🔎 Open lead: a Starbreeze debug menu / free camera via the `.xrg` registry (from `/gr`, 2026-09-17)
+### ⭐⭐ A developer menu AND a free camera are in the retail data — present, not yet reachable (2026-09-18)
 
-Starbreeze's **Riddick: Assault on Dark Athena** (PC, 2009) opens a console with **Ctrl+Alt+~**, accepts
-**`cmd(cyclecamera)`** and **`cmd(noclip)`**, and a **debug menu is enabled by editing `CubeWnd.xrg`**
-`[reported]`. The Darkness ships the same `.xrg` / `.xcr` registry family in `Content/Registry/` and
-`Content/Gui/`, and its own intro chain already lives in `CubeWnd.xcr` (above), so the same switch may
-exist here `[hypothesis]`. A free camera or `cyclecamera` would be directly useful to the VR work — it is
-the cheapest route to moving a camera independently of the player.
+A `/gr` lead (Riddick: Assault on Dark Athena enables a debug menu by editing `CubeWnd.xrg`,
+`[reported]`) checked out against this game's own files, with a passing positive control.
 
-⚠️ **Not yet checked against this game's own files** — under investigation 2026-09-18. Related: the
-`GameDebug` game class that `SvDebug.xcr` confirms exists.
+**In the compiled `Content/Gui/CubeWnd.xcr`** (`MOS DATAFILE2.0`, one `XCR_LE` + one `XCR_BE` copy,
+ASCII payload) `[measured 2026-09-18]`:
 
-Source: `external-research/topics/2026-09-17-starbreeze-dark-athena-xrg-debug-menu-and-rexglue-landscape.md`.
+```
+Z15FreezeCam On        cl_toggledebugcamera();pause(1)
+Z20Toggle DebugCamera2 cl_toggledebugcamera2()
+Z20Noclip              cmd_forced(noclip); cg_clearmenus()
+Z20God-mode            cmd_forced(godmode); cg_clearmenus()
+```
+
+Menus present: `DevMenu`, `ZoneMenu`, `GAMEMENU2`, `INGAME_DEBUG`, `INGAME_DEBUG2`, `AIDEBUG`,
+`INGAME_DEBUG_DARKLINGS`, `options_video_dev(2)`, `DemoMenu`, and `Milestone*` pages with direct
+`campaignmap("NY1_Chinatown")`-style level jumps.
+
+**In the executable**, one contiguous bindable-input-action table between `primary`/`jump`/`crouch`
+and `button0..5` `[measured 2026-09-18]`: `toggledebugcamera` (0x82080434), `toggledebugcamera2`,
+`dbgcam_moveforward`, `dbgcam_movebackward`, `dbgcam_moveleft`, `dbgcam_moveright`,
+`dbgcam_lookvelocity_x`, `dbgcam_lookvelocity_y`, `noclip`, `noclip2`, `godmode`, `cyclecamera`
+(0x8208078C) — plus `Noclip %s`, `Unable to switch to noclip.`, `NOCLIPPING`. **The free camera has
+its own four movement actions and two look axes: a real one, not a stub.**
+
+⚠️ **The Riddick *console* half is NOT confirmed here** — no `console` string, no Ctrl+Alt+~ binding.
+Only the *menu* half.
+
+**🚧 THE GATE, AND IT IS SHUT SO FAR.** Every entrance is wrapped in `cheat(...)`, e.g.
+`GUI_BUTTON2,,cheat("cg_submenu('DevMenu')")` on MainMenu and `cheat("cg_rootmenu('GAMEMENU2')")` on
+the in-game pause menu. `cheat` is registered at 0x8236D860, handler 0x8236F300 — a vtable stub
+calling the front-end object's virtual at **vtable+260**. What that virtual tests is not yet traced
+`[inferred-static]`.
+
+Beside `QUICKMAP`/`QUICKMENU` in the same string block sit **`SHOW_CONFIDENTIAL`** (0x82071134) and
+**`SHOW_DEVELOPMENT`** (0x82071148), read at front-end start in `sub_82367AA0` (0x82367DEC /
+0x82367DFC) through the same ENV lookup, results stored at object +1026 / +1027 `[inferred-static]`.
+
+❌ **Tried live, both keys set, and the menu did not open** `[verified-live 2026-09-18, n=1]`: from
+the main menu, `X` (`GUI_BUTTON2`) twice and `Space` as a fallback changed nothing. **So the two ENV
+keys alone are not the switch.** Until `cheat()`'s condition is known, record the free camera as
+*present in the data and not reachable*, never as available.
+
+Source: `external-research/topics/2026-09-17-starbreeze-dark-athena-xrg-debug-menu-and-rexglue-landscape.md`;
+live results in `modding-notes/2026-09-18-quick-start-switches-guest-asserts-and-the-dev-menu.md`.
+
+### ⭐ The quick-start switches: right file, wrong folder — and then a guest assert (2026-09-18)
+
+Three corrections to the `QUICKMAP` / `QUICKMENU` entry above, all live.
+
+1. **`EnvironmentXbox.cfg` goes in the GAME's disc root** (`E:\the-darkness\game-files\`, the
+   `Assets\` junction, guest `D:\`) — **not** beside the host exe, where it is ignored entirely
+   `[verified-live 2026-09-18, n=1 null host-side, n=1 control guest-side]`. The `.cfg` is plain
+   `KEY=VALUE`, one per line; the `.xrg` `*KEY "value"` style was never needed.
+2. **Both switches hit one of the game's own debug assertions** — guest 0x820DFC60 → `sub_828A7518`
+   → the kernel import `DbgBreakPoint`, on a null field the normal front-end route fills in. That
+   killed the host process with `0x80000003` and **no log line at all**, so it looks nothing like
+   the known missing-function crash `[verified-live 2026-09-18, n=3]`. Fixed in the shared SDK:
+   a guest `DbgBreakPoint` now logs and continues (`sdk-patches/06-…`), because that is what retail
+   hardware does with no debugger attached.
+3. **Past the assert it stops on a missing font**, not on the level:
+   `d:\content\fonts\text.xfc` → `XamShowDirtyDiscErrorUI` `[verified-live 2026-09-18, n=1]`.
+   `NY1_Tunnel` is a real map (218 `.XDF` files, `NY1_*` and `NY2_*`), so the name is fine. There is
+   **no `Fonts/` folder and no `*.xfc`** anywhere in the 498-file extraction — yet the front-end
+   renders text perfectly, so the fonts are reaching the game some other way (most likely packed
+   inside the `.XDF` archives). **Unresolved. `QUICKMAP` is not a usable shortcut yet.**
+
+⭐ **Meanwhile the supported route exists and is untried:** the main menu offers
+`CONTINUE / NEW GAME / CHECKPOINTS / MULTIPLAYER / OPTIONS / EXTRA CONTENT`
+`[verified-live 2026-09-18, n=1]`. **`CHECKPOINTS` is an in-game level select** — no ENV switch, no
+patch, nothing to fix first.
 
 ## 4. The executable — packing was never the real blocker
 
@@ -360,6 +419,56 @@ How to produce two eyes, in rough order of effort:
 **Current recommendation, not a decision:** alternate-eye rendering, because it uses *both* seams now found and changes
 the least. But the comfort and framerate trade-offs are real, and this choice is the foundation everything after it
 builds on — make it with eyes open, ideally informed by the next step below.
+
+### ✅ Who sets the FOV — answered: set once, not per frame (2026-09-18)
+
+An exhaustive scan of `.text` for every D-form store to viewport displacement 260 or 264 with base
+≠ r1, mapped to owning functions `[measured 2026-09-18]`. Only four functions write +260:
+
+- `sub_82273760` — constructor, clears 256…316.
+- **`sub_8275EE08` — the defaults, and they confirm the field map outright: +260 = 90.0 (FOV
+  degrees), +264 = 1.3333334 (4:3), +300 = 4.0 near, +304 = 2048.0 far** `[measured, read from
+  `.rdata`]`.
+- `sub_8275EEF8` — the projection builder, clamping +260 in place (0.1–179).
+- `sub_8271FE08` — field-by-field copy-assignment (0…285); carries a value, does not originate one.
+
+⚠️ **Gap, stated rather than glossed:** indexed stores (`stfsx`/`stwx`, 2,528 in `.text`) are outside
+that scan's reach, and the copy path could deliver a zoom/cutscene FOV as a whole-struct assignment.
+Treat "set once" as the **working assumption**; the live log settles it.
+
+Separately, `sub_82389A18` reads level keys **`VP_FOV` → camera entity +276**, `VP_ASPECTRATIO` →
++288 (and 1/aspect → +292), `VP_FRONTPLANE` → +316. The lower-case `vp_*` keys are referenced only
+from `sub_82389D18`. **There are two FOV homes** — camera entity +276 and render viewport +260 — and
+the hand-off between them was not found statically `[inferred-static]`.
+
+**What it means for VR, and it is good news:** a headset's per-eye FOV and asymmetric frustum need
+**no** per-frame interception. The injection point above (end of `sub_82249580`) is downstream of
+FOV, aspect and the clamp, so replacing P there overrides all of it in one place.
+
+### ✅ How to attach the probe: the weak-symbol hook, not `midasm_hook` (2026-09-18)
+
+`sub_82249580` is generated in `generated/default/darknessrecomp_recomp.160.cpp`, body lines
+**5423–5780**, with **exactly one `return;` at 5779** — no early exits, no tail calls
+`[verified-numerically 2026-09-18]`. Guest range 0x82249580…0x822497DF; epilogue `addi r1,r1,176` at
+0x822497D8. The 2/width and 2/height column scaling is the last work it does (lines 5699–5774), so
+the injection point is after 5774. `RC` is confirmed inside the function itself
+(`lis r11,-32089; addi r31,r11,-25856` → 0x82A69B00).
+
+⚠️ **`[[midasm_hook]]` is real but the wrong tool here.** The emitted call passes only the named
+registers — **no `ctx`, no `base`** — so it cannot read guest memory, which is exactly what logging P
+requires. It also forces a codegen re-run. `[inferred-static 2026-09-18]`
+
+✅ **Use the weak-symbol hook.** `DEFINE_REX_FUNC(name)` emits `name` as a weak alias of
+`__imp__name` precisely so hooks can replace it, and all **nine** generated call sites call
+`sub_82249580`, never `__imp__`. A strong definition in `src/` wins at link and sees every call — no
+generated code edited, no codegen re-run. `REX_HOOK_RAW(sub_82249580)` expands to
+`extern "C" void sub_82249580(PPCContext& __restrict ctx, uint8_t* base)`, so `REX_LOAD_U32` works
+inside it; call `__imp__sub_82249580(ctx, base)` first, then read the 16 floats at `RC+17088`.
+
+**Read them as `p[0..15]`: `RC+17132` is `p[11]` and `RC+17148` is `p[15]`** — the perspective test
+is `p[11] == 1.0 && p[15] == 0.0`. **Log only when P changes**, with a repeat counter: the function
+runs a few times per frame and unfiltered that is hundreds of lines a second through a spdlog lock
+on the render thread.
 
 ### Next concrete step — connects the look test to Seam B
 
