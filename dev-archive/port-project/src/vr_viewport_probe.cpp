@@ -39,6 +39,18 @@
 //   DK_STEREO_EYE     eye offset in view-space units (default 0 = observe only)
 //   DK_STEREO_TARGET  which viewport to shift: "near" (the one with the closer near
 //                     plane), "far", or "all" (default "near")
+//   DK_STEREO_PERIOD  frames per eye. 0 (default) = one fixed eye, the step-2 test.
+//                     N > 0 = alternate the SIGN of the offset every N frames: left
+//                     eye, then right eye. 1 is true alternate-eye rendering; a large
+//                     N (say 45) makes the picture hop once a second or so, which a
+//                     window capture can see and a log line can label.
+//
+// Step 3, the pair (decision recorded in the dossier, 2026-09-18): stereo is made by
+// rendering the SAME world twice, one eye per guest frame, offset flipped here. A
+// "frame" is counted as one apply of the near-plane viewport, which happens exactly
+// once per frame in gameplay [verified-live 2026-09-18]. That is good enough while
+// N is large; at N = 1 the frame boundary must come from the swap instead, because
+// the other viewport may be applied before this one within a frame.
 // ---------------------------------------------------------------------------
 
 #include "darknessrecomp_pch.h"
@@ -83,14 +95,22 @@ inline void StoreGuestFloat(uint8_t* base, uint32_t guest_address, float value) 
 // changes the offset mid-run.
 struct StereoSettings {
   float eye = 0.0f;
+  int period = 0;  // frames per eye; 0 = fixed eye
   enum Target { kNear, kFar, kAll } target = kNear;
 };
+
+// Frames seen so far, counted by near-plane viewport applies, and the eye in force.
+uint64_t g_frames = 0;
+float g_eye_sign = 1.0f;
 
 const StereoSettings& Stereo() {
   static const StereoSettings s = [] {
     StereoSettings out;
     if (const char* e = std::getenv("DK_STEREO_EYE")) {
       out.eye = static_cast<float>(std::atof(e));
+    }
+    if (const char* n = std::getenv("DK_STEREO_PERIOD")) {
+      out.period = std::atoi(n);
     }
     if (const char* t = std::getenv("DK_STEREO_TARGET")) {
       if (std::strcmp(t, "far") == 0) {
@@ -99,7 +119,7 @@ const StereoSettings& Stereo() {
         out.target = StereoSettings::kAll;
       }
     }
-    REXGPU_INFO("[VP] stereo eye offset = {:.3f}, target = {}", out.eye,
+    REXGPU_INFO("[VP] stereo eye offset = {:.3f}, period = {}, target = {}", out.eye, out.period,
                 out.target == StereoSettings::kNear  ? "near"
                 : out.target == StereoSettings::kFar ? "far"
                                                      : "all");
@@ -128,6 +148,19 @@ REX_HOOK_RAW(sub_82249580) {
   const StereoSettings& stereo = Stereo();
   if (stereo.eye != 0.0f) {
     const bool is_near_plane_viewport = (p[14] > -3.0f);
+
+    if (is_near_plane_viewport) {
+      ++g_frames;
+      if (stereo.period > 0) {
+        const float sign = ((g_frames / static_cast<uint64_t>(stereo.period)) & 1u) ? -1.0f : 1.0f;
+        if (sign != g_eye_sign) {
+          g_eye_sign = sign;
+          // +e slides the scene right, which is what the LEFT eye sees.
+          REXGPU_INFO("[VP] EYE={} frame={}", sign > 0.0f ? "L" : "R", g_frames);
+        }
+      }
+    }
+
     const bool shift_this_one =
         stereo.target == StereoSettings::kAll ||
         (stereo.target == StereoSettings::kNear && is_near_plane_viewport) ||
@@ -138,7 +171,7 @@ REX_HOOK_RAW(sub_82249580) {
       // e * row0. Write it back and keep reporting the SHIFTED matrix, so the log
       // shows what the game actually used.
       for (int i = 0; i < 4; ++i) {
-        p[12 + i] += stereo.eye * p[i];
+        p[12 + i] += g_eye_sign * stereo.eye * p[i];
         StoreGuestFloat(base, kProjection + static_cast<uint32_t>(12 + i) * 4u, p[12 + i]);
       }
     }
