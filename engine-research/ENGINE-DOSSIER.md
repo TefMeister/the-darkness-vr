@@ -532,9 +532,66 @@ How to produce two eyes, in rough order of effort:
 | **Depth reprojection** — one render plus the depth buffer, second eye synthesised | Seam A + depth buffer access | cheapest to build; visible artefacts at edges |
 | **True dual render** — whole frame drawn twice per swap | the guest to issue its draws twice | best quality; **very hard**, because a recompiled console game issues each frame's draws exactly once, interleaved with state |
 
-**Current recommendation, not a decision:** alternate-eye rendering, because it uses *both* seams now found and changes
-the least. But the comfort and framerate trade-offs are real, and this choice is the foundation everything after it
-builds on — make it with eyes open, ideally informed by the next step below.
+~~**Current recommendation, not a decision:** alternate-eye rendering…~~ — superseded by the decision below.
+
+### 🧭 DECIDED 2026-09-18 — GEOMETRY STEREO, ONE EYE PER GUEST FRAME, THE WORLD HELD STILL FOR THE SECOND EYE
+
+**The decision (made on Fable, with the first live pair in hand):** each eye is a **real render of the
+scene from its own position**. The guest draws eye L on one frame and eye R on the next; the offset is
+flipped at the proven site (end of `sub_82249580`, viewport A only); **the simulation must not advance
+between the two**, so both eyes show the same instant; finished frames are routed to the headset by
+frame parity at Seam A. This is "synced sequential" in UEVR's vocabulary. Depth reprojection is the
+**named fallback**, not the plan.
+
+**Why this and not the others:**
+
+- **Depth reprojection is worst exactly where this game lives.** The Darkness keeps hands, guns and
+  tentacles within arm's reach of the camera all game long. Measured on the first pair: the hands
+  carry **≥ 200 px** of disparity at 1280 wide against **47 px** for the seat backs
+  `[measured 2026-09-18, n=1 pair]`. A synthesised second eye has to invent everything the near
+  object uncovers, and with disparities that large the smear halo would sit permanently in the middle
+  of the picture. It also needs deep work in the shared render-target cache (EDRAM depth, resolves).
+- **True dual render inside one guest frame** means doubling the emulated GPU's render targets,
+  resolves and post chain in shared SDK code — the reason Xenia itself has no stereo. Same picture
+  quality as the chosen route, an order of magnitude more work, and none of it reusable from what is
+  already proved.
+- **The chosen route reuses everything already verified live** — the site, the exact offset, the
+  viewport selection, the untouched HUD — and its one new requirement (hold the world still on
+  alternate frames) is a small, testable thing.
+
+**What it costs, stated plainly:** the pair rate is **half the guest frame rate**. The guest averages
+**29.4 fps** on the dev PC (mean 34.0 ms over 600 gameplay frames `[measured 2026-09-18]`), which looks
+like the console's 30 fps cap, so as things stand that is **~15 stereo pairs a second**. Head rotation
+is smoothed by the OpenXR runtime's reprojection regardless, but world motion at 15 Hz will look
+choppy. **So raising the guest above 30 fps is now on the critical path**, not a nicety — and if it
+cannot be raised and 15 Hz proves unusable in the headset, that is the trigger for the depth fallback.
+
+**What was proved the same day, which is why this is a decision and not a hope:**
+
+- ✅ **A true left/right pair exists.** With `DK_STEREO_EYE=0.6`, `DK_STEREO_PERIOD=4`, two window
+  grabs 62 ms apart, labelled L and R from the hook's own log lines: far interior **+47 px**, hands
+  **≥ +200 px** (search limit), HUD prompt **0 px** (match quality 0.98)
+  `[verified-live 2026-09-18, n=1 pair measured, 2 more by eye]`. Sign is right: nearer things sit
+  further right in the left eye. Evidence: `dev-archive/recon/2026-09-18-first-stereo-pair/`.
+- ✅ **Only viewport A matters.** Shifting viewport B alone moved **nothing** — interior, hands and
+  HUD all 0 px at match quality ≥ 0.99 across five pairs `[verified-live 2026-09-18, n=5 pairs]`.
+  A draws the world **and** the first-person hands; B draws nothing visible here. So the frame
+  boundary can simply be "one apply of A", and the HUD needs no protection at this site.
+- ✅ **The shift does not disturb lighting.** A red tint that looked eye-specific in the first three
+  pairs is the chase's passing red light: across 50 labelled frames it appears in both eyes alike
+  (red heads in 11 of 27 L frames and 6 of 23 R frames, same extremes) `[measured 2026-09-18, n=50]`.
+  Recorded because the first three pairs all pointed the wrong way, and n=3 felt convincing.
+
+**The parity rule for Seam A** `[hypothesis]`: flip the eye at the **guest's `VdSwap` call**, on the
+guest thread, not at the viewport apply. The command processor executes swaps in order, so
+`IssueSwap` number N then carries the same parity as the hook by construction, with no cross-thread
+signalling — provided both sides count from the same swap.
+
+**Build order from here:** (1) hold the world still on the second eye's frame; (2) side-by-side
+composition of consecutive frames in the presenter, so a pair can be seen on the monitor and in the
+OpenXR simulator with no headset; (3) OpenXR submission per eye, replacing P wholesale with the
+headset's own per-eye projection at the same site; (4) head pose into M (the debug-camera matrix at
+`client+8880` is the candidate); (5) get the guest above 30 fps.
 
 ### ✅ Who sets the FOV — answered: set once, not per frame (2026-09-18)
 
