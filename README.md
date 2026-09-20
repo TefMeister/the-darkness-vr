@@ -22,9 +22,9 @@ It is our own preparation and research around it, with VR as the goal.
 
 **Preparation done, waiting on someone else's release.**
 
-A verified 1:1 copy of the Xbox 360 disc has been made and the game files extracted, so the moment a
-PC recompilation is published we can use it immediately — those projects ship no game content and
-require you to supply files from your own disc.
+Groundwork is done, so the moment a PC recompilation is published we can use it immediately. Those
+projects ship no game content and require every user to supply the files from their own copy of the
+game.
 
 No VR work has begun, and it cannot begin until there is a PC build to attach it to.
 
