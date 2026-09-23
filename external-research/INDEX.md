@@ -1,6 +1,8 @@
 # Research index
 
-**Last `/gr` pass: 2026-09-17 (estate sweep) — CHECK-IN.** First pass: folder bootstrapped; one topic on the Starbreeze sibling with a PC release (Riddick: Assault on Dark Athena: console key and `.xrg` debug menu) and on the ReXGlue ecosystem having no VR prior art.
+**Last `/gr` pass: 2026-09-23 (estate sweep) — CHECK-IN.** Checked phunkaeg's *VR Modding Playbook*: no Starbreeze or Xbox-360-recompile entry. Nothing new.
+
+_Previous: **Last `/gr` pass: 2026-09-17 (estate sweep) — CHECK-IN.** First pass: folder bootstrapped; one topic on the Starbreeze sibling with a PC release (Riddick: Assault on Dark Athena: console key and `.xrg` debug menu) and on the ReXGlue ecosystem having no VR prior art._
 
 Every research topic gathered for this project, newest first. Each row links to a self-contained
 write-up in `topics/`. Status tags:
