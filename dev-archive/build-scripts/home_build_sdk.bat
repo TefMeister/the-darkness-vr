@@ -2,7 +2,7 @@
 setlocal
 rem Home-PC build of the ReXGlue SDK (2026-09-27). Checkout: rexglue-sdk v0.10.0 release (c94f5eb) with
 rem submodules; then fixlinks (symlinks arrive as text on Windows), then these patches, line endings
-rem LF: condemned-2-vr 01, and this repo's sdk-patches 04, 05, 06. Condemned-2-vr 02 is NOT applied:
+rem LF: condemned-2-vr 01, and this repo's sdk-patches 04, 05, 06, 07. Condemned-2-vr 02 is NOT applied:
 rem on the v0.10.0 release it breaks configure (imgui "not in any export set"); the game build passes the
 rem third-party include folders instead.
 set ROOT=D:\the-darkness-build

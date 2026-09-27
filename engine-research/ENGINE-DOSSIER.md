@@ -397,6 +397,14 @@ game calls VdSwap (Xbox kernel)
   gamma-corrected guest output — is what gets copied into the headset's swapchain image for the current eye, with
   `xrEndFrame` submitted from the same place. The existing `Present()` can stay as a desktop mirror.
 - **This is shared SDK code**, so it is the part that reaches every ReXGlue title, Condemned 2 included.
+- ⭐ **Both eyes in one picture (2026-09-27):** `sdk-patches/07` makes `DK_SBS=1` present a double-width
+  guest output holding this swap beside the previous one (even swaps left), so one window capture holds a
+  whole pair. Off by default; only `rexgpu-xenos.dll` changes `[compile-verified 2026-09-27]`, not yet run.
+  Test: `build-scripts/sbs_pair_test.py`. Full note: `modding-notes/2026-09-27-both-eyes-in-one-picture.md`.
+- **The home PC builds the port too (2026-09-27):** SDK **v0.10.0 release** (c94f5eb) + patches 01/04/05/06/07;
+  patch 02 is dropped (it breaks configure on the release) and the game build passes the SDK's third-party
+  include folders instead. Recipe: `build-scripts/home_build_sdk.bat` + `home_build_darkness.bat`
+  `[compile-verified 2026-09-27]`; that build reached the car scene `[verified-live 2026-09-27, n=1]`.
 - The DXGI swapchain is created with `swap_chain_desc.Stereo = FALSE` (d3d12_presenter.cpp:394) — that is the old
   quad-buffer 3D-monitor mode, **not** relevant to OpenXR; noted only so nobody chases it.
 

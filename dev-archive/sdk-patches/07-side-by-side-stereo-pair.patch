@@ -1,0 +1,144 @@
+--- a/include/rex/graphics/d3d12/command_processor.h
++++ b/include/rex/graphics/d3d12/command_processor.h
+@@ -209,6 +209,14 @@
+ 
+   void IssueSwap(uint32_t frontbuffer_ptr, uint32_t frontbuffer_width,
+                  uint32_t frontbuffer_height) override;
++  // DK_SBS side-by-side stereo pair (Darkness VR, 2026-09-27); see IssueSwap.
++  void ComposeSideBySidePair(ID3D12Resource* guest_output, uint32_t width, uint32_t height);
++  Microsoft::WRL::ComPtr<ID3D12Resource> sbs_current_;
++  Microsoft::WRL::ComPtr<ID3D12Resource> sbs_previous_;
++  uint32_t sbs_width_ = 0;
++  uint32_t sbs_height_ = 0;
++  uint64_t sbs_swaps_ = 0;
++  bool sbs_have_previous_ = false;
+ 
+   void OnPrimaryBufferEnd() override;
+ 
+--- a/src/graphics/d3d12/command_processor.cpp
++++ b/src/graphics/d3d12/command_processor.cpp
+@@ -13,6 +13,7 @@
+ #include <chrono>
+ #include <cstdarg>
+ #include <cstdio>
++#include <cstdlib>
+ #include <cstring>
+ #include <sstream>
+ #include <utility>
+@@ -1995,8 +1996,21 @@
+   uint32_t display_width = std::max(uint32_t(1), uint32_t(video_mode.display_width));
+   uint32_t display_height = std::max(uint32_t(1), uint32_t(video_mode.display_height));
+ 
++  // DK_SBS=1 (Darkness VR, 2026-09-27): present a side-by-side stereo pair. The guest output is
++  // requested twice as wide; the passes below still fill only [0, W), and the composition at
++  // the end of the refresher puts this swap's image on one half and the previous swap's on the
++  // other. One presented picture then holds both eyes of a pair, so a window capture can measure
++  // the pair (a capture taken on a wall-clock sleep cannot tell which eye it caught). Off by
++  // default: with DK_SBS unset nothing below changes.
++  static const bool sbs_enabled = [] {
++    const char* e = std::getenv("DK_SBS");
++    return e != nullptr && e[0] == '1';
++  }();
++  const uint32_t present_width = sbs_enabled ? guest_output_width * 2 : guest_output_width;
++  const uint32_t present_display_width = sbs_enabled ? display_width * 2 : display_width;
++
+   presenter->RefreshGuestOutput(
+-      guest_output_width, guest_output_height, display_width, display_height,
++      present_width, guest_output_height, present_display_width, display_height,
+       [this, &swap_texture_srv_desc, frontbuffer_format, swap_texture_resource, guest_output_width,
+        guest_output_height](ui::Presenter::GuestOutputRefreshContext& context) -> bool {
+         const ui::d3d12::D3D12Provider& provider = GetD3D12Provider();
+@@ -2253,6 +2267,10 @@
+                                 apply_gamma_dest_initial_state);
+         }
+ 
++        if (sbs_enabled) {
++          ComposeSideBySidePair(guest_output_resource, guest_output_width, guest_output_height);
++        }
++
+         // Need to submit all the commands before giving the image back to the
+         // presenter so it can submit its own commands for displaying it to the
+         // queue.
+@@ -2266,6 +2284,82 @@
+   EndSubmission(true);
+ }
+ 
++void D3D12CommandProcessor::ComposeSideBySidePair(ID3D12Resource* guest_output, uint32_t width,
++                                                  uint32_t height) {
++  // guest_output is 2W x H, in kGuestOutputInternalState, with this swap's image in [0, W).
++  // sbs_current_ / sbs_previous_ are W x H copies that rest in COPY_SOURCE between swaps.
++  constexpr D3D12_RESOURCE_STATES kOutputState = ui::d3d12::D3D12Presenter::kGuestOutputInternalState;
++  ID3D12Device* device = GetD3D12Provider().GetDevice();
++
++  auto retire = [this](Microsoft::WRL::ComPtr<ID3D12Resource>& r) {
++    if (r && submission_completed_ < submission_current_) {
++      r->AddRef();
++      resources_for_deletion_.emplace_back(submission_current_, r.Get());
++    }
++    r.Reset();
++  };
++  auto make = [&](Microsoft::WRL::ComPtr<ID3D12Resource>& r) -> bool {
++    D3D12_RESOURCE_DESC desc = {};
++    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
++    desc.Width = width;
++    desc.Height = height;
++    desc.DepthOrArraySize = 1;
++    desc.MipLevels = 1;
++    desc.Format = ui::d3d12::D3D12Presenter::kGuestOutputFormat;
++    desc.SampleDesc.Count = 1;
++    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
++    desc.Flags = D3D12_RESOURCE_FLAG_NONE;
++    return SUCCEEDED(device->CreateCommittedResource(
++        &ui::d3d12::util::kHeapPropertiesDefault, GetD3D12Provider().GetHeapFlagCreateNotZeroed(),
++        &desc, D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&r)));
++  };
++  if (sbs_width_ != width || sbs_height_ != height) {
++    retire(sbs_current_);
++    retire(sbs_previous_);
++    sbs_have_previous_ = false;
++    sbs_width_ = width;
++    sbs_height_ = height;
++  }
++  if ((!sbs_current_ && !make(sbs_current_)) || (!sbs_previous_ && !make(sbs_previous_))) {
++    REXGPU_ERROR("[SBS] could not create the {}x{} pair textures; showing one eye", width, height);
++    return;
++  }
++
++  D3D12_TEXTURE_COPY_LOCATION out_loc = {guest_output, D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX};
++  D3D12_TEXTURE_COPY_LOCATION cur_loc = {sbs_current_.Get(),
++                                         D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX};
++  D3D12_TEXTURE_COPY_LOCATION prev_loc = {sbs_previous_.Get(),
++                                          D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX};
++  const D3D12_BOX half = {0, 0, 0, width, height, 1};
++
++  // 1. Save this swap's image.
++  PushTransitionBarrier(guest_output, kOutputState, D3D12_RESOURCE_STATE_COPY_SOURCE);
++  PushTransitionBarrier(sbs_current_.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE,
++                        D3D12_RESOURCE_STATE_COPY_DEST);
++  SubmitBarriers();
++  deferred_command_list_.D3DCopyTextureRegion(&cur_loc, 0, 0, 0, &out_loc, &half);
++
++  // 2. Lay out the pair: this swap on the side its parity names, the previous swap on the other.
++  //    Even swaps go left. Before any previous swap exists, both halves show this one.
++  const uint32_t side = uint32_t(sbs_swaps_ & 1u);
++  PushTransitionBarrier(sbs_current_.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
++                        D3D12_RESOURCE_STATE_COPY_SOURCE);
++  PushTransitionBarrier(guest_output, D3D12_RESOURCE_STATE_COPY_SOURCE,
++                        D3D12_RESOURCE_STATE_COPY_DEST);
++  SubmitBarriers();
++  deferred_command_list_.D3DCopyTextureRegion(&out_loc, side * width, 0, 0, &cur_loc, &half);
++  deferred_command_list_.D3DCopyTextureRegion(&out_loc, (1u - side) * width, 0, 0,
++                                              sbs_have_previous_ ? &prev_loc : &cur_loc, &half);
++  PushTransitionBarrier(guest_output, D3D12_RESOURCE_STATE_COPY_DEST, kOutputState);
++
++  if (sbs_swaps_ == 0) {
++    REXGPU_INFO("[SBS] side-by-side pair on: {}x{} per eye, even swaps on the LEFT", width, height);
++  }
++  sbs_current_.Swap(sbs_previous_);
++  sbs_have_previous_ = true;
++  ++sbs_swaps_;
++}
++
+ void D3D12CommandProcessor::OnPrimaryBufferEnd() {
+   if (REXCVAR_GET(d3d12_submit_on_primary_buffer_end) && submission_open_ &&
+       CanEndSubmissionImmediately()) {
