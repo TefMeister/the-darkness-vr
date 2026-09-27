@@ -26,55 +26,8 @@ TRIALS = [("CONTROL-1", 0.0, 0.0), ("RIGHT", DEFLECT, 0.0), ("CONTROL-2", 0.0, 0
 GAP = 2.5
 
 # ---------------------------------------------------------------- win32 capture
-user32 = ctypes.WinDLL("user32", use_last_error=True)
-gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
-user32.SetProcessDPIAware()
-for fn, res, args in [
-    (user32.GetWindowDC, ctypes.c_void_p, [ctypes.c_void_p]),
-    (user32.ReleaseDC, ctypes.c_int, [ctypes.c_void_p, ctypes.c_void_p]),
-    (user32.PrintWindow, wt.BOOL, [ctypes.c_void_p, ctypes.c_void_p, wt.UINT]),
-    (user32.GetWindowRect, wt.BOOL, [ctypes.c_void_p, ctypes.POINTER(wt.RECT)]),
-    (gdi32.CreateCompatibleDC, ctypes.c_void_p, [ctypes.c_void_p]),
-    (gdi32.CreateCompatibleBitmap, ctypes.c_void_p, [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]),
-    (gdi32.SelectObject, ctypes.c_void_p, [ctypes.c_void_p, ctypes.c_void_p]),
-    (gdi32.DeleteObject, wt.BOOL, [ctypes.c_void_p]),
-    (gdi32.DeleteDC, wt.BOOL, [ctypes.c_void_p]),
-    (user32.GetForegroundWindow, ctypes.c_void_p, []),
-    (user32.GetWindowThreadProcessId, wt.DWORD, [ctypes.c_void_p, ctypes.POINTER(wt.DWORD)]),
-    (gdi32.GetDIBits, ctypes.c_int, [ctypes.c_void_p, ctypes.c_void_p, wt.UINT, wt.UINT,
-                                     ctypes.c_void_p, ctypes.c_void_p, wt.UINT]),
-]:
-    fn.restype = res; fn.argtypes = args
+from winshot import user32, gdi32, BIH, find_window, grab
 
-class BIH(ctypes.Structure):
-    _fields_ = [("biSize", wt.DWORD), ("biWidth", ctypes.c_long), ("biHeight", ctypes.c_long),
-                ("biPlanes", wt.WORD), ("biBitCount", wt.WORD), ("biCompression", wt.DWORD),
-                ("biSizeImage", wt.DWORD), ("biXPelsPerMeter", ctypes.c_long),
-                ("biYPelsPerMeter", ctypes.c_long), ("biClrUsed", wt.DWORD), ("biClrImportant", wt.DWORD)]
-
-def find_window(pid):
-    found = []
-    PROC = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
-    def cb(h, _):
-        p = wt.DWORD(); user32.GetWindowThreadProcessId(h, ctypes.byref(p))
-        if p.value == pid and user32.IsWindowVisible(h) and user32.GetWindowTextLengthW(h) > 0:
-            found.append(h)
-        return True
-    user32.EnumWindows(PROC(cb), 0)
-    return found[0] if found else None
-
-def grab(hwnd):
-    r = wt.RECT(); user32.GetWindowRect(hwnd, ctypes.byref(r))
-    w, h = r.right - r.left, r.bottom - r.top
-    hdc = user32.GetWindowDC(hwnd); mdc = gdi32.CreateCompatibleDC(hdc)
-    bmp = gdi32.CreateCompatibleBitmap(hdc, w, h); gdi32.SelectObject(mdc, bmp)
-    user32.PrintWindow(hwnd, mdc, 2)  # PW_RENDERFULLCONTENT
-    bi = BIH(); bi.biSize = ctypes.sizeof(BIH); bi.biWidth = w; bi.biHeight = -h
-    bi.biPlanes = 1; bi.biBitCount = 32; bi.biCompression = 0
-    buf = (ctypes.c_ubyte * (w * h * 4))()
-    gdi32.GetDIBits(mdc, bmp, 0, h, buf, ctypes.byref(bi), 0)
-    gdi32.DeleteObject(bmp); gdi32.DeleteDC(mdc); user32.ReleaseDC(hwnd, hdc)
-    return np.frombuffer(buf, dtype=np.uint8).reshape(h, w, 4)[:, :, 2::-1].copy()
 
 # ---------------------------------------------------------------- analysis
 def prep(rgb, title=31, width=480):
