@@ -60,7 +60,7 @@
 // shares one eye by construction.
 // ---------------------------------------------------------------------------
 
-#include "darknessrecomp_pch.h"
+#include "generated/default/darknessrecomp_pch.h"
 
 #include <rex/hook.h>
 
