@@ -905,6 +905,26 @@ Full account: `modding-notes/2026-09-28-the-freeze-works-and-the-eye-slips.md`.
   bails before composing (it logs `IssueSwap: ...`) or VdSwap rejects the front buffer
   (`VdSwap: Invalid front buffer`). Hardening: key the pair on `counter_`, and log `[SBS] swaps=N`
   periodically next to `[VP] FREEZE frames=N`.
+- 🧭 **How the camera reaches the screen: a packet queue between two threads** `[inferred-static 2026-09-28, background reader]`.
+  A GAME thread (`sub_820E2058`, app vtable 0x82055428) builds a frame packet; the MAIN thread
+  (`sub_820E2E50`) plays packets to D3D and swaps. Queue `Q = app+108`: lock Q+44, events Q+64 (free) /
+  Q+68 (ready), free count Q+32. Acquire `sub_825A3FD8` stamps a global serial (0x82A6910C) into
+  `packet+5560`; submit `sub_825A45A8`; take-ready `sub_825A43B0`; release `sub_825A46A0` after the GPU
+  fence (serial copied to 0x82A69110); **drain `sub_825A4510` releases packets undrawn**, which breaks
+  any parity counted by swaps. `packet+5568` points at the 416-byte viewport block.
+  - **The per-object matrices are multiplied on the GAME thread**, so the eye is fixed when the packet
+    is built. Moving the camera on the main thread does nothing; only P can still change there (the
+    lighting-defect route). The 0/1/2 builds-per-swap spread averages exactly 1.0, which fits one
+    packet per swap with phase jitter rather than lost work.
+  - **Recommended design:** keep the offset in the camera, but pick the eye (and the freeze pin) per
+    PACKET: hook `sub_825A3FD8` on the game thread and set the eye from the parity of `packet+5560`;
+    hook `sub_8259E050` (plays a packet, r3 = packet) on the main thread and record its serial, so each
+    swap knows its eye by serial instead of by counting. Lockstep (pool of one packet) would also work
+    but costs frame rate; its creation site is not found.
+  - Caveat: on a ready-wait timeout the main loop draws a filler packet of its own, which also uses a
+    serial (`packet+6748` = thread that took it). Unknown what it draws.
+  - Check on a run: log LR once in the `sub_823F9B00` hook (expect 0x8249B588; another value = a second
+    caller); log thread/packet/serial in the two new hooks and the last drawn serial at the frame end.
 - **Window grabs include the ~8 px invisible borders** (`winshot.grab` uses the window rect, not the
   client rect). Any half-split or pixel measurement must crop to `client_box` first `[verified-numerically 2026-09-28]`.
 
