@@ -67,6 +67,8 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <thread>
 
 DECLARE_REX_FUNC(sub_82249580);
 
@@ -145,6 +147,13 @@ struct StereoSettings {
 // being built. Both are touched only on the guest render thread.
 uint64_t g_frames = 0;
 float g_eye_sign = 1.0f;
+// Calls to the frame-end function, and those that ended without a swap (see its hook).
+constexpr uint32_t kNoSwapFlagOffset = 21508u;
+uint64_t g_frame_end_calls = 0, g_no_swap_calls = 0;
+// Camera builds between two frame ends. If the camera is built less often than frames are
+// drawn, one eye's camera is drawn twice (2026-09-28 check). Also which thread builds it.
+uint32_t g_cam_builds_this_frame = 0;
+uint32_t g_cam_builds_histogram[4] = {};
 // Near-plane viewport applies since the last swap - kept to measure how many there
 // really are per frame, since assuming "one" was wrong once already.
 uint32_t g_applies_this_frame = 0;
@@ -259,9 +268,30 @@ REX_HOOK_RAW(sub_82249580) {
 DECLARE_REX_FUNC(sub_82867620);
 
 REX_HOOK_RAW(sub_82867620) {
+  // This function returns WITHOUT calling VdSwap when device+21508 is set. It is read
+  // part-way through; reading it here assumes the calls before that point do not change it
+  // (the no_swap_calls count in the log is the check). Counting those calls as
+  // frames flipped the eye on a frame nobody saw, so two SHOWN frames in a row carried the
+  // same eye: half the side-by-side pairs had one eye on both halves (2026-09-28).
+  static bool thread_logged = false;
+  if (!thread_logged) {
+    thread_logged = true;
+    REXGPU_INFO("[VP] frame end thread={}", std::hash<std::thread::id>{}(std::this_thread::get_id()));
+  }
+  const uint32_t device = ctx.r3.u32;
+  const bool no_swap = device != 0u && REX_LOAD_U32(device + kNoSwapFlagOffset) != 0u;
+
   __imp__sub_82867620(ctx, base);
 
+  ++g_frame_end_calls;
+  if (no_swap) {
+    ++g_no_swap_calls;
+    return;
+  }
+
   ++g_frames;
+  ++g_cam_builds_histogram[g_cam_builds_this_frame < 3 ? g_cam_builds_this_frame : 3];
+  g_cam_builds_this_frame = 0;
   ++g_applies_histogram[g_applies_this_frame < 7 ? g_applies_this_frame : 7];
   g_applies_this_frame = 0;
 
@@ -289,8 +319,10 @@ REX_HOOK_RAW(sub_82867620) {
   }
 
   if ((g_frames % 300u) == 0u) {
-    REXGPU_INFO("[VP] FREEZE frames={} pinned_frames={} clock_calls={} pinned_calls={} max_hold={:.1f}ms",
-                g_frames, g_pinned_frames, g_clock_calls, g_clock_pinned, g_max_hold_ms);
+    REXGPU_INFO("[VP] FREEZE frames={} pinned_frames={} clock_calls={} pinned_calls={} max_hold={:.1f}ms"
+                " frame_end_calls={} no_swap_calls={}",
+                g_frames, g_pinned_frames, g_clock_calls, g_clock_pinned, g_max_hold_ms,
+                g_frame_end_calls, g_no_swap_calls);
     g_max_hold_ms = 0.0;
   }
 
@@ -299,6 +331,9 @@ REX_HOOK_RAW(sub_82867620) {
                 g_frames, g_applies_histogram[0], g_applies_histogram[1], g_applies_histogram[2],
                 g_applies_histogram[3], g_applies_histogram[4], g_applies_histogram[5],
                 g_applies_histogram[6], g_applies_histogram[7]);
+    REXGPU_INFO("[VP] frames={} camera builds per frame: 0:{} 1:{} 2:{} 3+:{}", g_frames,
+                g_cam_builds_histogram[0], g_cam_builds_histogram[1], g_cam_builds_histogram[2],
+                g_cam_builds_histogram[3]);
   }
 }
 
@@ -311,6 +346,14 @@ REX_HOOK_RAW(sub_823F9B00) {
   const uint32_t out = ctx.r4.u32;
 
   __imp__sub_823F9B00(ctx, base);
+
+  ++g_cam_builds_this_frame;
+  static bool thread_logged = false;
+  if (!thread_logged) {
+    thread_logged = true;
+    REXGPU_INFO("[VP] camera build thread={}",
+                std::hash<std::thread::id>{}(std::this_thread::get_id()));
+  }
 
   const StereoSettings& stereo = Stereo();
   if (stereo.cam_eye == 0.0f || out == 0u) {
