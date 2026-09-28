@@ -16,7 +16,7 @@ Prediction, written before the first run (2026-09-27):
 
 Screenshots are game content: <out dir> must stay OUTSIDE every git repo.
 """
-import json, os, subprocess, sys, time
+import ctypes, ctypes.wintypes as wt, json, os, subprocess, sys, time
 import numpy as np
 import vgamepad as vg
 from PIL import Image
@@ -25,7 +25,7 @@ from winshot import user32, find_window, grab
 
 # ---- settings (named, in one place) --------------------------------------------------
 DEFAULT_EXE = r"C:\NonSteam\the-darkness\build-home-sbs\darknessrecomp.exe"
-SEQ = "START A DOWN A WAIT A WAIT A WAIT A WAIT".split()   # title -> opening car scene (2026-09-27)
+SEQ = os.environ.get("DK_TEST_SEQ", "START A DOWN A WAIT A WAIT A WAIT A WAIT").split()   # title -> car scene
 FIRST_PRESS_S = 51.0        # the title screen is up by then on the home PC
 STEP_S = 5.6                # between presses; faster than this missed the profile dialogue
 WINDOW_WAIT_S = 90.0
@@ -33,21 +33,43 @@ SETTLE_S = 20.0             # into the car scene before measuring
 SHOTS = 200
 SAME_BELOW = 0.05           # mean absolute difference (0-255 scale) that counts as identical halves
 TITLE_BAR_PX = 40           # window chrome above the client area in a PrintWindow grab
+SEAM_SKIP_PX = 2            # columns either side of the seam left out (scaling can blend across it)
+KEEP_PICTURES = 12          # full pictures saved for looking at by eye
 FOCUS_SETTLE_S = 0.4
 PRESS_HOLD_S = 0.12
 BUTTONS = {"START": vg.XUSB_BUTTON.XUSB_GAMEPAD_START, "A": vg.XUSB_BUTTON.XUSB_GAMEPAD_A,
            "DOWN": vg.XUSB_BUTTON.XUSB_GAMEPAD_DPAD_DOWN}
 
 
-def halves_difference(rgb):
+def client_box(hwnd):
+    """Where the client area sits inside a whole-window grab: (left, top, width, height).
+
+    grab() takes the whole window, including the ~8 px invisible resize borders at left, right and
+    bottom. Cropping only the title bar left those borders in, so each half was compared a few
+    pixels out of line and no picture could ever score as identical (found 2026-09-28).
+    """
+    wr, cr, pt = wt.RECT(), wt.RECT(), wt.POINT(0, 0)
+    user32.GetWindowRect(hwnd, ctypes.byref(wr))
+    user32.GetClientRect(hwnd, ctypes.byref(cr))
+    user32.ClientToScreen(hwnd, ctypes.byref(pt))
+    return pt.x - wr.left, pt.y - wr.top, cr.right, cr.bottom
+
+
+def halves_difference(rgb, box=None):
     """Mean absolute difference between the left and right halves of the picture area."""
-    img = rgb[TITLE_BAR_PX:, :, :].astype(np.int16)
+    if box is None:
+        img = rgb[TITLE_BAR_PX:, :, :].astype(np.int16)
+    else:
+        x, y, w, h = box
+        img = rgb[y:y + h, x:x + w, :].astype(np.int16)
     rows = np.where(img.max(axis=(1, 2)) > 8)[0]          # drop the letterbox bars
     if len(rows) == 0:
         return None
     img = img[rows[0]:rows[-1] + 1]
     w = img.shape[1] // 2
-    return float(np.abs(img[:, :w] - img[:, w:2 * w]).mean())
+    left = img[:, :w - SEAM_SKIP_PX]                      # skip the columns scaling may blend
+    right = img[:, w + SEAM_SKIP_PX:2 * w]
+    return float(np.abs(left[:, SEAM_SKIP_PX:] - right[:, :left.shape[1] - SEAM_SKIP_PX]).mean())
 
 
 def main():
@@ -80,7 +102,13 @@ def main():
     time.sleep(SETTLE_S)
     first = grab(hwnd)
     Image.fromarray(first).save(os.path.join(out, f"{mode}_pair.png"))
-    diffs = [halves_difference(grab(hwnd)) for _ in range(SHOTS)]
+    box = client_box(hwnd)
+    diffs = []
+    for i in range(SHOTS):
+        pic = grab(hwnd)
+        diffs.append(halves_difference(pic, box))
+        if i < KEEP_PICTURES:
+            Image.fromarray(pic).save(os.path.join(out, f"{mode}_{i:02d}.png"))
     diffs = [d for d in diffs if d is not None]
     same = sum(1 for d in diffs if d < SAME_BELOW)
     res = {"mode": mode, "pictures": len(diffs), "identical_halves": same,
