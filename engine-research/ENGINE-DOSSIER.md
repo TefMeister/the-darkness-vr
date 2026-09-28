@@ -871,6 +871,43 @@ write around the Seam B handler while `looktest.py` pushes the right stick. **Th
 with the stick are the camera.** This needs the game running (`[FLAT]`), but no design decision — and its answer decides
 whether Seam B is usable game-agnostically.
 
+### ⏱️✅ THE FREEZE REACHES THE SCREEN — AND THE CAMERA RUNS ON ITS OWN THREAD (2026-09-28)
+
+Full account: `modding-notes/2026-09-28-the-freeze-works-and-the-eye-slips.md`.
+
+- ✅ **The side-by-side build works** (`sdk-patches/07`, `DK_SBS=1`): 2:1 picture, letterboxed in the
+  16:9 window `[verified-live 2026-09-28]`.
+- ✅ **The freeze holds what reaches the screen.** Eye offset 0, eye flipping every frame, moving 3D
+  menu background: pairs with matching halves 0/200 and 0/200 with the freeze OFF, 97/200 and 74/200
+  with it ON `[measured 2026-09-28, n=2 runs each way]`. Held pairs keep a small leftover difference
+  (grain, embers), so something runs on a clock we do not hold `[hypothesis]`.
+- ✅ **At the real eye separation (`DK_CAM_EYE=1.25`) the hands sit ~42 px apart between the eyes** at
+  full resolution, matching the 133 px at offset 4 from 2026-09-18 `[measured 2026-09-28, n=20 pictures]`.
+- ⚠️ **The camera (`sub_823F9B00`) is built on a DIFFERENT guest thread from the frame end
+  (`sub_82867620`), and not one-to-one:** camera builds per frame 0 ×125, 1 ×350, 2 ×125 over 600
+  frames in the car scene `[measured 2026-09-28, n=1]`. So one frame in five is drawn with the
+  previous camera, which carries the previous eye: 30-50% of pairs showed one eye on both halves.
+  **This breaks the "one eye per guest frame" design as built.** The eye has to follow the frame the
+  render thread actually draws. Options: lock the threads one-to-one, apply the offset on the render
+  thread where it reads the camera, or flip per camera build and hold the swap. Undecided.
+- ❌ **Ruled out:** frames ended without a swap. `sub_82867620` skips VdSwap when `device+21508` is
+  set `[inferred-static 2026-09-28, background reader]`, but the live count was 0 of ~38,700 frames
+  `[measured 2026-09-28, n=1]`. The probe still guards and counts it (`no_swap_calls` on the
+  `[VP] FREEZE` line).
+- **Host presents are not one per guest swap** `[inferred-static 2026-09-28, background reader]`. The
+  SDK's always-present ImGui dialog keeps the presenter in UI-thread paint mode. There, swaps replace
+  a 3-slot mailbox (unshown swaps dropped), each swap forces a paint, and ImGui adds vblank-paced
+  repaints of the same image. That explains PresentMon's ~315/s against the log's rate, and **PresentMon
+  is not a swap counter for this build.** The SBS pair is composed per swap inside `IssueSwap`, so a
+  repeated present shows the same complete pair.
+- **SBS parity** `[inferred-static 2026-09-28, background reader]`: one VdSwap gives one `IssueSwap`,
+  and both counters start at 0, so left-eye frames land on the LEFT half. Slips happen if `IssueSwap`
+  bails before composing (it logs `IssueSwap: ...`) or VdSwap rejects the front buffer
+  (`VdSwap: Invalid front buffer`). Hardening: key the pair on `counter_`, and log `[SBS] swaps=N`
+  periodically next to `[VP] FREEZE frames=N`.
+- **Window grabs include the ~8 px invisible borders** (`winshot.grab` uses the window rect, not the
+  client rect). Any half-split or pixel measurement must crop to `client_box` first `[verified-numerically 2026-09-28]`.
+
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version
