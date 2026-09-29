@@ -1,6 +1,8 @@
 # Research index
 
-**Last `/gr` pass: 2026-09-23 (estate sweep) — CHECK-IN.** Checked phunkaeg's *VR Modding Playbook*: no Starbreeze or Xbox-360-recompile entry. Nothing new.
+**Last `/gr` pass: 2026-09-29 (estate sweep) — CHECK-IN.** Nothing new. rexglue-sdk has three nightlies since v0.10.0 (window/fullscreen without restart, input, one vector-pack codegen fix, #449); none touches guest threading, which is the current resume row.
+
+_Previous: **Last `/gr` pass: 2026-09-23 (estate sweep) — CHECK-IN.** Checked phunkaeg's *VR Modding Playbook*: no Starbreeze or Xbox-360-recompile entry. Nothing new._
 
 _Previous: **Last `/gr` pass: 2026-09-17 (estate sweep) — CHECK-IN.** First pass: folder bootstrapped; one topic on the Starbreeze sibling with a PC release (Riddick: Assault on Dark Athena: console key and `.xrg` debug menu) and on the ReXGlue ecosystem having no VR prior art._
 
