@@ -1,6 +1,8 @@
 # Research index
 
-**Last `/gr` pass: 2026-09-29 (estate sweep) — CHECK-IN.** Nothing new. rexglue-sdk has three nightlies since v0.10.0 (window/fullscreen without restart, input, one vector-pack codegen fix, #449); none touches guest threading, which is the current resume row.
+**Last `/gr` pass: 2026-10-04 (estate sweep) — CHECK-IN.** Inbox empty. Three rexglue-sdk nightlies since (2026-09-30 to 10-02) change generated atomics and memory fences, which bears on the world-pause question; pointer with a rebuild A/B sent to the dossier.
+
+_Previous: **Last `/gr` pass: 2026-09-29 (estate sweep) — CHECK-IN.** Nothing new. rexglue-sdk has three nightlies since v0.10.0 (window/fullscreen without restart, input, one vector-pack codegen fix, #449); none touches guest threading, which is the current resume row._
 
 _Previous: **Last `/gr` pass: 2026-09-23 (estate sweep) — CHECK-IN.** Checked phunkaeg's *VR Modding Playbook*: no Starbreeze or Xbox-360-recompile entry. Nothing new._
 
