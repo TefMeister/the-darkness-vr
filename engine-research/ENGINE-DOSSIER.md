@@ -1145,6 +1145,78 @@ Runner: `run_pair_test_dev.py NF --scene car --turn` (N = flat, no switches; F =
 median sharpness (mean horizontal gradient) for each. The metric drops from 48.4 to 5.4 on a synthetic
 9-px horizontal blur `[verified-numerically 2026-10-12, n=1]`.
 
+- ⭐ **With the corrected freeze (probe fx2 + SDK 08c), a pair is ONE moment from two viewpoints.** H run in the car scene: `[VP] PAIRS frame_start_dt mean=0.00ms max=0.00ms`, pairs=1291, fillers repeated (418), no orphans; by eye the characters hold the same pose in both halves and only the viewpoint shifts `[verified-live 2026-10-12, n=1 run, by eye + log]`. `capped=31` pins hit the 250 ms cap; `PINCALLERS` is dominated by 0x820CB6F0 (43.9 M, the free-packet wait the reader expected). The sideways-shift measure still scores 57% "one eye" on these bright, washed-out pictures, so it under-reads here `[hypothesis]`. The B and O runs never left the menu (route still flaky). Evidence: `recon/2026-10-12-eye-by-packet-dev-pc/fx2-*`.
+
+#### From the reader: why pairs were two moments
+
+## What the live run showed `[reported]` (coordinator, dev PC, 08+08b+fx probe, car scene)
+
+B: swaps L = R, `same_eye_twice=0`, `gpu_lookup_miss=0`, `cam_in_packet=491 cam_outside=0`; camera
+builds per frame end 0:1609 1:190 2:1 over 1800 frames; `pinned_calls=59.5M`, `max_hold` up to
+15473 ms. H: `pairs_shown=1200`, no orphans. **By eye, the two halves show the hands in different
+animation poses: two moments, not two eyes at one moment.**
+
+## Causes read from the code
+
+1. **The pin stalled the queue waits, and fed the stall to the second eye.** `sub_825A3FD8` (acquire)
+   waits for a free packet in a loop that polls the clock through `sub_820CB6C0` (a caller of the
+   clock `sub_828A7DB8`) until a deadline (`loc_825A40C0`) `[inferred-static 2026-10-12]`. The step-6
+   pin was GLOBAL and ran from the first eye's submit through the second eye's acquire. Under it
+   every poll advanced one 20 ns tick, so the wait spun until a packet freed up, and every poll moved
+   the fake time forward. 59.5M pinned reads = 1.19 s of fake time. Holds of 15 s fit
+   `[reported]` numbers; the mechanism is `[inferred-static]`. The spin also slowed the game thread,
+   which is why most frame ends had no new camera.
+2. **The hold value was the LAST reading of the first eye's frame, not its first.** Even without the
+   spin, the second eye simulated a step as long as the first eye's whole frame took to build (tens
+   of ms on the dev PC) `[inferred-static]`.
+3. **Filler packets share the serial counter.** With 1609 of 1800 frame ends having no camera build,
+   most swaps were probably the main loop's own FILLER packets (`sub_820E2E50`, acquire at lr
+   0x820E3358), drawn on the main thread at another moment. Pairing by serial parity paired game
+   packets with fillers `[hypothesis]`. Check: `[VP] PACKETS ... filler L= R=` in the B log.
+4. Not excluded: animation that advances by a minimum step per frame even at dt = 0, or that reads a
+   frame counter. The dossier has one engine clock (`sub_828A7DB8`, 47 callers, measured 2026-09-18),
+   but a dt clamp would not show in a clock count `[hypothesis]`.
+
+## fx2 (`staging/.../eye-by-packet-2026-10-12/vr_viewport_probe_fx2.cpp`, 1089 lines)
+
+Only with `DK_EYE_BY_PACKET=1`:
+- **Eyes and pairs count game packets only** (`g_game_seq`, incremented at the game thread's acquire).
+  A swap that shows a filler is labelled **-4 = repeat the last pair**. That label needs the new SDK
+  patch `08c-sbs-repeat-on-filler.patch`; with `DK_SBS_SKIP_FILLERS=0` a filler takes the last game
+  eye instead. The swap table now carries the GAME sequence number, so 08b pairs game packets only.
+  Tag encoding is eye + 8 (was + 2) so -4 fits; both ends are in the probe.
+- **The freeze touches the game thread's clock only**, from the submit of a first-eye packet to the
+  submit of its second-eye packet. It is never applied inside the acquire wait (`t_in_queue_wait`), and
+  it lets go after `DK_FREEZE_CAP_MS` (default 250).
+- **It hands back the first eye's FRAME START** (the first game-thread clock read after the previous
+  submit) +1 tick per read. With `DK_FREEZE_EXACT=0` it keeps the old "latest reading" rule. ⚠️ Exact
+  mode lets the game thread's clock step BACK by up to one frame at the start of a second eye. Timers
+  that stored a later reading from the first eye's frame will see that `[hypothesis]`; watch for
+  stalls or glitches.
+- **New log lines every 300 swaps:**
+  - `[VP] PAIRS game_swaps= filler_swaps= pairs= frame_start_dt mean= max= | pins= capped= pinned_calls= exempt_wait_calls= max_calls_in_one_pin=`.
+  - `[VP] PINCALLERS 0xLR:n ...` (which callers read a pinned clock; a frame limiter spinning would dominate).
+  - `[SBS] filler swaps repeated=` (08c).
+- **What proves the fix:** `frame_start_dt` mean and max near 0 ms (a few 20 ns ticks) with
+  `DK_FREEZE=1`, against roughly one frame (tens of ms on the dev PC) with `DK_FREEZE=0`. `capped`
+  should be 0 and `max_calls_in_one_pin` should be small (thousands, not millions). Then the picture:
+  hands in the same pose in both halves, shifted sideways only. If `frame_start_dt` is ~0 and the
+  poses still differ, cause 4 is real.
+- Syntax-only clang check (llvm-mingw, mingw target, `-Wall -Wextra`): no errors, no warnings
+  `[compile-verified 2026-10-12]`. 08c applies to copies of the current SDK files (07 + 08 + 08b)
+  and reproduces the edit exactly `[verified-numerically 2026-10-12, n=1]`; it passes the same syntax
+  check `[compile-verified 2026-10-12]`.
+- ⚠️ 1089 lines is past the 800-line soft limit: before the next addition, split the queue/eye/freeze
+  code (steps 6 and 8) into its own file, move-only.
+
+## The game pauses when the virtual pad disconnects `[reported]`
+
+When the process that owns the virtual pad (vgamepad) exits, the game sees the controller
+disconnect and pauses. Any driver must keep one pad alive for the game's whole life: create it before
+the launch and only release it after the game has closed. `run_pair_test_dev.py` does this within one
+run (its pad lives until the script exits, after `close_game`). Separate scripts that each make their
+own pad and exit mid-session will pause the game.
+
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version

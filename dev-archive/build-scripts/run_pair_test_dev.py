@@ -3,7 +3,8 @@
     python run_pair_test_dev.py A            the old per-frame eye (no DK_EYE_BY_PACKET)
     python run_pair_test_dev.py B            the same plus DK_EYE_BY_PACKET=1
     python run_pair_test_dev.py H            B plus DK_SBS_HOLD=1 (needs sdk-patches/08b): only same-pair pictures shown
-    python run_pair_test_dev.py AB | ABH     those runs one after the other
+    python run_pair_test_dev.py O            H with DK_FREEZE=0: the freeze-off baseline
+    python run_pair_test_dev.py AB | ABH | BHO   those runs one after the other
     python run_pair_test_dev.py NF --scene car --turn   screen-effects test: N = normal flat picture, F = with
                                              DK_VR_SCREEN_FX_OFF=1 (needs vr_viewport_probe_fx.cpp); prints the
                                              picture sharpness while turning and while still
@@ -28,7 +29,7 @@ highlighted. --scene car adds A (CONTINUE) and waits for the level.
 
 Pictures go OUTSIDE every git repo: D:\\the-darkness\\screens\\eye-by-packet\\<mode>-<time>\\.
 """
-import argparse, ctypes, glob, json, os, subprocess, sys, time
+import argparse, ctypes, glob, json, os, re, subprocess, sys, time
 
 BUILD_SCRIPTS = r"D:\claude video game stuff\github-backups\the-darkness-vr\dev-archive\build-scripts"
 OBS_REC = r"D:\claude video game stuff\github-backups\claude-memory\tools\obs-rec.py"
@@ -52,7 +53,15 @@ TITLE_LATEST_S = 200.0
 TITLE_COLOURS = 12000         # distinct colours that mean "title art is up" (stereo_probe_run, dev PC)
 STEP_S = 4.5                  # between menu presses
 MENU_SETTLE_S = 15.0          # on the main menu before measuring
-CAR_SETTLE_S = 45.0           # after CONTINUE: level loads in ~25-40 s (home PC, 2026-09-28)
+MENU_REF_WAIT_S = 8.0         # on the main menu before the reference picture
+CONTINUE_CHECK_S = 6.0        # after A on CONTINUE, before comparing with the reference
+CONTINUE_TRIES = 6
+MENU_LEFT_DIFF = 12.0         # mean absolute picture change (0-255) that means it left the menu
+LEVEL_WAIT_S = 120.0          # the opening film and titles play before the level
+LOG_POLL_S = 3.0
+LEVEL_SETTLE_S = 5.0          # after the first camera builds, before measuring
+CAMERA_1_RE = re.compile(r"camera builds per frame: 0:\d+ 1:(\d+)")
+CAM_IN_PACKET_RE = re.compile(r"cam_in_packet=(\d+)")
 KEEP_PICTURES = 12
 MAX_SHIFT_PX = 40             # sideways shifts tried, each way, in window pixels
 SAME_EYE_SHIFT_PX = 2         # |best shift| at or below this = one eye on both halves
@@ -64,7 +73,7 @@ TURN_BURST_SHOTS = 10         # --turn: 10 pictures with the right stick held, t
 TURN_DEFLECT = 1.0            # 0.55 produced no visible turn (control profile, 2026-09-16)
 user32.PostMessageW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_size_t, ctypes.c_ssize_t]
 LOG_KEYS = ("[VP] P-offset", "[VP] packet", "[VP] camera build", "[VP] first FILLER", "[VP] PACKETS",
-            "[VP] SWAPS", "[VP] FREEZE", "[SBS]", "[VP] screen")
+            "[VP] SWAPS", "[VP] FREEZE", "[SBS]", "[VP] screen", "[VP] PAIRS", "[VP] PINCALLERS")
 BUTTONS = {"START": vg.XUSB_BUTTON.XUSB_GAMEPAD_START, "A": vg.XUSB_BUTTON.XUSB_GAMEPAD_A}
 
 
@@ -93,6 +102,42 @@ def sharpness(rgb, box):
     x, y, w, h = box
     g = rgb[y:y + h, x:x + w, :].astype(np.float32).mean(axis=2)
     return float(np.abs(np.diff(g, axis=1)).mean())
+
+
+def continue_into_level(pad, hwnd, proc):
+    """On the main menu: press A (CONTINUE) until the picture leaves the menu, checked by screen."""
+    time.sleep(MENU_REF_WAIT_S)
+    ref = grab(hwnd).astype(np.int16)
+    for attempt in range(1, CONTINUE_TRIES + 1):
+        if proc.poll() is not None:
+            return False
+        press(pad, hwnd, "A")
+        time.sleep(CONTINUE_CHECK_S)
+        now = grab(hwnd).astype(np.int16)
+        diff = float(np.abs(now - ref).mean()) if now.shape == ref.shape else 255.0
+        print(f"    CONTINUE try {attempt}: picture change {diff:.1f} (left the menu above {MENU_LEFT_DIFF})",
+              flush=True)
+        if diff > MENU_LEFT_DIFF:
+            return True
+    return False
+
+
+def wait_for_camera(launched_at, proc):
+    """The opening film and titles play first: wait until the probe logs camera builds."""
+    deadline = time.time() + LEVEL_WAIT_S
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            return False
+        logs = [q for q in glob.glob(os.path.join(LOG_DIR, "*.log")) if os.path.getmtime(q) >= launched_at - 5]
+        if logs:
+            with open(max(logs, key=os.path.getmtime), encoding="utf-8", errors="replace") as f:
+                text = f.read()
+            built = [int(n) for n in CAMERA_1_RE.findall(text)] + [int(n) for n in CAM_IN_PACKET_RE.findall(text)]
+            if any(n > 0 for n in built):
+                print(f"    camera builds seen in the log at t={time.time() - launched_at:.0f} s", flush=True)
+                return True
+        time.sleep(LOG_POLL_S)
+    return False
 
 
 def press(pad, hwnd, label):
@@ -151,10 +196,12 @@ def run(mode, args):
         env.pop(k, None)
     if mode == "F":
         env["DK_VR_SCREEN_FX_OFF"] = "1"
-    if mode in ("B", "H"):
+    if mode in ("B", "H", "O"):
         env["DK_EYE_BY_PACKET"] = "1"
-    if mode == "H":
+    if mode in ("H", "O"):
         env["DK_SBS_HOLD"] = "1"
+    if mode == "O":
+        env["DK_FREEZE"] = "0"   # freeze-off baseline: frame_start_dt should be about one frame
     print(f"== run {mode}: " + " ".join(f"{k}={v}" for k, v in env.items() if k.startswith("DK_")), flush=True)
     pad = vg.VX360Gamepad(); time.sleep(1.0)            # pad exists before the game starts
     launched_at = time.time()
@@ -178,9 +225,16 @@ def run(mode, args):
         print(f"  title at t={t_title}", flush=True)
         if t_title is None:
             return None
-        for label in ["START", "A", "START"] + (["A"] if args.scene == "car" else []):
+        for label in ["START", "A", "START"]:
             time.sleep(STEP_S); press(pad, hwnd, label)
-        time.sleep(CAR_SETTLE_S if args.scene == "car" else MENU_SETTLE_S)
+        if args.scene == "car":
+            if not continue_into_level(pad, hwnd, proc):
+                print("  CONTINUE never left the menu"); return None
+            if not wait_for_camera(launched_at, proc):
+                print(f"  no camera builds in the log within {LEVEL_WAIT_S:.0f} s"); return None
+            time.sleep(LEVEL_SETTLE_S)
+        else:
+            time.sleep(MENU_SETTLE_S)
 
         box = client_box(hwnd)
         shifts, diffs, sharp_turn, sharp_still = [], [], [], []
@@ -230,7 +284,7 @@ def run(mode, args):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["A", "B", "H", "AB", "ABH", "N", "F", "NF"])
+    ap.add_argument("mode", choices=["A", "B", "H", "O", "AB", "ABH", "BHO", "N", "F", "NF"])
     ap.add_argument("--shots", type=int, default=200)
     ap.add_argument("--scene", choices=["menu", "car"], default="menu")
     ap.add_argument("--no-obs", action="store_true")
