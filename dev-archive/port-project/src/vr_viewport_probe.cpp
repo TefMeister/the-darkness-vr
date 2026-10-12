@@ -59,11 +59,45 @@
 // sub_82867620, the one guest function that calls VdSwap, so every draw of a frame
 // shares one eye by construction.
 // ---------------------------------------------------------------------------
+//
+// Step 6 (2026-10-12): THE EYE BELONGS TO THE PACKET, NOT TO THE FRAME END. DK_EYE_BY_PACKET=1.
+//
+// Measured 2026-09-28: the camera (sub_823F9B00) is built on the GAME thread and the frame end
+// (sub_82867620) runs on the MAIN thread, 0/1/2 builds per frame end, so flipping the eye at the
+// frame end put one eye on both halves of 30-50% of side-by-side pairs. The two threads hand
+// frames over through a packet queue (dossier §6): the game thread ACQUIRES a packet
+// (sub_825A3FD8, which stamps a global serial 0x82A6910C into packet+5560), fills it, SUBMITS it
+// (sub_825A45A8); the main thread PLAYS it (sub_8259E050, r3 = packet) and swaps.
+//
+// So with DK_EYE_BY_PACKET=1 the serial decides everything:
+//   - the eye of a packet = parity of its serial (DK_STEREO_PERIOD packets per eye); even = left;
+//   - the camera build uses the eye of the packet its thread is filling (thread-local, set
+//     between acquire and submit); if a build happens OUTSIDE that window it uses the serial the
+//     next acquire will get (global + 1), and is counted so a run shows which case is real;
+//   - the freeze pins the clock from the submit of a first-eye packet to the submit of its
+//     second-eye packet, so the second eye is simulated at the first eye's instant whether the
+//     simulation runs before or after the acquire;
+//   - the main thread records the serial of the packet it plays, and each VdSwap is entered in a
+//     numbered table BEFORE it is issued; the side-by-side compose (sdk-patches/08) asks
+//     dk_sbs_swap_eye(swap number) and gets that packet's eye. No counting of frames anywhere.
+//
+// Why serials are immune to what broke counting:
+//   - the FILLER packet the main loop acquires itself on a ready-wait timeout (lr 0x820E3358)
+//     takes a serial too. It is played like any packet, so its swap is labelled by ITS serial.
+//     It can steal the serial the game thread expected; that is counted (predict_miss).
+//   - the DRAIN (sub_825A4510) releases ready packets undrawn. They never reach sub_8259E050, so
+//     they are never entered against a swap. The shown sequence can then repeat an eye; the
+//     compose keeps the latest picture of each eye, so the other half simply stays put, and the
+//     repeat is counted (same_eye_twice).
+//   - a frame end with no packet played since the last swap (a loading screen) is entered as
+//     "no eye" and shown on both halves.
+// With DK_EYE_BY_PACKET unset, everything behaves exactly as step 5 (for the A/B).
 
 #include "generated/default/darknessrecomp_pch.h"
 
 #include <rex/hook.h>
 
+#include <atomic>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -139,7 +173,8 @@ struct StereoSettings {
   float eye = 0.0f;
   float cam_eye = 0.0f;
   bool freeze = false;
-  int period = 0;  // frames per eye; 0 = fixed eye
+  bool eye_by_packet = false;  // DK_EYE_BY_PACKET=1, step 6; only acts when period > 0
+  int period = 0;  // frames (or packets) per eye; 0 = fixed eye
   enum Target { kNear, kFar, kAll } target = kNear;
 };
 
@@ -158,9 +193,10 @@ uint32_t g_cam_builds_histogram[4] = {};
 // really are per frame, since assuming "one" was wrong once already.
 uint32_t g_applies_this_frame = 0;
 uint32_t g_applies_histogram[8] = {};
-// Guest clock pinning, for the second eye of each pair.
+// Guest clock pinning, for the second eye of each pair. Read by every thread that asks the
+// clock; set by the main thread (step 5) or the game thread (step 6).
 uint64_t g_last_tick = 0;
-bool g_pin_clock = false;
+std::atomic<bool> g_pin_clock{false};
 uint64_t g_pinned_frames = 0;
 uint64_t g_clock_calls = 0, g_clock_pinned = 0;
 double g_max_hold_ms = 0.0;   // largest gap between the real clock and the value handed back
@@ -180,6 +216,9 @@ const StereoSettings& Stereo() {
     if (const char* n = std::getenv("DK_STEREO_PERIOD")) {
       out.period = std::atoi(n);
     }
+    if (const char* b = std::getenv("DK_EYE_BY_PACKET")) {
+      out.eye_by_packet = (b[0] == '1');
+    }
     if (const char* t = std::getenv("DK_STEREO_TARGET")) {
       if (std::strcmp(t, "far") == 0) {
         out.target = StereoSettings::kFar;
@@ -187,17 +226,144 @@ const StereoSettings& Stereo() {
         out.target = StereoSettings::kAll;
       }
     }
-    REXGPU_INFO("[VP] P-offset = {:.3f}, CAMERA-offset = {:.3f}, period = {}, freeze = {}, target = {}",
+    REXGPU_INFO("[VP] P-offset = {:.3f}, CAMERA-offset = {:.3f}, period = {}, freeze = {}, target = {}, "
+                "eye_by_packet = {}{}",
                 out.eye, out.cam_eye, out.period, out.freeze ? 1 : 0,
                 out.target == StereoSettings::kNear  ? "near"
                 : out.target == StereoSettings::kFar ? "far"
-                                                     : "all");
+                                                     : "all",
+                out.eye_by_packet ? 1 : 0,
+                (out.eye_by_packet && out.period <= 0) ? " (ignored: needs DK_STEREO_PERIOD > 0)" : "");
     return out;
   }();
   return s;
 }
 
+// ---- Step 6: the eye by packet serial ---------------------------------------------------------
+
+// Queue facts, all from the generated code (dossier §6; re-read 2026-10-12):
+//   sub_825A3FD8 acquire: lis r9,-32089; lwz r8,-28404(r9); addi r8,r8,1; stw ... -> the global
+//     serial lives at 0x82A6910C and is stamped into packet+5560; returns the packet in r3, or 0
+//     when its wait times out.
+//   Call sites: 0x820E21A4 and 0x820E21E0 (game thread, sub_820E2058, the second is its retry
+//     loop) and 0x820E3358 (main loop sub_820E2E50: the FILLER, after a ready-wait timeout).
+//   sub_825A45A8 submit(r3 = queue, r4 = packet): one call site, 0x820E2834, game thread.
+//   sub_8259E050 play(r3 = packet): three call sites in the main loop; 0x820E38D4 is a second
+//     pass over the SAME packet (r5 = 2), so a repeat of the same serial is not a new packet.
+//   sub_825A46A0 release(r3 = queue, r4 = packet): from 0x825A4578 it is the DRAIN releasing a
+//     packet that was never played.
+constexpr uint32_t kSerialGlobal = 0x82A6910Cu;
+constexpr uint32_t kPacketSerialOffset = 5560u;
+constexpr uint32_t kAcquireLrGame = 0x820E21A4u;
+constexpr uint32_t kAcquireLrGameRetry = 0x820E21E0u;
+constexpr uint32_t kAcquireLrFiller = 0x820E3358u;
+constexpr uint32_t kSubmitLrGame = 0x820E2834u;
+constexpr uint32_t kReleaseLrDrain = 0x825A4578u;
+constexpr uint64_t kStatsEverySwaps = 300u;
+
+bool ByPacket() {
+  const StereoSettings& s = Stereo();
+  return s.eye_by_packet && s.period > 0;
+}
+
+// Even serials (period 1) are the first eye = LEFT = +offset, as in step 5 ("+e slides the scene
+// right, which is what the LEFT eye sees"; even swaps went on the LEFT).
+bool SecondEye(uint32_t serial) {
+  return ((serial / static_cast<uint32_t>(Stereo().period)) & 1u) != 0u;
+}
+float SignFor(uint32_t serial) { return SecondEye(serial) ? -1.0f : 1.0f; }
+
+// The packet this thread is filling (game thread, acquire..submit; the main thread's filler,
+// acquire..play) or playing (main thread, inside sub_8259E050).
+struct PacketOnThread {
+  bool has = false;
+  uint32_t serial = 0;
+};
+thread_local PacketOnThread t_packet;
+
+// Counters. Written on the game and main threads, printed from the frame end.
+std::atomic<uint64_t> g_pk_game[2];          // packets acquired by the game thread, per eye
+std::atomic<uint64_t> g_pk_filler[2];        // filler packets acquired by the main loop, per eye
+std::atomic<uint64_t> g_pk_other{0};         // acquires from a call site not listed above
+std::atomic<uint64_t> g_pk_timeouts{0};      // acquires that returned no packet
+std::atomic<uint64_t> g_pk_drained[2];       // packets released by the drain, never played
+std::atomic<uint64_t> g_pk_played[2];        // distinct packets played, per eye
+std::atomic<uint64_t> g_predict_miss{0};     // game acquire got a serial other than predicted
+std::atomic<uint32_t> g_predicted{0};        // serial the next game acquire should get (+1; 0 = none)
+std::atomic<uint64_t> g_cam_in_packet{0}, g_cam_outside{0};
+std::atomic<uint64_t> g_pinned_packets{0};
+
+// Main thread: the last packet played and whether one was played since the last swap.
+std::atomic<uint32_t> g_play_serial{0};
+std::atomic<bool> g_played_since_swap{false};
+uint32_t g_last_played_serial_seen = 0xFFFFFFFFu;
+
+// Swaps, entered by number before VdSwap is issued, read by sdk-patches/08 on the GPU thread.
+// tag = ((index + 1) << 8) | (eye + 2); 0 = empty. A slot is reused 1024 swaps later, by which
+// time the GPU thread has long read it.
+struct SwapSlot {
+  std::atomic<uint64_t> tag{0};
+  std::atomic<uint32_t> serial{0};
+};
+constexpr uint64_t kSwapSlots = 1024u;
+SwapSlot g_swap_slots[kSwapSlots];
+uint64_t g_swap_index = 0;  // main thread only
+uint64_t g_sw_eye[2] = {}, g_sw_none = 0, g_sw_same_twice = 0, g_sw_serial_gap = 0;
+int g_sw_last_eye = -1;
+uint32_t g_sw_last_serial = 0;
+bool g_sw_have_last_serial = false;
+std::atomic<uint64_t> g_lookup_miss{0};
+
+// The eye for a camera or projection being made on THIS thread right now.
+float EyeSignForThisThread(uint8_t* base, bool count) {
+  if (!ByPacket()) {
+    return g_eye_sign;
+  }
+  if (t_packet.has) {
+    if (count) {
+      g_cam_in_packet.fetch_add(1, std::memory_order_relaxed);
+    }
+    return SignFor(t_packet.serial);
+  }
+  if (count) {
+    g_cam_outside.fetch_add(1, std::memory_order_relaxed);
+  }
+  return SignFor(REX_LOAD_U32(kSerialGlobal) + 1u);
+}
+
+// Game thread, after acquire and after submit: hold the clock while the coming packet is a
+// second eye. "Coming" = the one being filled (after acquire) or the next one (after submit).
+void SetPinFor(uint32_t serial) {
+  if (!Stereo().freeze) {
+    return;
+  }
+  const bool pin = SecondEye(serial);
+  if (pin && !g_pin_clock.load(std::memory_order_relaxed)) {
+    g_pinned_packets.fetch_add(1, std::memory_order_relaxed);
+  }
+  g_pin_clock.store(pin, std::memory_order_relaxed);
+}
+
 }  // namespace
+
+// Asked by the side-by-side compose (sdk-patches/08, D3D12CommandProcessor::IssueSwap) once per
+// swap, by swap number counted from 0. Returns 0 left, 1 right, -1 no eye (show on both halves),
+// -2 switched off (use the old parity rule), -3 that swap is not in the table (a desync: counted).
+extern "C" __declspec(dllexport) int dk_sbs_swap_eye(uint64_t swap_index, uint32_t* serial_out) {
+  if (!ByPacket()) {
+    return -2;
+  }
+  const SwapSlot& slot = g_swap_slots[swap_index % kSwapSlots];
+  const uint64_t tag = slot.tag.load(std::memory_order_acquire);
+  if ((tag >> 8) != swap_index + 1u) {
+    g_lookup_miss.fetch_add(1, std::memory_order_relaxed);
+    return -3;
+  }
+  if (serial_out != nullptr) {
+    *serial_out = slot.serial.load(std::memory_order_relaxed);
+  }
+  return static_cast<int>(tag & 0xFFu) - 2;
+}
 
 REX_HOOK_RAW(sub_82249580) {
   // The original, unchanged and first. Everything below is observation.
@@ -230,9 +396,10 @@ REX_HOOK_RAW(sub_82249580) {
     if (shift_this_one) {
       // P' = T(e) * P: rows 0..2 of T are identity, so only row 3 changes, by
       // e * row0. Write it back and keep reporting the SHIFTED matrix, so the log
-      // shows what the game actually used.
+      // shows what the game actually used. Step 6: the eye of the packet on this thread.
+      const float sign = EyeSignForThisThread(base, false);
       for (int i = 0; i < 4; ++i) {
-        p[12 + i] += g_eye_sign * stereo.eye * p[i];
+        p[12 + i] += sign * stereo.eye * p[i];
         StoreGuestFloat(base, kProjection + static_cast<uint32_t>(12 + i) * 4u, p[12 + i]);
       }
     }
@@ -281,6 +448,51 @@ REX_HOOK_RAW(sub_82867620) {
   const uint32_t device = ctx.r3.u32;
   const bool no_swap = device != 0u && REX_LOAD_U32(device + kNoSwapFlagOffset) != 0u;
 
+  // Step 6: enter this swap in the table BEFORE the original issues VdSwap, so the GPU thread
+  // can never reach this swap before its entry exists. Entered in every mode, so the swap
+  // numbers stay aligned with the GPU side if the switch is ever read differently later.
+  if (!no_swap) {
+    const bool played = g_played_since_swap.exchange(false, std::memory_order_relaxed);
+    const uint32_t serial = g_play_serial.load(std::memory_order_relaxed);
+    int eye = -1;
+    if (played && ByPacket()) {
+      eye = SecondEye(serial) ? 1 : 0;
+    }
+    SwapSlot& slot = g_swap_slots[g_swap_index % kSwapSlots];
+    slot.serial.store(serial, std::memory_order_relaxed);
+    slot.tag.store(((g_swap_index + 1u) << 8) | static_cast<uint64_t>(eye + 2), std::memory_order_release);
+    ++g_swap_index;
+
+    if (eye >= 0) {
+      ++g_sw_eye[eye];
+      if (eye == g_sw_last_eye) {
+        ++g_sw_same_twice;
+      }
+      g_sw_last_eye = eye;
+      if (g_sw_have_last_serial && serial != g_sw_last_serial + 1u) {
+        ++g_sw_serial_gap;
+      }
+      g_sw_last_serial = serial;
+      g_sw_have_last_serial = true;
+    } else {
+      ++g_sw_none;
+    }
+
+    if (ByPacket() && (g_swap_index % kStatsEverySwaps) == 0u) {
+      auto ld = [](const std::atomic<uint64_t>& a) { return a.load(std::memory_order_relaxed); };
+      REXGPU_INFO("[VP] PACKETS game L={} R={} filler L={} R={} other={} timeouts={} drained L={} R={} "
+                  "played L={} R={} predict_miss={} cam_in_packet={} cam_outside={} pinned_packets={}",
+                  ld(g_pk_game[0]), ld(g_pk_game[1]), ld(g_pk_filler[0]), ld(g_pk_filler[1]),
+                  ld(g_pk_other), ld(g_pk_timeouts), ld(g_pk_drained[0]), ld(g_pk_drained[1]),
+                  ld(g_pk_played[0]), ld(g_pk_played[1]), ld(g_predict_miss), ld(g_cam_in_packet),
+                  ld(g_cam_outside), ld(g_pinned_packets));
+      REXGPU_INFO("[VP] SWAPS n={} L={} R={} no_eye={} same_eye_twice={} serial_gaps={} gpu_lookup_miss={} "
+                  "last_serial={}",
+                  g_swap_index, g_sw_eye[0], g_sw_eye[1], g_sw_none, g_sw_same_twice, g_sw_serial_gap,
+                  ld(g_lookup_miss), serial);
+    }
+  }
+
   __imp__sub_82867620(ctx, base);
 
   ++g_frame_end_calls;
@@ -296,7 +508,9 @@ REX_HOOK_RAW(sub_82867620) {
   g_applies_this_frame = 0;
 
   const StereoSettings& stereo = Stereo();
-  if ((stereo.eye != 0.0f || stereo.cam_eye != 0.0f) && stereo.period > 0) {
+  // Step 6 (DK_EYE_BY_PACKET=1) picks the eye and the freeze per packet instead; the per-frame
+  // rule below is step 5, kept as it was for the A/B.
+  if (!ByPacket() && (stereo.eye != 0.0f || stereo.cam_eye != 0.0f) && stereo.period > 0) {
     const float sign = ((g_frames / static_cast<uint64_t>(stereo.period)) & 1u) ? -1.0f : 1.0f;
     if (sign != g_eye_sign) {
       g_eye_sign = sign;
@@ -308,10 +522,10 @@ REX_HOOK_RAW(sub_82867620) {
   // The swap hook runs at the END of a frame, so g_frames is now the index of the frame
   // about to be drawn. With period 1 the pair is (even, odd): the odd frame is the second
   // eye and must see the same instant as the even one.
-  if (stereo.freeze && stereo.period > 0) {
+  if (!ByPacket() && stereo.freeze && stereo.period > 0) {
     const bool second_eye = ((g_frames / static_cast<uint64_t>(stereo.period)) & 1u) != 0u;
-    if (second_eye != g_pin_clock) {
-      g_pin_clock = second_eye;
+    if (second_eye != g_pin_clock.load(std::memory_order_relaxed)) {
+      g_pin_clock.store(second_eye, std::memory_order_relaxed);
       if (second_eye) {
         ++g_pinned_frames;
       }
@@ -344,6 +558,7 @@ DECLARE_REX_FUNC(sub_823F9B00);
 
 REX_HOOK_RAW(sub_823F9B00) {
   const uint32_t out = ctx.r4.u32;
+  const uint32_t caller = static_cast<uint32_t>(ctx.lr);
 
   __imp__sub_823F9B00(ctx, base);
 
@@ -351,9 +566,23 @@ REX_HOOK_RAW(sub_823F9B00) {
   static bool thread_logged = false;
   if (!thread_logged) {
     thread_logged = true;
-    REXGPU_INFO("[VP] camera build thread={}",
+    // Expected caller 0x8249B588 (sub_8249B238, a vtable call); anything else is a second
+    // camera path and is logged once below.
+    REXGPU_INFO("[VP] camera build thread={} caller=0x{:08X} in_packet={}",
+                std::hash<std::thread::id>{}(std::this_thread::get_id()), caller,
+                t_packet.has ? 1 : 0);
+  }
+  static bool other_caller_logged = false;
+  if (caller != 0x8249B588u && !other_caller_logged) {
+    other_caller_logged = true;
+    REXGPU_INFO("[VP] camera build from a SECOND caller=0x{:08X} thread={}", caller,
                 std::hash<std::thread::id>{}(std::this_thread::get_id()));
   }
+
+  // The eye of the packet this thread is filling (step 6), or the per-frame eye (step 5).
+  // Counted whether or not an offset is applied, so an offset-0 freeze run still shows
+  // whether builds happen inside the packet window.
+  const float sign = EyeSignForThisThread(base, true);
 
   const StereoSettings& stereo = Stereo();
   if (stereo.cam_eye == 0.0f || out == 0u) {
@@ -371,7 +600,7 @@ REX_HOOK_RAW(sub_823F9B00) {
 
   for (int i = 0; i < 3; ++i) {
     StoreGuestFloat(base, out + kPos + static_cast<uint32_t>(i) * 4u,
-                    pos[i] + g_eye_sign * stereo.cam_eye * right[i]);
+                    pos[i] + sign * stereo.cam_eye * right[i]);
   }
 
   // Once, so the row layout can be checked against reality rather than assumed: a unit
@@ -422,4 +651,189 @@ REX_HOOK_RAW(sub_828A7DB8) {
   ++g_last_tick;
   REX_STORE_U32(out, static_cast<uint32_t>(g_last_tick >> 32));
   REX_STORE_U32(out + 4u, static_cast<uint32_t>(g_last_tick & 0xFFFFFFFFu));
+}
+
+// ---- Step 6 hooks: the packet queue between the game thread and the main thread ---------------
+
+namespace {
+// For the counters only: the eye a serial belongs to, also when the switch is off.
+int EyeIndexForCount(uint32_t serial) {
+  const int period = Stereo().period;
+  return static_cast<int>(period > 0 ? ((serial / static_cast<uint32_t>(period)) & 1u) : (serial & 1u));
+}
+}  // namespace
+
+// Acquire a free packet and stamp the next serial into it. The caller's return address says who
+// asked: the game thread (two sites) or the main loop's filler.
+DECLARE_REX_FUNC(sub_825A3FD8);
+
+REX_HOOK_RAW(sub_825A3FD8) {
+  const uint32_t caller = static_cast<uint32_t>(ctx.lr);
+
+  __imp__sub_825A3FD8(ctx, base);
+
+  const uint32_t packet = ctx.r3.u32;
+  if (packet == 0u) {
+    g_pk_timeouts.fetch_add(1, std::memory_order_relaxed);
+    return;
+  }
+  const uint32_t serial = REX_LOAD_U32(packet + kPacketSerialOffset);
+  const int eye = EyeIndexForCount(serial);
+
+  static bool logged = false;
+  if (!logged) {
+    logged = true;
+    REXGPU_INFO("[VP] packet acquire thread={} caller=0x{:08X} packet=0x{:08X} serial={}",
+                std::hash<std::thread::id>{}(std::this_thread::get_id()), caller, packet, serial);
+  }
+
+  // This thread now fills this packet: its camera builds take this packet's eye.
+  t_packet.has = true;
+  t_packet.serial = serial;
+
+  if (caller == kAcquireLrGame || caller == kAcquireLrGameRetry) {
+    g_pk_game[eye].fetch_add(1, std::memory_order_relaxed);
+    const uint32_t predicted = g_predicted.load(std::memory_order_relaxed);
+    if (predicted != 0u && predicted != serial) {
+      g_predict_miss.fetch_add(1, std::memory_order_relaxed);
+    }
+    if (ByPacket()) {
+      SetPinFor(serial);
+    }
+  } else if (caller == kAcquireLrFiller) {
+    g_pk_filler[eye].fetch_add(1, std::memory_order_relaxed);
+    static bool filler_logged = false;
+    if (!filler_logged) {
+      filler_logged = true;
+      REXGPU_INFO("[VP] first FILLER packet (main loop ready-wait timeout) serial={} thread={}", serial,
+                  std::hash<std::thread::id>{}(std::this_thread::get_id()));
+    }
+  } else {
+    g_pk_other.fetch_add(1, std::memory_order_relaxed);
+  }
+}
+
+// Submit a filled packet to the ready list (r3 = queue, r4 = packet). After the game thread's
+// submit, its next camera build and simulation belong to the NEXT packet: predict its serial and
+// set the freeze for it.
+DECLARE_REX_FUNC(sub_825A45A8);
+
+REX_HOOK_RAW(sub_825A45A8) {
+  const uint32_t caller = static_cast<uint32_t>(ctx.lr);
+
+  __imp__sub_825A45A8(ctx, base);
+
+  t_packet.has = false;
+  if (caller == kSubmitLrGame) {
+    const uint32_t next = REX_LOAD_U32(kSerialGlobal) + 1u;
+    g_predicted.store(next, std::memory_order_relaxed);
+    if (ByPacket()) {
+      SetPinFor(next);
+    }
+  }
+}
+
+// Play a packet to D3D (main thread, r3 = packet). Called a second time for the same packet with
+// r5 = 2 (an extra pass), so only a change of serial is a new packet.
+DECLARE_REX_FUNC(sub_8259E050);
+
+REX_HOOK_RAW(sub_8259E050) {
+  const uint32_t packet = ctx.r3.u32;
+  const uint32_t serial = packet != 0u ? REX_LOAD_U32(packet + kPacketSerialOffset) : 0u;
+
+  static bool logged = false;
+  if (!logged) {
+    logged = true;
+    REXGPU_INFO("[VP] packet play thread={} packet=0x{:08X} serial={}",
+                std::hash<std::thread::id>{}(std::this_thread::get_id()), packet, serial);
+  }
+
+  if (packet != 0u) {
+    if (serial != g_last_played_serial_seen) {
+      g_last_played_serial_seen = serial;
+      g_pk_played[EyeIndexForCount(serial)].fetch_add(1, std::memory_order_relaxed);
+    }
+    g_play_serial.store(serial, std::memory_order_relaxed);
+    g_played_since_swap.store(true, std::memory_order_relaxed);
+    // Anything this thread computes while playing (the step-2 projection offset) takes this
+    // packet's eye.
+    t_packet.has = true;
+    t_packet.serial = serial;
+  }
+
+  __imp__sub_8259E050(ctx, base);
+
+  // The main thread fills nothing between plays (its filler is acquired and played in one go).
+  t_packet.has = false;
+}
+
+// Release a packet back to the free list (r3 = queue, r4 = packet). Only counted: from the
+// drain's call site it is a packet that was built and never played.
+DECLARE_REX_FUNC(sub_825A46A0);
+
+REX_HOOK_RAW(sub_825A46A0) {
+  const uint32_t caller = static_cast<uint32_t>(ctx.lr);
+  const uint32_t packet = ctx.r4.u32;
+  if (caller == kReleaseLrDrain && packet != 0u) {
+    g_pk_drained[EyeIndexForCount(REX_LOAD_U32(packet + kPacketSerialOffset))].fetch_add(
+        1, std::memory_order_relaxed);
+  }
+
+  __imp__sub_825A46A0(ctx, base);
+}
+
+// ---- Step 7 (2026-10-12): VR screen effects off. DK_VR_SCREEN_FX_OFF=1 ---------------------------
+//
+// Standing rule: in VR every effect painted on the screen goes off. The XR engine's post-process
+// sub_825E91D8 (profiler name "CXR_Engine::Engine_PostProcess", r3 = the engine object) reads fields
+// that the engine's xr_* script commands write (registered in sub_825EC690 on the same object);
+// there is no console to type them, so this hook writes the fields on r3 before the original runs.
+//   engine+1192 |= 0x40      xr_ppmbdebugflags(1): the motion-blur pass runs only while this bit is
+//                            clear (and engine+1460 has 0x8)            [inferred-static 2026-10-12]
+//   engine+1212  = 0.0       xr_ppmbmaxradius: scales the blur vector    [inferred-static 2026-10-12]
+//   engine+228  &= ~0x40000000  xr_flares off                            [inferred-static 2026-10-12]
+// That the gate is motion blur and that the flare bit hides lens flares is [hypothesis] until a run
+// shows it. Old values are logged once, and again whenever the game changes them back.
+DECLARE_REX_FUNC(sub_825E91D8);
+
+namespace {
+constexpr uint32_t kEngineFlareFlags = 228u;
+constexpr uint32_t kFlareEnableBit = 0x40000000u;
+constexpr uint32_t kEnginePpMbFlags = 1192u;
+constexpr uint32_t kMbDisableBit = 0x40u;
+constexpr uint32_t kEngineMbMaxRadius = 1212u;
+
+bool ScreenFxOff() {
+  static const bool off = [] {
+    const char* e = std::getenv("DK_VR_SCREEN_FX_OFF");
+    const bool on = e != nullptr && e[0] == '1';
+    REXGPU_INFO("[VP] screen effects off (motion blur, lens flares) = {}", on ? 1 : 0);
+    return on;
+  }();
+  return off;
+}
+}  // namespace
+
+REX_HOOK_RAW(sub_825E91D8) {
+  const uint32_t engine = ctx.r3.u32;
+  if (ScreenFxOff() && engine != 0u) {
+    const uint32_t flare = REX_LOAD_U32(engine + kEngineFlareFlags);
+    const uint32_t mb_flags = REX_LOAD_U32(engine + kEnginePpMbFlags);
+    const float mb_radius = LoadGuestFloat(base, engine + kEngineMbMaxRadius);
+    const bool changed = (flare & kFlareEnableBit) != 0u || (mb_flags & kMbDisableBit) == 0u ||
+                         mb_radius != 0.0f;
+    static uint32_t times_logged = 0;
+    if (changed && times_logged < 5u) {
+      ++times_logged;
+      REXGPU_INFO("[VP] screen fx: engine=0x{:08X} before: flares_bit={} mb_flags=0x{:X} mb_radius={:.3f} "
+                  "mb_gate(+1460&8)={}",
+                  engine, (flare & kFlareEnableBit) ? 1 : 0, mb_flags, mb_radius,
+                  (REX_LOAD_U32(engine + 1460u) & 0x8u) ? 1 : 0);
+    }
+    REX_STORE_U32(engine + kEngineFlareFlags, flare & ~kFlareEnableBit);
+    REX_STORE_U32(engine + kEnginePpMbFlags, mb_flags | kMbDisableBit);
+    StoreGuestFloat(base, engine + kEngineMbMaxRadius, 0.0f);
+  }
+
+  __imp__sub_825E91D8(ctx, base);
 }

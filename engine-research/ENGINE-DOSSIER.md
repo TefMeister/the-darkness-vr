@@ -930,6 +930,221 @@ Full account: `modding-notes/2026-09-28-the-freeze-works-and-the-eye-slips.md`.
 
 - **SDK nightlies after 0.10.0 change guest atomics and fences** (`/gr` 2026-10-04, from the release notes `[reported 2026-10-04]`): `7f7c92e` (2026-09-30) makes `stwcx.` a `std::atomic` compare-and-swap; `ea222e9` (2026-10-01) requires SSE4.1 (both PCs have it); `bd833a2` (2026-10-02) adds real fences for `sync`/`lwsync`/`eieio`. The note suggested an A/B against the 60-90 ms "holds", but those holds are OUR freeze (`DK_FREEZE`), not a stall, so that test would measure nothing. Still worth knowing if a cross-thread race shows up (the packet queue is exactly such a place) `[hypothesis]`.
 
+### 6b. Eye by packet, live on the dev PC (2026-10-12, `/lm`)
+
+- **The eye bookkeeping works.** With `DK_EYE_BY_PACKET=1` (probe + SDK patch 08) every swap knows its eye from the packet it drew: `SWAPS L=R, same_eye_twice=0, gpu_lookup_miss=0` on the menu and in the car scene `[verified-live 2026-10-12, n=3 runs]`.
+- **The camera is always built inside a packet's acquire..submit window:** `cam_in_packet=491, cam_outside=0` in the car scene `[verified-live 2026-10-12, n=1]`. No camera is built on the main menu at all (both 0), so the menu cannot test the eye offset.
+- **Patch 08b (`DK_SBS_HOLD=1`) pairs cleanly:** `pairs_shown=1200, orphan_left=0, orphan_right=0, forced_right=0` `[verified-live 2026-10-12, n=1]`.
+- ⚠️ **But a pair's two halves show different MOMENTS:** the hands sit in clearly different animation poses between halves, in B and in H, so the per-packet freeze is not holding the simulation between the two packets of a pair `[verified-live 2026-10-12, n=2 runs, by eye]`. `max_hold` reached 15.5 s once, so the pin may also stick. Open; the reader is diagnosing. Evidence: `dev-archive/recon/2026-10-12-eye-by-packet-dev-pc/`.
+- **Menu route on the dev PC:** a fixed-time A on CONTINUE often lands while the menu is still fading in and is ignored; press, check the screen changed, retry `[verified-live 2026-10-12, n=3]`. The game **pauses when the virtual pad disappears** (pad process exits) `[verified-live 2026-10-12, n=1]`.
+- **Music muted:** `SND_VOLUMEMUSIC` 0.7 → 0.0 in the save profile (`set_music_zero.py`, CRC kept valid, backup beside it) `[verified-numerically 2026-10-12]`; not yet heard.
+- **Dev PC build environment rebuilt after the E: → D: move:** fresh configure of SDK and game (old build folders set aside as `*.old-E-paths-2026-10-12`); Condemned patch 02 reverted (it breaks configure on v0.10.0), include folders passed to the game build instead, as on the home PC. Scripts: `recon/2026-10-12-eye-by-packet-dev-pc/dk_*_build.bat`.
+
+#### From the reader: 2026-10-12-lm-reader-eye-by-packet
+
+Code: `staging/the-darkness-vr/eye-by-packet-2026-10-12/` (new `vr_viewport_probe.cpp` and SDK
+patch `08-sbs-eye-from-the-game.patch`, on top of 07). Not built or run yet.
+
+## Facts read from the generated code
+
+- `sub_825A3FD8` (acquire) loads the global serial at `0x82A6910C` (`lis r9,-32089; lwz r8,-28404(r9)`),
+  adds 1, stores it back and into `packet+5560`, and returns the packet in r3, or **r3 = 0 when its
+  wait times out** `[inferred-static 2026-10-12]`.
+- Its three call sites: **0x820E21A4 and 0x820E21E0** in the game-thread function `sub_820E2058`
+  (the second is a retry loop that spins until it gets a packet), and **0x820E3358** in the main loop
+  `sub_820E2E50`: the filler, taken after the ready-wait (`sub_825A43B0`) returns nothing and enough
+  time has passed `[inferred-static 2026-10-12]`. The filler is built on the main thread and played at
+  once through the same path as a normal packet.
+- Submit `sub_825A45A8(r3 = queue, r4 = packet)` has one call site, 0x820E2834, in `sub_820E2058`
+  `[inferred-static 2026-10-12]`.
+- **`sub_8259E050` (play, r3 = packet) is called up to twice per frame for the SAME packet**:
+  0x820E37E8 or 0x820E3828 (r5 = 0 or 4), then 0x820E38D4 (r5 = 2) when flag bit 1 of `main+2752`
+  is set. A per-call count is not a packet count `[inferred-static 2026-10-12]`.
+- Drain `sub_825A4510` loops take-ready and calls release `sub_825A46A0(queue, packet)` from
+  **0x825A4578**; the main loop calls the drain from 0x820E2F00 (start-up) and 0x820E323C (a mode
+  change) `[inferred-static 2026-10-12]`.
+- The camera build `sub_823F9B00` has no direct callers; its one known call is an indirect call at
+  0x8249B584 (lr 0x8249B588) in `sub_8249B238`, called from `sub_823F8AF0`, which is itself only
+  reached indirectly. **Whether the camera is built before or after the game thread's acquire is not
+  established** `[hypothesis]`; the new probe counts `cam_in_packet` / `cam_outside` to settle it.
+- The XE_SWAP ring packet carries only signature, front buffer, width, height
+  (`xboxkrnl_video.cpp` VdSwap), so the eye cannot ride in the swap itself without a kernel change;
+  hence the numbered table plus exported lookup `[inferred-static 2026-10-12]`.
+- `d3d12_api.h` includes `<windows.h>`, so `GetModuleHandleW`/`GetProcAddress` are available in
+  `command_processor.cpp` without a new include `[compile-verified 2026-10-12]` (syntax only, see below).
+
+## The design as written
+
+- Eye = parity of the packet serial (`DK_STEREO_PERIOD` packets per eye; even = left).
+- The camera build takes the eye of the packet its thread holds (acquire..submit, thread-local);
+  outside that window it takes global serial + 1.
+- Freeze: pinned iff the packet being filled (after acquire) or the next one (after submit) is a
+  second eye.
+- The main thread records the serial it plays; the frame end enters `{swap number, eye, serial}`
+  before VdSwap; patch 08's `IssueSwap` asks `dk_sbs_swap_eye(n)` before any early return, and the
+  compose keeps the latest picture of each eye per half.
+- Filler and drain need no special case: the filler is labelled by its own serial, drained packets
+  never reach a swap. Both are counted.
+
+## Checks done
+
+- `vr_viewport_probe.cpp`: `clang++ -fsyntax-only -Wall -Wextra -std=gnu++23` (llvm-mingw 20260616,
+  mingw target, the Darkness build's include list with D: paths): no errors, no warnings in the probe
+  `[compile-verified 2026-10-12]`. Not an MSVC-target build and not linked.
+- Patched `command_processor.cpp`: the same compiler, syntax only, with a stub
+  `DXProgrammableCapture.h` (mingw lacks it): no errors; the unpatched file passes the same way
+  `[compile-verified 2026-10-12]`.
+- Patch 08 applies cleanly to the current post-07 SDK files and reproduces the edited files exactly
+  `[verified-numerically 2026-10-12, n=1]`.
+
+#### From the reader: 2026-10-12-lm-reader-dev-runner-and-hold-design
+
+Runner: `staging/the-darkness-vr/eye-by-packet-2026-10-12/run_pair_test_dev.py`. Not run.
+
+## Dev-PC facts found
+
+- Hard-coded paths in `dev-archive/build-scripts`: `stereo_probe_run.py` and `looktest.py` point at
+  `E:\the-darkness\build-local` (the old drive), `sbs_pair_test.py` defaults to the home PC's
+  `C:\NonSteam\the-darkness\build-home-sbs`, `framerate_run.py` names the home path in its usage text.
+  `winshot.py` and `padpress.py` have no paths. The runner uses `D:\the-darkness\build-local` and
+  leaves those scripts untouched `[inferred-static 2026-10-12]`.
+- **A save exists on the dev PC**: `Documents\darknessrecomp\B13EBABEBABEBABE\545407EE\00000001\DEFAULT`
+  (Chapter1, Checkpoint, _profile), folder dated 2026-09-16. The SDK's default user-data root is
+  Documents\<app name> (`rex_app.cpp`, `GetUserFolder()` = FOLDERID_Documents) `[measured 2026-10-12]`.
+  So the dev route is the save route: title -> START -> A (save notice) -> START -> main menu
+  (the 2026-09-18 dev chain), and an extra START on the menu does nothing `[reported]` (stereo_probe_run notes).
+- `D:\the-darkness\build-local\darknessrecomp.toml` is windowed 1280x720, vsync off `[measured 2026-10-12]`.
+- The runner's sideways-shift measure (best alignment of the two halves, +-40 px) recovered planted
+  shifts of 10, -21 and 0 px exactly on synthetic pictures, reported with the opposite sign (it is the
+  shift that lines the halves up) `[verified-numerically 2026-10-12, n=3]`.
+- Open: whether `DK_CAM_EYE` shows on the main-menu 3D background at all; the 42 px was measured in the
+  car scene `[hypothesis]`. The runner has `--scene car` for that.
+
+## Hold design (same-moment pairs), text only
+
+In patch 08's compose (GPU thread), using the eye and serial each swap already carries: keep
+`shown_L`, `shown_R` and `pending_L`. A left swap goes to `pending_L` and the old pair is shown again.
+A right swap whose pair number (serial / (2 x period)) matches `pending_L` commits both and shows the
+new pair; a right swap without a match keeps the old pair (counted `orphan_R`); a second left replaces
+the pending one (counted `orphan_L`); a no-eye swap shows mono and clears the pending one. With the
+freeze, every shown picture is then L(s) + R(s+1) at one instant. Cost: one more texture, one more copy,
+pairs refresh at half the swap rate. Switch `DK_SBS_HOLD=1`. Not written `[hypothesis]`.
+
+#### From the reader: 2026-10-12-lm-reader-08b-hold-pairs
+
+Patch: `staging/the-darkness-vr/eye-by-packet-2026-10-12/08b-sbs-hold-pairs.patch`, on top of 07 + 08.
+Switch `DK_SBS_HOLD=1` (GPU side; needs `DK_EYE_BY_PACKET=1` in the game, else it is ignored).
+Runner mode `H` in `run_pair_test_dev.py`. Not built or run.
+
+- Pair number = packet serial / (2 x `DK_STEREO_PERIOD`); the DLL reads the same environment
+  variable as the game. A left swap waits in a third texture; the right swap with the same pair number
+  commits both; a right with no match keeps the old pair (`orphan_right`), and after 8 in a row
+  commits the right alone (`forced_right`); a second left replaces the waiting one (`orphan_left`);
+  a no-eye swap clears the waiting left. Logged as `[SBS] HOLD ...` every 600 swaps `[hypothesis]`
+  until a run shows it.
+- `git apply --check` passes against copies of the current SDK files (07 + 08 applied, which matched
+  the 08 output byte for byte apart from line endings), and applying it reproduces the edited files
+  exactly `[verified-numerically 2026-10-12, n=1]`.
+- Syntax-only clang check (llvm-mingw 20260616, mingw target, stub `DXProgrammableCapture.h`): no
+  errors, no new warnings in the patched lines `[compile-verified 2026-10-12]`.
+
+#### From the reader: 2026-10-12-lm-reader-music-and-screen-effects
+
+Static only: the decrypted image (`dev-archive/tools/xex_unpack.py` on `game-files/default.xex`,
+scratch copy), the generated code, and the dev-PC profile file. Nothing launched.
+
+## 1. Music: the save profile, `SND_VOLUMEMUSIC`, 0.7 -> 0.0
+
+- **Place:** `Documents\darknessrecomp\B13EBABEBABEBABE\545407EE\00000001\DEFAULT\_profile` (3242
+  bytes on the dev PC). It is a flat list of named options: entry = u16 0x0040, u16 type (0x0C float,
+  0x0A int, 0x02 string), u32 name length, the name padded to 4 bytes, then the value. **Floats are
+  little-endian. The first 4 bytes are a CRC-32 (zlib) of everything after them, stored big-endian.**
+  A parser built on that layout reads all 98 entries and ends exactly at the end of the file
+  `[verified-numerically 2026-10-12, n=1]`.
+- **Value:** `SND_VOLUMEMUSIC` = 0.7 at file offset 0x6A. `SND_VOLUMESFX` = 1.0 stays (it is the only
+  other volume; speech has no key of its own and is assumed to sit under SFX `[hypothesis]`).
+- **Tool:** `staging/the-darkness-vr/eye-by-packet-2026-10-12/set_music_zero.py` (game closed; finds the
+  key by name, sets 0.0, recomputes the CRC, keeps a timestamped backup). On a scratch copy it changed
+  exactly the 4 CRC bytes and the 4 value bytes, and the CRC checks afterwards
+  `[verified-numerically 2026-10-12, n=1]`. The real profile was NOT changed.
+- **The game consumes it:** `sub_820E5730` (the settings-apply function, which also formats
+  `r_anisotropy(%f)`, `r_vsync(%d)`... and runs them through `sub_8277B388`) looks up `SND_VOLUMESFX`
+  then `SND_VOLUMEMUSIC` with `sub_8275CD80`, reads the float through vtable+444, and passes the music
+  value to the object at app+2764 through vtable+236 `[inferred-static 2026-10-12]`.
+- Not the SDK toml: its only audio switch, `audio_mute` (sdl_audio_driver.cpp), mutes everything
+  `[inferred-static 2026-10-12]`.
+- Unknowns: whether a bad CRC makes the game reset the profile (the script keeps it valid, so it does
+  not matter), and whether level music objects (`CWObject_MusicVolume`, `CWObject_MusicFader`) can raise
+  music above the master setting `[hypothesis]`. Proof is a run with music silent and effects audible.
+- Fallback if the profile route fails: hook `sub_820E5730`'s call through app+2764 vtable+236 and pass
+  0.0 `[hypothesis]`, not written.
+
+## 2. Screen effects (VR rule): what exists and the switch for each
+
+The engine is Starbreeze's XR engine. Its post-process (`sub_825E91D8`, named by the profiler string
+`CXR_Engine::Engine_PostProcess`, r3 = the engine object) reads fields that the `xr_*` script commands
+write. The commands are registered in `sub_825EC690` (r3 = the same engine object), handler per name
+`[inferred-static 2026-10-12]`. `cheat()` is empty and there is no console, so the commands cannot be typed;
+**the practical switch is a probe hook on `sub_825E91D8` that writes the field on r3 before the
+original runs.**
+
+| Effect | Evidence | Switch | Confidence |
+| --- | --- | --- | --- |
+| **Motion blur** | `MotionMapBlur` (used beside `PostProcess` in `sub_825E1D50`); `xr_ppmbmaxradius` -> float at engine+1212 (`sub_825EC5E0`); `xr_ppmbdebugflags` -> engine+1192, value<<6 (`sub_825EC5E8`). In `sub_825E91D8` a pass is enabled only if engine+1460 has 0x8 set AND engine+1192 has **0x40 clear**; engine+1212 later scales a blur vector. | Probe: on entry to `sub_825E91D8`, OR 0x40 into u32 engine+1192 and store 0.0 at engine+1212. | Fields and gating `[inferred-static]`; that this gate IS motion blur `[hypothesis]` |
+| **Glow / bloom** | `xr_ppglowexp` -> engine+668, `xr_ppglowscale` -> engine+684..692 (RGB), plus bias/gamma/zone/center handlers. | Probe: glow scale 0,0,0 at engine+684. Bloom is not on the rule's list; leave on unless it smears. | `[inferred-static]` |
+| **Auto exposure** | `XREngine_Histogram`; `xr_pptoggledynamicexposure` toggles bit 0 of engine+656 (`sub_825EC5C8`); `xr_ppdebugflags` writes value<<2 into engine+656. | Not a screen-painted effect; leave. | `[inferred-static]` |
+| **Lens flares** | `xr_flares` -> bit 0x40000000 of engine+228 (`sub_825EC000`); `XR_FLARES`, `CXR_Model_Flare`, `SPECIAL_DEFAULTLENS`. | Probe: clear 0x40000000 at engine+228. | Field `[inferred-static]`; effect on screen `[hypothesis]` |
+| **Hurt / low-health screen** | Shaders `XREngine_RadialBlurHurt`, `XREngine_GaussClampedHurt`, `XREngine_RadialBlurInvert`; colour-correction `CC_Hurt`, `CC_Hurt_Tunnel`; `DamageBreath1-3`. Picked in `sub_821570E8` (the client screen pass, 5349 lines) when an amount lerped from field +1712 of the struct in r24 exceeds 0.0001. Script command `hurteffect(n)` (handler 0x824016B0 -> client vtable+1156 -> `sub_823FDFD0`, which stores registry int `CL_HURTEFFECT`). | Best guess: the `CL_HURTEFFECT` registry value 0 (a probe would have to run the script command or write the registry). Next step: find who reads `CL_HURTEFFECT`, or hook `sub_821570E8` and zero r24+1712. | `[inferred-static]` for the names and the gate; the switch `[hypothesis]` |
+| **Blood** | Profile option `GAME_BLOOD` = 1.0; `CXR_Model_BloodEffect`, `CWObject_BloodEffect`, `hitEffect_blood01`. | These look like blood IN the world (gore), which the rule keeps. No on-screen blood-splat texture name found. | `[hypothesis]` |
+| **"Focus frame"** | Profile option `FOCUSFRAME_ENABLED` = 1.0; `CXR_Model_FocusFrame`; GUI `GUI_Focus_Bar/ArrowUp/ArrowDown/Dropshadow`. | Profile value 0.0, same CRC rule as the music. What it draws is not known: a HUD frame is the guess. | `[hypothesis]` |
+| **Darkness vision** | Script commands `cl_darknessvision(0)` / `(1)`, referenced from 7 functions (`sub_82114C70`, `sub_8214D938`, `sub_82193428`, `sub_822A7F00`, `sub_822AC800`, `sub_822B3510`, `sub_822B6D30`). | It is a gameplay ability (seeing in the dark), not a pure filter; switching it off changes play. Its tint and edge distortion need a look in the game before deciding. Tefa's call. | `[inferred-static]` that the toggle exists |
+| **Distortion** | `CXR_VBOperator_FP20_Distort` ("Distortion magnitude."): a per-surface vertex operator, so in the world (heat haze, Darkness tendrils), not on the screen. | Keep. | `[hypothesis]` |
+| **Depth of field** | Only `DOFA`/`DOFB`, which are keywords of the effects-model parser (`sub_824DD3D8`, beside WIDTHNOISE, VELOCITY, SHADER...). No DoF post pass found. | Probably none. | `[inferred-static]` |
+| **Film grain** (the leftover difference in held pairs) | No grain/noise post-process name found; `SPECIAL_RAND_02..04` textures and particle noise exist. | Not located. Next step: a GPU dump of the final pass. | `[hypothesis]` |
+| **Camera shake** | `CameraShake` string at 0x82093490, no direct reference found (probably a table entry). | Not located. | — |
+| **Vignette / chromatic / fisheye** | No names found. | Probably none. | `[hypothesis]` |
+
+## What to build next (not written)
+
+A probe hook on `sub_825E91D8` with switch `DK_VR_SCREEN_FX_OFF=1`: before the original, set engine+1192
+|= 0x40, engine+1212 = 0.0, and clear 0x40000000 at engine+228, logging the old values once. Proof is a
+side-by-side picture with and without it while turning (motion blur shows as smearing on a turn).
+
+#### From the reader: 2026-10-12-lm-reader-b-run-read-and-fx-hook
+
+## The B run (eye by packet), as relayed by the live session
+
+Main menu, `DK_EYE_BY_PACKET=1`: `[VP] SWAPS L=900 R=900 same_eye_twice=0 gpu_lookup_miss=0`;
+`cam_in_packet=0 cam_outside=0`; `[VP] FREEZE pinned_frames=0` with `[VP] PACKETS pinned_packets=883`
+`[reported]` (numbers from the coordinator, not read by me).
+
+- **Swap eyes are exact on the menu:** every swap was labelled by its packet, the eyes alternate
+  perfectly, and the GPU side found every swap in the table `[reported]`.
+- **No camera builds on the menu** (`sub_823F9B00` never ran), so `DK_CAM_EYE` cannot move anything
+  there. **The menu cannot test the eye offset; the car scene (CONTINUE) or gameplay must.**
+  `[reported]` counts; the conclusion `[inferred-static]`.
+- **`pinned_frames=0` is expected in B.** `pinned_frames` is the step-5 counter. It only counts in
+  the per-frame freeze at the frame end, which is skipped when `DK_EYE_BY_PACKET=1`
+  (`if (!ByPacket() && stereo.freeze ...)`). In B the freeze is counted by `pinned_packets` (883,
+  about one per pair) `[inferred-static 2026-10-12]`. Whether the clock was actually HELD shows in the
+  same `[VP] FREEZE` line's `pinned_calls` (clock reads answered while pinned) and `max_hold`. In B
+  both should be well above 0. If `pinned_calls` is 0, the pin is set but nobody reads the clock while it is.
+
+## Screen-effects hook (`DK_VR_SCREEN_FX_OFF=1`)
+
+`staging/the-darkness-vr/eye-by-packet-2026-10-12/vr_viewport_probe_fx.cpp` = the installed probe
+(byte-identical copy) plus a hook on `sub_825E91D8` (engine post-process, reached only through the
+function table, as the camera-build hook is). Before the original it ORs 0x40 into engine+1192,
+writes 0.0 to engine+1212 and clears 0x40000000 at engine+228. It logs the values it found, up to
+5 times, including whether the motion-blur gate (engine+1460 & 0x8) was on
+`[compile-verified 2026-10-12]` (syntax only, see the probe notes). Whether it removes visible motion
+blur and flares: `[hypothesis]`.
+
+Runner: `run_pair_test_dev.py NF --scene car --turn` (N = flat, no switches; F = flat +
+`DK_VR_SCREEN_FX_OFF=1`). It takes pictures in bursts with the right stick held and centred, and reports
+median sharpness (mean horizontal gradient) for each. The metric drops from 48.4 to 5.4 on a synthetic
+9-px horizontal blur `[verified-numerically 2026-10-12, n=1]`.
+
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version

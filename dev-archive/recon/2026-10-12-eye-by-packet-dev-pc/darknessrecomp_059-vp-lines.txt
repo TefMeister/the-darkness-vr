@@ -1,0 +1,52 @@
+[2026-10-12 17:11:09.585] [info] [gpu] [t10704] [VP] P-offset = 0.000, CAMERA-offset = 1.250, period = 1, freeze = 1, target = near, eye_by_packet = 1
+[2026-10-12 17:11:09.836] [info] [gpu] [t10704] [VP] packet acquire thread=1156099394300226338 caller=0x820E21A4 packet=0xCED3E210 serial=1
+[2026-10-12 17:11:09.925] [info] [gpu] [t10704] [VP] first FILLER packet (main loop ready-wait timeout) serial=2 thread=1156099394300226338
+[2026-10-12 17:11:09.925] [info] [gpu] [t10704] [VP] packet play thread=1156099394300226338 packet=0xCF140E10 serial=2
+[2026-10-12 17:11:09.925] [info] [gpu] [t10704] [VP] frame end thread=1156099394300226338
+[2026-10-12 17:11:09.985] [info] [gpu] [t26864] [SBS] side-by-side pair on: 1280x720 per eye, even swaps on the LEFT
+[2026-10-12 17:11:20.062] [info] [gpu] [t10704] [VP] PACKETS game L=139 R=140 filler L=12 R=11 other=0 timeouts=0 drained L=0 R=1 played L=150 R=150 predict_miss=1 cam_in_packet=0 cam_outside=0 pinned_packets=141
+[2026-10-12 17:11:20.062] [info] [gpu] [t10704] [VP] SWAPS n=300 L=150 R=150 no_eye=0 same_eye_twice=0 serial_gaps=0 gpu_lookup_miss=0 last_serial=301
+[2026-10-12 17:11:20.095] [info] [gpu] [t10704] [VP] FREEZE frames=300 pinned_frames=0 clock_calls=11160283 pinned_calls=4657534 max_hold=99.0ms frame_end_calls=300 no_swap_calls=0
+[2026-10-12 17:11:30.146] [info] [gpu] [t10704] [VP] PACKETS game L=289 R=290 filler L=12 R=11 other=0 timeouts=0 drained L=0 R=1 played L=300 R=300 predict_miss=1 cam_in_packet=0 cam_outside=0 pinned_packets=291
+[2026-10-12 17:11:30.146] [info] [gpu] [t10704] [VP] SWAPS n=600 L=300 R=300 no_eye=0 same_eye_twice=0 serial_gaps=0 gpu_lookup_miss=0 last_serial=601
+[2026-10-12 17:11:30.178] [info] [gpu] [t10704] [VP] FREEZE frames=600 pinned_frames=0 clock_calls=21172170 pinned_calls=9556816 max_hold=48.9ms frame_end_calls=600 no_swap_calls=0
+[2026-10-12 17:11:30.178] [info] [gpu] [t10704] [VP] frames=600 near-viewport applies per frame: 0:600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-12 17:11:30.178] [info] [gpu] [t10704] [VP] frames=600 camera builds per frame: 0:600 1:0 2:0 3+:0
+[2026-10-12 17:11:30.229] [info] [gpu] [t26864] [SBS] swaps=600 L=301 R=300 same_eye_twice=0 mono=0 miss=0 old_rule=0 last_serial=602
+[2026-10-12 17:11:30.229] [info] [gpu] [t26864] [SBS] HOLD pairs_shown=300 orphan_left=0 orphan_right=0 forced_right=0
+[2026-10-12 17:11:40.296] [info] [gpu] [t10704] [VP] PACKETS game L=439 R=440 filler L=12 R=11 other=0 timeouts=0 drained L=0 R=1 played L=450 R=450 predict_miss=1 cam_in_packet=0 cam_outside=0 pinned_packets=441
+[2026-10-12 17:11:40.296] [info] [gpu] [t10704] [VP] SWAPS n=900 L=450 R=450 no_eye=0 same_eye_twice=0 serial_gaps=0 gpu_lookup_miss=0 last_serial=901
+[2026-10-12 17:11:40.328] [info] [gpu] [t10704] [VP] FREEZE frames=900 pinned_frames=0 clock_calls=30919174 pinned_calls=14443081 max_hold=65.8ms frame_end_calls=900 no_swap_calls=0
+[2026-10-12 17:11:50.395] [info] [gpu] [t10704] [VP] PACKETS game L=589 R=590 filler L=12 R=11 other=0 timeouts=0 drained L=0 R=1 played L=600 R=600 predict_miss=1 cam_in_packet=0 cam_outside=0 pinned_packets=591
+[2026-10-12 17:11:50.395] [info] [gpu] [t10704] [VP] SWAPS n=1200 L=600 R=600 no_eye=0 same_eye_twice=0 serial_gaps=0 gpu_lookup_miss=0 last_serial=1201
+[2026-10-12 17:11:50.427] [info] [gpu] [t10704] [VP] FREEZE frames=1200 pinned_frames=0 clock_calls=40946360 pinned_calls=19380457 max_hold=49.0ms frame_end_calls=1200 no_swap_calls=0
+[2026-10-12 17:11:50.427] [info] [gpu] [t10704] [VP] frames=1200 near-viewport applies per frame: 0:1200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-12 17:11:50.427] [info] [gpu] [t10704] [VP] frames=1200 camera builds per frame: 0:1200 1:0 2:0 3+:0
+[2026-10-12 17:11:50.478] [info] [gpu] [t26864] [SBS] swaps=1200 L=601 R=600 same_eye_twice=0 mono=0 miss=0 old_rule=0 last_serial=1202
+[2026-10-12 17:11:50.478] [info] [gpu] [t26864] [SBS] HOLD pairs_shown=600 orphan_left=0 orphan_right=0 forced_right=0
+[2026-10-12 17:11:56.443] [info] [gpu] [t24356] [VP] screen effects off (motion blur, lens flares) = 0
+[2026-10-12 17:12:32.115] [info] [gpu] [t10704] [VP] PACKETS game L=739 R=740 filler L=12 R=11 other=0 timeouts=0 drained L=0 R=1 played L=750 R=750 predict_miss=1 cam_in_packet=0 cam_outside=0 pinned_packets=741
+[2026-10-12 17:12:32.115] [info] [gpu] [t10704] [VP] SWAPS n=1500 L=750 R=750 no_eye=0 same_eye_twice=0 serial_gaps=0 gpu_lookup_miss=0 last_serial=1501
+[2026-10-12 17:12:32.397] [info] [gpu] [t10704] [VP] FREEZE frames=1500 pinned_frames=0 clock_calls=83973730 pinned_calls=40628103 max_hold=342.7ms frame_end_calls=1500 no_swap_calls=0
+[2026-10-12 17:13:01.781] [info] [gpu] [t24356] [VP] camera build thread=13520272637588620196 caller=0x8249B588 in_packet=1
+[2026-10-12 17:13:01.781] [info] [gpu] [t24356] [VP] camera view: right=(-0.0331 0.9472 -0.3191) |right|=1.0000 pos=(-1597.17 14192.66 -479.67)
+[2026-10-12 17:13:15.613] [info] [gpu] [t10704] [VP] PACKETS game L=854 R=855 filler L=47 R=46 other=0 timeouts=0 drained L=0 R=1 played L=900 R=900 predict_miss=2 cam_in_packet=169 cam_outside=0 pinned_packets=856
+[2026-10-12 17:13:15.613] [info] [gpu] [t10704] [VP] SWAPS n=1800 L=900 R=900 no_eye=0 same_eye_twice=0 serial_gaps=0 gpu_lookup_miss=0 last_serial=1801
+[2026-10-12 17:13:15.712] [info] [gpu] [t10704] [VP] FREEZE frames=1800 pinned_frames=0 clock_calls=112969490 pinned_calls=54758333 max_hold=15007.4ms frame_end_calls=1800 no_swap_calls=0
+[2026-10-12 17:13:15.712] [info] [gpu] [t10704] [VP] frames=1800 near-viewport applies per frame: 0:1800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-12 17:13:15.712] [info] [gpu] [t10704] [VP] frames=1800 camera builds per frame: 0:1631 1:168 2:1 3+:0
+[2026-10-12 17:13:15.880] [info] [gpu] [t26864] [SBS] swaps=1800 L=901 R=900 same_eye_twice=0 mono=0 miss=0 old_rule=0 last_serial=1802
+[2026-10-12 17:13:15.880] [info] [gpu] [t26864] [SBS] HOLD pairs_shown=900 orphan_left=0 orphan_right=0 forced_right=0
+[2026-10-12 17:13:35.449] [info] [gpu] [t10704] [VP] PACKETS game L=1004 R=1005 filler L=47 R=46 other=0 timeouts=0 drained L=0 R=1 played L=1050 R=1050 predict_miss=2 cam_in_packet=469 cam_outside=0 pinned_packets=1005
+[2026-10-12 17:13:35.449] [info] [gpu] [t10704] [VP] SWAPS n=2100 L=1050 R=1050 no_eye=0 same_eye_twice=0 serial_gaps=0 gpu_lookup_miss=0 last_serial=2101
+[2026-10-12 17:13:35.513] [info] [gpu] [t10704] [VP] FREEZE frames=2100 pinned_frames=0 clock_calls=129315070 pinned_calls=62871901 max_hold=754.4ms frame_end_calls=2100 no_swap_calls=0
+[2026-10-12 17:14:24.194] [info] [gpu] [t10704] [VP] PACKETS game L=1154 R=1155 filler L=47 R=46 other=0 timeouts=0 drained L=0 R=1 played L=1200 R=1200 predict_miss=2 cam_in_packet=769 cam_outside=0 pinned_packets=1156
+[2026-10-12 17:14:24.194] [info] [gpu] [t10704] [VP] SWAPS n=2400 L=1200 R=1200 no_eye=0 same_eye_twice=0 serial_gaps=0 gpu_lookup_miss=0 last_serial=2401
+[2026-10-12 17:14:24.525] [info] [gpu] [t10704] [VP] FREEZE frames=2400 pinned_frames=0 clock_calls=176734543 pinned_calls=86127439 max_hold=373.4ms frame_end_calls=2400 no_swap_calls=0
+[2026-10-12 17:14:24.525] [info] [gpu] [t10704] [VP] frames=2400 near-viewport applies per frame: 0:2400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-12 17:14:24.525] [info] [gpu] [t10704] [VP] frames=2400 camera builds per frame: 0:1689 1:655 2:53 3+:3
+[2026-10-12 17:14:25.176] [info] [gpu] [t26864] [SBS] swaps=2400 L=1201 R=1200 same_eye_twice=0 mono=0 miss=0 old_rule=0 last_serial=2402
+[2026-10-12 17:14:25.176] [info] [gpu] [t26864] [SBS] HOLD pairs_shown=1200 orphan_left=0 orphan_right=0 forced_right=0
+[2026-10-12 17:14:49.289] [info] [gpu] [t10704] [VP] PACKETS game L=1304 R=1305 filler L=47 R=46 other=0 timeouts=0 drained L=0 R=1 played L=1350 R=1350 predict_miss=2 cam_in_packet=1069 cam_outside=0 pinned_packets=1305
+[2026-10-12 17:14:49.289] [info] [gpu] [t10704] [VP] SWAPS n=2700 L=1350 R=1350 no_eye=0 same_eye_twice=0 serial_gaps=0 gpu_lookup_miss=0 last_serial=2701
+[2026-10-12 17:14:49.350] [info] [gpu] [t10704] [VP] FREEZE frames=2700 pinned_frames=0 clock_calls=197072671 pinned_calls=95548210 max_hold=362.3ms frame_end_calls=2700 no_swap_calls=0

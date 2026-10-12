@@ -1,0 +1,134 @@
+--- a/include/rex/graphics/d3d12/command_processor.h
++++ b/include/rex/graphics/d3d12/command_processor.h
+@@ -217,6 +217,17 @@
+   uint32_t sbs_height_ = 0;
+   uint64_t sbs_swaps_ = 0;
+   bool sbs_have_previous_ = false;
++  // DK_EYE_BY_PACKET (Darkness VR, 2026-10-12): the eye of each swap is asked from the game
++  // program (its exported dk_sbs_swap_eye) by swap number, instead of guessed from parity.
++  // sbs_swap_eye_: 0 left, 1 right, -1 show on both halves, -2 old parity rule.
++  int sbs_swap_eye_ = -2;
++  uint32_t sbs_swap_serial_ = 0;
++  uint64_t sbs_issue_index_ = 0;
++  Microsoft::WRL::ComPtr<ID3D12Resource> sbs_eye_[2];
++  bool sbs_eye_valid_[2] = {false, false};
++  int sbs_last_eye_ = -1;
++  uint64_t sbs_count_left_ = 0, sbs_count_right_ = 0, sbs_count_mono_ = 0,
++           sbs_count_legacy_ = 0, sbs_count_miss_ = 0, sbs_count_same_twice_ = 0;
+ 
+   void OnPrimaryBufferEnd() override;
+ 
+--- a/src/graphics/d3d12/command_processor.cpp
++++ b/src/graphics/d3d12/command_processor.cpp
+@@ -1908,6 +1908,23 @@
+   vertex_buffers_in_sync_[0] = 0;
+   vertex_buffers_in_sync_[1] = 0;
+ 
++  // DK_EYE_BY_PACKET (Darkness VR, 2026-10-12): ask the game program which eye this swap shows.
++  // Asked here, before any early return, so swap N here is always swap N on the game side: the
++  // game records the eye of each VdSwap it issues, numbered from 0, before it issues it. A program
++  // without the export (or with the switch off) answers -2 and the old parity rule is used.
++  {
++    using EyeForSwapFn = int (*)(uint64_t swap_index, uint32_t* serial_out);
++    static const EyeForSwapFn eye_for_swap = [] {
++      HMODULE exe = GetModuleHandleW(nullptr);
++      return exe ? reinterpret_cast<EyeForSwapFn>(
++                       reinterpret_cast<void*>(GetProcAddress(exe, "dk_sbs_swap_eye")))
++                 : nullptr;
++    }();
++    sbs_swap_serial_ = 0;
++    sbs_swap_eye_ = eye_for_swap ? eye_for_swap(sbs_issue_index_, &sbs_swap_serial_) : -2;
++    ++sbs_issue_index_;
++  }
++
+   if (!graphics_system_)
+     return;
+   ui::Presenter* presenter = graphics_system_->presenter();
+@@ -2317,6 +2334,9 @@
+     retire(sbs_current_);
+     retire(sbs_previous_);
+     sbs_have_previous_ = false;
++    retire(sbs_eye_[0]);
++    retire(sbs_eye_[1]);
++    sbs_eye_valid_[0] = sbs_eye_valid_[1] = false;
+     sbs_width_ = width;
+     sbs_height_ = height;
+   }
+@@ -2339,19 +2359,71 @@
+   SubmitBarriers();
+   deferred_command_list_.D3DCopyTextureRegion(&cur_loc, 0, 0, 0, &out_loc, &half);
+ 
+-  // 2. Lay out the pair: this swap on the side its parity names, the previous swap on the other.
+-  //    Even swaps go left. Before any previous swap exists, both halves show this one.
+-  const uint32_t side = uint32_t(sbs_swaps_ & 1u);
+   PushTransitionBarrier(sbs_current_.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+                         D3D12_RESOURCE_STATE_COPY_SOURCE);
++
++  // 2. Lay out the pair.
++  int eye = sbs_swap_eye_;
++  if (eye == 0 || eye == 1) {
++    // By eye (DK_EYE_BY_PACKET): keep the latest image of EACH eye, and show left on the left,
++    // right on the right. Two swaps of one eye in a row then refresh one half and leave the
++    // other alone, instead of putting one eye on both halves.
++    if (!sbs_eye_[eye] && !make(sbs_eye_[eye])) {
++      REXGPU_ERROR("[SBS] could not create the eye texture; showing this swap on both halves");
++      eye = -1;
++    } else {
++      D3D12_TEXTURE_COPY_LOCATION eye_loc = {sbs_eye_[eye].Get(),
++                                             D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX};
++      PushTransitionBarrier(sbs_eye_[eye].Get(), D3D12_RESOURCE_STATE_COPY_SOURCE,
++                            D3D12_RESOURCE_STATE_COPY_DEST);
++      SubmitBarriers();
++      deferred_command_list_.D3DCopyTextureRegion(&eye_loc, 0, 0, 0, &cur_loc, &half);
++      PushTransitionBarrier(sbs_eye_[eye].Get(), D3D12_RESOURCE_STATE_COPY_DEST,
++                            D3D12_RESOURCE_STATE_COPY_SOURCE);
++      sbs_eye_valid_[eye] = true;
++    }
++  }
+   PushTransitionBarrier(guest_output, D3D12_RESOURCE_STATE_COPY_SOURCE,
+                         D3D12_RESOURCE_STATE_COPY_DEST);
+   SubmitBarriers();
+-  deferred_command_list_.D3DCopyTextureRegion(&out_loc, side * width, 0, 0, &cur_loc, &half);
+-  deferred_command_list_.D3DCopyTextureRegion(&out_loc, (1u - side) * width, 0, 0,
+-                                              sbs_have_previous_ ? &prev_loc : &cur_loc, &half);
++  if (eye == -2) {
++    // Old rule: this swap on the side its parity names, the previous swap on the other. Even
++    // swaps go left. Before any previous swap exists, both halves show this one.
++    const uint32_t side = uint32_t(sbs_swaps_ & 1u);
++    deferred_command_list_.D3DCopyTextureRegion(&out_loc, side * width, 0, 0, &cur_loc, &half);
++    deferred_command_list_.D3DCopyTextureRegion(&out_loc, (1u - side) * width, 0, 0,
++                                                sbs_have_previous_ ? &prev_loc : &cur_loc, &half);
++    ++sbs_count_legacy_;
++  } else if (eye == 0 || eye == 1) {
++    D3D12_TEXTURE_COPY_LOCATION left_loc = {sbs_eye_[0].Get(),
++                                            D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX};
++    D3D12_TEXTURE_COPY_LOCATION right_loc = {sbs_eye_[1].Get(),
++                                             D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX};
++    deferred_command_list_.D3DCopyTextureRegion(&out_loc, 0, 0, 0,
++                                                sbs_eye_valid_[0] ? &left_loc : &cur_loc, &half);
++    deferred_command_list_.D3DCopyTextureRegion(&out_loc, width, 0, 0,
++                                                sbs_eye_valid_[1] ? &right_loc : &cur_loc, &half);
++    ++(eye == 0 ? sbs_count_left_ : sbs_count_right_);
++    if (eye == sbs_last_eye_) {
++      ++sbs_count_same_twice_;
++    }
++    sbs_last_eye_ = eye;
++  } else {
++    // -1: the game drew no packet for this swap (a loading screen, say), or -3: the swap was not
++    // in the game's record. Show it on both halves, which is what a picture with no eye is.
++    deferred_command_list_.D3DCopyTextureRegion(&out_loc, 0, 0, 0, &cur_loc, &half);
++    deferred_command_list_.D3DCopyTextureRegion(&out_loc, width, 0, 0, &cur_loc, &half);
++    ++(eye == -1 ? sbs_count_mono_ : sbs_count_miss_);
++  }
+   PushTransitionBarrier(guest_output, D3D12_RESOURCE_STATE_COPY_DEST, kOutputState);
+ 
++  if (sbs_swaps_ != 0 && (sbs_swaps_ % 600u) == 0) {
++    REXGPU_INFO("[SBS] swaps={} L={} R={} same_eye_twice={} mono={} miss={} old_rule={} "
++                "last_serial={}",
++                sbs_swaps_, sbs_count_left_, sbs_count_right_, sbs_count_same_twice_,
++                sbs_count_mono_, sbs_count_miss_, sbs_count_legacy_, sbs_swap_serial_);
++  }
++
+   if (sbs_swaps_ == 0) {
+     REXGPU_INFO("[SBS] side-by-side pair on: {}x{} per eye, even swaps on the LEFT", width, height);
+   }
