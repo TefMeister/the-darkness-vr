@@ -1,0 +1,72 @@
+  obs-rec stop: SAVED E:/OBS gameplay videos/the-darkness-vr/eye-by-packet-B_2026-10-12_17-41-10.mp4
+  closed with WM_CLOSE
+  obs-rec done: OBS back to Untitled
+== run H: DK_SBS=1 DK_STEREO_PERIOD=1 DK_CAM_EYE=1.25 DK_FREEZE=1 DK_EYE_BY_PACKET=1 DK_SBS_HOLD=1
+  obs-rec start: RECORDING darknessrecomp.exe -> E:\OBS gameplay videos\the-darkness-vr (eye-by-packet-H)
+  title at t=75.19368648529053
+    press START
+    press A
+    press START
+    press A
+    CONTINUE try 1: picture change 0.9 (left the menu above 12.0)
+    press A
+    CONTINUE try 2: picture change 0.9 (left the menu above 12.0)
+    press A
+    CONTINUE try 3: picture change 0.9 (left the menu above 12.0)
+    press A
+    CONTINUE try 4: picture change 9.1 (left the menu above 12.0)
+    press A
+    CONTINUE try 5: picture change 83.7 (left the menu above 12.0)
+    camera builds seen in the log at t=152 s
+  obs-rec stop: SAVED E:/OBS gameplay videos/the-darkness-vr/eye-by-packet-H_2026-10-12_17-43-57.mp4
+  closed with WM_CLOSE
+  obs-rec done: OBS back to Untitled
+{"mode": "H", "scene": "car", "pictures": 200, "one_eye_share": 0.57, "positive_shift_share": 0.275, "negative_shift_share": 0.155, "median_abs_shift_px": 1.0, "identical_halves_share": 0.0, "sharpness_turning": null, "sharpness_still": 2.518}
+  log: D:\the-darkness\build-local\logs\darknessrecomp_061.log
+    [2026-10-12 17:43:54.562] [info] [gpu] [t22508] [VP] P-offset = 0.000, CAMERA-offset = 1.250, period = 1, freeze = 1, target = near, eye_by_packet = 1
+    [2026-10-12 17:43:56.409] [info] [gpu] [t22508] [VP] packet acquire thread=9753555274163188980 caller=0x820E21A4 packet=0xCED3E210 serial=1
+    [2026-10-12 17:43:56.495] [info] [gpu] [t22508] [VP] packet play thread=9753555274163188980 packet=0xCF140E10 serial=2
+    [2026-10-12 17:43:56.495] [info] [gpu] [t22508] [VP] first FILLER packet (main loop ready-wait timeout) serial=2 thread=9753555274163188980
+    [2026-10-12 17:47:22.372] [info] [gpu] [t27416] [SBS] filler swaps repeated=418
+    [2026-10-12 17:47:22.372] [info] [gpu] [t27416] [SBS] HOLD pairs_shown=1291 orphan_left=0 orphan_right=0 forced_right=0
+    [2026-10-12 17:46:54.872] [info] [gpu] [t22508] [VP] PACKETS game L=1140 R=1143 filler L=210 R=208 other=0 timeouts=26 drained L=0 R=1 played L=1350 R=1350 predict_miss=2 cam_in_packet=548 cam_outside=0 pinned_packets=1141
+    [2026-10-12 17:47:22.060] [info] [gpu] [t22508] [VP] PACKETS game L=1290 R=1293 filler L=210 R=208 other=0 timeouts=26 drained L=0 R=1 played L=1500 R=1500 predict_miss=2 cam_in_packet=848 cam_outside=0 pinned_packets=1291
+    [2026-10-12 17:46:54.872] [info] [gpu] [t22508] [VP] SWAPS n=2700 L=1141 R=1141 no_eye=418 same_eye_twice=0 serial_gaps=1 gpu_lookup_miss=0 last_serial=2701
+    [2026-10-12 17:47:22.060] [info] [gpu] [t22508] [VP] SWAPS n=3000 L=1291 R=1291 no_eye=418 same_eye_twice=0 serial_gaps=1 gpu_lookup_miss=0 last_serial=3001
+    [2026-10-12 17:46:54.872] [info] [gpu] [t22508] [VP] PAIRS game_swaps=2282 filler_swaps=418 pairs=1141 frame_start_dt mean=0.00ms max=0.00ms | pins=1141 capped=31 pinned_calls=43566341 exempt_wait_calls=0 max_calls_in_one_pin=251883 exact=1 cap=250ms skip_fillers=1
+    [2026-10-12 17:47:22.060] [info] [gpu] [t22508] [VP] PAIRS game_swaps=2582 filler_swaps=418 pairs=1291 frame_start_dt mean=0.00ms max=0.00ms | pins=1291 capped=31 pinned_calls=44618309 exempt_wait_calls=0 max_calls_in_one_pin=251883 exact=1 cap=250ms skip_fillers=1
+    [2026-10-12 17:46:54.872] [info] [gpu] [t22508] [VP] PINCALLERS 0x820C86CC:10655 0x82794B88:4446 0x820CB6F0:43019225 0x827CD7FC:8892 0x820ECFFC:107487 0x820ED064:107212 0x821F10B0:813 0x821F10FC:813 0x82489854:306352 0x821D29F8:223 0x821D2A20:223
+    [2026-10-12 17:47:22.060] [info] [gpu] [t22508] [VP] PINCALLERS 0x820C86CC:13205 0x82794B88:5046 0x820CB6F0:43937303 0x827CD7FC:10092 0x820ECFFC:142187 0x820ED064:141762 0x821F10B0:1263 0x821F10FC:1263 0x82489854:365486 0x821D29F8:351 0x821D2A20:351
+    [2026-10-12 17:46:54.946] [info] [gpu] [t22508] [VP] FREEZE frames=2700 pinned_frames=0 clock_calls=96355370 pinned_calls=0 max_hold=362.7ms frame_end_calls=2700 no_swap_calls=0
+    [2026-10-12 17:47:22.151] [info] [gpu] [t22508] [VP] FREEZE frames=3000 pinned_frames=0 clock_calls=102417682 pinned_calls=0 max_hold=307.2ms frame_end_calls=3000 no_swap_calls=0
+    [2026-10-12 17:44:43.091] [info] [gpu] [t11788] [VP] screen effects off (motion blur, lens flares) = 0
+    [2026-10-12 17:45:58.296] [info] [gpu] [t11788] [VP] camera build thread=9504816915444742359 caller=0x8249B588 in_packet=1
+  pictures + result: D:\the-darkness\screens\eye-by-packet\H-20261012-174352
+== run O: DK_SBS=1 DK_STEREO_PERIOD=1 DK_CAM_EYE=1.25 DK_FREEZE=0 DK_EYE_BY_PACKET=1 DK_SBS_HOLD=1
+  obs-rec start: RECORDING darknessrecomp.exe -> E:\OBS gameplay videos\the-darkness-vr (eye-by-packet-O)
+  title at t=67.70234560966492
+    press START
+    press A
+    press START
+    press A
+    CONTINUE try 1: picture change 6.5 (left the menu above 12.0)
+    press A
+    CONTINUE try 2: picture change 8.3 (left the menu above 12.0)
+    press A
+    CONTINUE try 3: picture change 6.3 (left the menu above 12.0)
+    press A
+    CONTINUE try 4: picture change 7.5 (left the menu above 12.0)
+    press A
+    CONTINUE try 5: picture change 7.0 (left the menu above 12.0)
+    press A
+    CONTINUE try 6: picture change 7.0 (left the menu above 12.0)
+  CONTINUE never left the menu
+  obs-rec stop: SAVED E:/OBS gameplay videos/the-darkness-vr/eye-by-packet-O_2026-10-12_17-47-42.mp4
+  closed with WM_CLOSE
+  obs-rec done: OBS back to Untitled
+== summary
+   null
+   {"mode": "H", "scene": "car", "pictures": 200, "one_eye_share": 0.57, "positive_shift_share": 0.275, "negative_shift_share": 0.155, "median_abs_shift_px": 1.0, "identical_halves_share": 0.0, "sharpness_turning": null, "sharpness_still": 2.518}
+   null
+
+[exited with code 0]

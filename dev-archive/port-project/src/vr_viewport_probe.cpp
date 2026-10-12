@@ -92,12 +92,38 @@
 //   - a frame end with no packet played since the last swap (a loading screen) is entered as
 //     "no eye" and shown on both halves.
 // With DK_EYE_BY_PACKET unset, everything behaves exactly as step 5 (for the A/B).
+//
+// Step 8 (fx2, 2026-10-12): the live run showed the two halves of a pair at DIFFERENT moments (hand
+// poses differ) although every swap had the right eye. Read from the code, three causes:
+//  1. THE PIN STALLED THE QUEUE WAITS. The pin was global and lasted from the submit of a first-eye
+//     packet to the acquire/submit of the next. The acquire (sub_825A3FD8) and take-ready waits poll
+//     the clock (sub_820CB6C0 -> sub_828A7DB8) until a deadline; under the pin every poll advanced
+//     one 20 ns tick, so a wait spun millions of times (59.5M pinned calls, holds up to 15 s) and the
+//     fake time it ran up (1.6M polls = 32 ms) was then handed to the second eye's simulation.
+//  2. THE HOLD VALUE WAS THE LAST READ OF THE FIRST EYE'S FRAME, not its first: so the second eye
+//     still simulated a step as long as the first eye's whole frame took to build.
+//  3. FILLERS SHARE THE SERIAL COUNTER. On a slow PC most swaps can be the main loop's own filler
+//     packets (camera builds per frame end: 0 x1609 of 1800), which take serials, so "serial parity"
+//     paired game packets with fillers drawn at another moment.
+// So in fx2 (all only with DK_EYE_BY_PACKET=1):
+//  - eyes and pairs count GAME packets only (g_game_seq), never fillers;
+//  - a swap that shows a filler is labelled -4 "repeat the last pair" (needs sdk-patches/08c;
+//    DK_SBS_SKIP_FILLERS=0 labels it with the last game eye instead);
+//  - the freeze is the GAME THREAD's clock only, from the submit of a first-eye packet to the submit
+//    of its second-eye packet; it hands back the first eye's FRAME-START reading (+1 tick per read;
+//    DK_FREEZE_EXACT=0 keeps the old "latest reading" rule), never inside the queue waits, and lets
+//    go after DK_FREEZE_CAP_MS (default 250) so it can never stall for seconds;
+//  - [VP] PAIRS logs, per first/second eye pair of game swaps, the frame-start clock difference
+//    (expect ~0 ms with the freeze, about a frame without), and [VP] PINCALLERS the callers that
+//    read a pinned clock most (a frame limiter spinning on it would show here).
 
 #include "generated/default/darknessrecomp_pch.h"
 
 #include <rex/hook.h>
 
 #include <atomic>
+#include <chrono>
+#include <mutex>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -278,8 +304,10 @@ float SignFor(uint32_t serial) { return SecondEye(serial) ? -1.0f : 1.0f; }
 struct PacketOnThread {
   bool has = false;
   uint32_t serial = 0;
+  float sign = 1.0f;  // fx2: the eye this thread's packet uses (from game_seq, not the serial)
 };
 thread_local PacketOnThread t_packet;
+std::atomic<uint32_t> g_game_seq{0};  // fx2: game-thread packets acquired so far; decides eyes
 
 // Counters. Written on the game and main threads, printed from the frame end.
 std::atomic<uint64_t> g_pk_game[2];          // packets acquired by the game thread, per eye
@@ -299,7 +327,7 @@ std::atomic<bool> g_played_since_swap{false};
 uint32_t g_last_played_serial_seen = 0xFFFFFFFFu;
 
 // Swaps, entered by number before VdSwap is issued, read by sdk-patches/08 on the GPU thread.
-// tag = ((index + 1) << 8) | (eye + 2); 0 = empty. A slot is reused 1024 swaps later, by which
+// tag = ((index + 1) << 8) | (eye + 8); 0 = empty. A slot is reused 1024 swaps later, by which
 // time the GPU thread has long read it.
 struct SwapSlot {
   std::atomic<uint64_t> tag{0};
@@ -323,26 +351,112 @@ float EyeSignForThisThread(uint8_t* base, bool count) {
     if (count) {
       g_cam_in_packet.fetch_add(1, std::memory_order_relaxed);
     }
-    return SignFor(t_packet.serial);
+    return t_packet.sign;
   }
   if (count) {
     g_cam_outside.fetch_add(1, std::memory_order_relaxed);
   }
-  return SignFor(REX_LOAD_U32(kSerialGlobal) + 1u);
+  // fx2: outside a packet, the eye of the NEXT game packet (fillers do not count).
+  (void)base;
+  return SignFor(g_game_seq.load(std::memory_order_relaxed) + 1u);
 }
 
-// Game thread, after acquire and after submit: hold the clock while the coming packet is a
-// second eye. "Coming" = the one being filled (after acquire) or the next one (after submit).
-void SetPinFor(uint32_t serial) {
-  if (!Stereo().freeze) {
-    return;
+// (fx2: the step-6 SetPinFor is gone; the freeze is decided in the submit hook, game thread only.)
+
+// ---- Step 8 (fx2) state ----------------------------------------------------------------------------
+
+// Per packet: what it is and when its frame started. Few packets exist (a small pool), so a tiny
+// table keyed by guest address is enough. Written on the game thread (acquire, submit) and the main
+// thread (filler acquire), read at play.
+struct PacketMeta {
+  uint32_t addr = 0, serial = 0, game_seq = 0;
+  bool filler = false;
+  uint64_t frame_start = 0;
+};
+constexpr int kMetaSlots = 32;
+std::mutex g_meta_mu;
+PacketMeta g_meta[kMetaSlots];
+int g_meta_next = 0;
+
+PacketMeta* MetaLocked(uint32_t addr) {
+  for (PacketMeta& m : g_meta) {
+    if (m.addr == addr) {
+      return &m;
+    }
   }
-  const bool pin = SecondEye(serial);
-  if (pin && !g_pin_clock.load(std::memory_order_relaxed)) {
-    g_pinned_packets.fetch_add(1, std::memory_order_relaxed);
-  }
-  g_pin_clock.store(pin, std::memory_order_relaxed);
+  PacketMeta& m = g_meta[g_meta_next];
+  g_meta_next = (g_meta_next + 1) % kMetaSlots;
+  m = PacketMeta{};
+  m.addr = addr;
+  return &m;
 }
+
+std::atomic<int> g_last_game_eye{0};      // 0 left, 1 right: the eye of the newest game packet
+
+bool EnvFlag(const char* name, bool fallback) {
+  const char* e = std::getenv(name);
+  return e != nullptr ? e[0] == '1' : fallback;
+}
+bool SkipFillers() {
+  static const bool v = EnvFlag("DK_SBS_SKIP_FILLERS", true);
+  return v;
+}
+bool FreezeExact() {
+  static const bool v = EnvFlag("DK_FREEZE_EXACT", true);
+  return v;
+}
+double FreezeCapMs() {
+  static const double v = [] {
+    const char* e = std::getenv("DK_FREEZE_CAP_MS");
+    return e != nullptr ? std::atof(e) : 250.0;
+  }();
+  return v;
+}
+
+// The game thread's own clock state. Only the game thread touches it, so it is thread_local.
+struct GameClock {
+  bool pin = false;
+  uint64_t hold = 0, k = 0, last_returned = 0, frame_start = 0, pin_calls = 0;
+  bool first_pending = true;
+  std::chrono::steady_clock::time_point pin_since{};
+};
+thread_local GameClock t_gc;
+thread_local bool t_is_game_thread = false;
+thread_local int t_in_queue_wait = 0;     // >0 while inside acquire: its clock polls stay real
+
+std::atomic<uint64_t> g_fx2_pins{0}, g_fx2_capped{0}, g_fx2_pinned_calls{0}, g_fx2_exempt_calls{0};
+std::atomic<uint64_t> g_fx2_max_window_calls{0};
+
+// Which callers read a pinned clock, by return address (a frame limiter would dominate).
+struct CallerCount {
+  std::atomic<uint32_t> lr{0};
+  std::atomic<uint64_t> n{0};
+};
+constexpr int kCallerSlots = 16;
+CallerCount g_pin_callers[kCallerSlots];
+void CountPinCaller(uint32_t lr) {
+  for (CallerCount& c : g_pin_callers) {
+    uint32_t cur = c.lr.load(std::memory_order_relaxed);
+    if (cur == 0u && c.lr.compare_exchange_strong(cur, lr)) {
+      cur = lr;
+    }
+    if (cur == lr) {
+      c.n.fetch_add(1, std::memory_order_relaxed);
+      return;
+    }
+  }
+}
+
+// Main thread: what the last played packet was.
+std::atomic<bool> g_play_filler{false};
+std::atomic<uint32_t> g_play_game_seq{0};
+std::atomic<uint64_t> g_play_frame_start{0};
+// Main thread, at swaps: pair timing of consecutive first/second-eye game swaps.
+uint64_t g_sw_game = 0, g_sw_filler = 0, g_pair_n = 0;
+double g_pair_dt_sum_ms = 0.0, g_pair_dt_max_ms = 0.0;
+uint32_t g_sw_last_game_seq = 0;
+uint64_t g_sw_last_frame_start = 0;
+bool g_sw_have_last_game = false;
 
 }  // namespace
 
@@ -362,7 +476,7 @@ extern "C" __declspec(dllexport) int dk_sbs_swap_eye(uint64_t swap_index, uint32
   if (serial_out != nullptr) {
     *serial_out = slot.serial.load(std::memory_order_relaxed);
   }
-  return static_cast<int>(tag & 0xFFu) - 2;
+  return static_cast<int>(tag & 0xFFu) - 8;  // fx2: eye + 8, so -4 fits
 }
 
 REX_HOOK_RAW(sub_82249580) {
@@ -455,12 +569,35 @@ REX_HOOK_RAW(sub_82867620) {
     const bool played = g_played_since_swap.exchange(false, std::memory_order_relaxed);
     const uint32_t serial = g_play_serial.load(std::memory_order_relaxed);
     int eye = -1;
+    uint32_t slot_serial = serial;  // fx2: game packets carry their GAME sequence number (08b pairs on it)
     if (played && ByPacket()) {
-      eye = SecondEye(serial) ? 1 : 0;
+      if (g_play_filler.load(std::memory_order_relaxed)) {
+        ++g_sw_filler;
+        eye = SkipFillers() ? -4 : g_last_game_eye.load(std::memory_order_relaxed);
+      } else {
+        ++g_sw_game;
+        const uint32_t seq = g_play_game_seq.load(std::memory_order_relaxed);
+        const uint64_t fs = g_play_frame_start.load(std::memory_order_relaxed);
+        eye = SecondEye(seq) ? 1 : 0;
+        slot_serial = seq;
+        // A second eye right after its own first eye: how far apart did their frames start?
+        if (eye == 1 && g_sw_have_last_game && g_sw_last_game_seq + 1u == seq && fs != 0u &&
+            g_sw_last_frame_start != 0u) {
+          const double dt_ms = (static_cast<double>(fs) - static_cast<double>(g_sw_last_frame_start)) / 50000.0;
+          ++g_pair_n;
+          g_pair_dt_sum_ms += dt_ms;
+          if (std::fabs(dt_ms) > g_pair_dt_max_ms) {
+            g_pair_dt_max_ms = std::fabs(dt_ms);
+          }
+        }
+        g_sw_last_game_seq = seq;
+        g_sw_last_frame_start = fs;
+        g_sw_have_last_game = true;
+      }
     }
     SwapSlot& slot = g_swap_slots[g_swap_index % kSwapSlots];
-    slot.serial.store(serial, std::memory_order_relaxed);
-    slot.tag.store(((g_swap_index + 1u) << 8) | static_cast<uint64_t>(eye + 2), std::memory_order_release);
+    slot.serial.store(slot_serial, std::memory_order_relaxed);
+    slot.tag.store(((g_swap_index + 1u) << 8) | static_cast<uint64_t>(eye + 8), std::memory_order_release);
     ++g_swap_index;
 
     if (eye >= 0) {
@@ -490,6 +627,22 @@ REX_HOOK_RAW(sub_82867620) {
                   "last_serial={}",
                   g_swap_index, g_sw_eye[0], g_sw_eye[1], g_sw_none, g_sw_same_twice, g_sw_serial_gap,
                   ld(g_lookup_miss), serial);
+      REXGPU_INFO("[VP] PAIRS game_swaps={} filler_swaps={} pairs={} frame_start_dt mean={:.2f}ms max={:.2f}ms "
+                  "| pins={} capped={} pinned_calls={} exempt_wait_calls={} max_calls_in_one_pin={} "
+                  "exact={} cap={:.0f}ms skip_fillers={}",
+                  g_sw_game, g_sw_filler, g_pair_n, g_pair_n ? g_pair_dt_sum_ms / g_pair_n : 0.0,
+                  g_pair_dt_max_ms, ld(g_fx2_pins), ld(g_fx2_capped), ld(g_fx2_pinned_calls),
+                  ld(g_fx2_exempt_calls), ld(g_fx2_max_window_calls), FreezeExact() ? 1 : 0,
+                  FreezeCapMs(), SkipFillers() ? 1 : 0);
+      g_pair_dt_max_ms = 0.0;
+      std::string callers;
+      for (const CallerCount& c : g_pin_callers) {
+        const uint32_t lr = c.lr.load(std::memory_order_relaxed);
+        if (lr != 0u) {
+          callers += fmt::format(" 0x{:08X}:{}", lr, c.n.load(std::memory_order_relaxed));
+        }
+      }
+      REXGPU_INFO("[VP] PINCALLERS{}", callers.empty() ? std::string(" none") : callers);
     }
   }
 
@@ -621,6 +774,7 @@ DECLARE_REX_FUNC(sub_828A7DB8);
 
 REX_HOOK_RAW(sub_828A7DB8) {
   const uint32_t out = ctx.r3.u32;
+  const uint32_t caller_lr = static_cast<uint32_t>(ctx.lr);
 
   __imp__sub_828A7DB8(ctx, base);
 
@@ -632,6 +786,46 @@ REX_HOOK_RAW(sub_828A7DB8) {
                         static_cast<uint64_t>(REX_LOAD_U32(out + 4u));
 
   ++g_clock_calls;
+
+  if (ByPacket()) {
+    // fx2: only the game thread's clock is ever changed, and never inside the queue waits.
+    if (!t_is_game_thread) {
+      return;
+    }
+    uint64_t v = real;
+    if (t_gc.pin && t_in_queue_wait > 0) {
+      g_fx2_exempt_calls.fetch_add(1, std::memory_order_relaxed);
+    } else if (t_gc.pin) {
+      const double held_ms = std::chrono::duration<double, std::milli>(
+                                 std::chrono::steady_clock::now() - t_gc.pin_since).count();
+      if (held_ms > FreezeCapMs()) {
+        t_gc.pin = false;  // never stall: let go, and count it
+        g_fx2_capped.fetch_add(1, std::memory_order_relaxed);
+      } else {
+        v = FreezeExact() ? t_gc.hold + (++t_gc.k) : t_gc.last_returned + 1u;
+        ++t_gc.pin_calls;
+        g_fx2_pinned_calls.fetch_add(1, std::memory_order_relaxed);
+        CountPinCaller(caller_lr);
+        const double hold_ms = (real > v) ? (real - v) / 50000.0 : 0.0;
+        if (hold_ms > g_max_hold_ms) {
+          g_max_hold_ms = hold_ms;
+        }
+      }
+    }
+    if (!t_gc.pin && v <= t_gc.last_returned) {
+      v = t_gc.last_returned + 1u;  // after a hold ends the real clock is far ahead; this is a guard
+    }
+    if (t_gc.first_pending && t_in_queue_wait == 0) {
+      t_gc.first_pending = false;
+      t_gc.frame_start = v;  // the first read of this frame: taken as the frame's simulation time
+    }
+    t_gc.last_returned = v;
+    if (v != real) {
+      REX_STORE_U32(out, static_cast<uint32_t>(v >> 32));
+      REX_STORE_U32(out + 4u, static_cast<uint32_t>(v & 0xFFFFFFFFu));
+    }
+    return;
+  }
 
   if (!g_pin_clock) {
     // Free-running: follow the real clock, and remember where we are.
@@ -670,7 +864,9 @@ DECLARE_REX_FUNC(sub_825A3FD8);
 REX_HOOK_RAW(sub_825A3FD8) {
   const uint32_t caller = static_cast<uint32_t>(ctx.lr);
 
+  ++t_in_queue_wait;  // fx2: its clock polls (the wait for a free packet) are never pinned
   __imp__sub_825A3FD8(ctx, base);
+  --t_in_queue_wait;
 
   const uint32_t packet = ctx.r3.u32;
   if (packet == 0u) {
@@ -697,11 +893,32 @@ REX_HOOK_RAW(sub_825A3FD8) {
     if (predicted != 0u && predicted != serial) {
       g_predict_miss.fetch_add(1, std::memory_order_relaxed);
     }
+    // fx2: the eye and the freeze follow GAME packets only.
+    const uint32_t seq = g_game_seq.fetch_add(1, std::memory_order_relaxed) + 1u;
+    t_is_game_thread = true;
     if (ByPacket()) {
-      SetPinFor(serial);
+      t_packet.sign = SignFor(seq);
+      g_last_game_eye.store(SecondEye(seq) ? 1 : 0, std::memory_order_relaxed);
+    }
+    {
+      std::lock_guard<std::mutex> lock(g_meta_mu);
+      PacketMeta* m = MetaLocked(packet);
+      m->serial = serial;
+      m->game_seq = seq;
+      m->filler = false;
+      m->frame_start = 0;
     }
   } else if (caller == kAcquireLrFiller) {
     g_pk_filler[eye].fetch_add(1, std::memory_order_relaxed);
+    t_packet.sign = g_last_game_eye.load(std::memory_order_relaxed) ? -1.0f : 1.0f;
+    {
+      std::lock_guard<std::mutex> lock(g_meta_mu);
+      PacketMeta* m = MetaLocked(packet);
+      m->serial = serial;
+      m->game_seq = 0;
+      m->filler = true;
+      m->frame_start = 0;
+    }
     static bool filler_logged = false;
     if (!filler_logged) {
       filler_logged = true;
@@ -720,6 +937,7 @@ DECLARE_REX_FUNC(sub_825A45A8);
 
 REX_HOOK_RAW(sub_825A45A8) {
   const uint32_t caller = static_cast<uint32_t>(ctx.lr);
+  const uint32_t packet = ctx.r4.u32;
 
   __imp__sub_825A45A8(ctx, base);
 
@@ -727,8 +945,29 @@ REX_HOOK_RAW(sub_825A45A8) {
   if (caller == kSubmitLrGame) {
     const uint32_t next = REX_LOAD_U32(kSerialGlobal) + 1u;
     g_predicted.store(next, std::memory_order_relaxed);
-    if (ByPacket()) {
-      SetPinFor(next);
+    // fx2: remember when this packet's frame started, then decide the freeze for the NEXT frame.
+    {
+      std::lock_guard<std::mutex> lock(g_meta_mu);
+      MetaLocked(packet)->frame_start = t_gc.frame_start;
+    }
+    if (t_gc.pin_calls > g_fx2_max_window_calls.load(std::memory_order_relaxed)) {
+      g_fx2_max_window_calls.store(t_gc.pin_calls, std::memory_order_relaxed);
+    }
+    const uint64_t this_frame_start = t_gc.frame_start;
+    t_gc.first_pending = true;
+    t_gc.pin = false;
+    if (ByPacket() && Stereo().freeze) {
+      const uint32_t next_seq = g_game_seq.load(std::memory_order_relaxed) + 1u;
+      if (SecondEye(next_seq)) {
+        // The next frame is a second eye: give it this (first-eye) frame's start time.
+        t_gc.pin = true;
+        t_gc.hold = FreezeExact() ? this_frame_start : t_gc.last_returned;
+        t_gc.k = 0;
+        t_gc.pin_calls = 0;
+        t_gc.pin_since = std::chrono::steady_clock::now();
+        g_fx2_pins.fetch_add(1, std::memory_order_relaxed);
+        g_pinned_packets.fetch_add(1, std::memory_order_relaxed);
+      }
     }
   }
 }
@@ -754,11 +993,22 @@ REX_HOOK_RAW(sub_8259E050) {
       g_pk_played[EyeIndexForCount(serial)].fetch_add(1, std::memory_order_relaxed);
     }
     g_play_serial.store(serial, std::memory_order_relaxed);
+    // fx2: what kind of packet this is, its game sequence number and frame start.
+    PacketMeta m;
+    {
+      std::lock_guard<std::mutex> lock(g_meta_mu);
+      m = *MetaLocked(packet);
+    }
+    g_play_filler.store(m.filler || m.game_seq == 0u, std::memory_order_relaxed);
+    g_play_game_seq.store(m.game_seq, std::memory_order_relaxed);
+    g_play_frame_start.store(m.frame_start, std::memory_order_relaxed);
     g_played_since_swap.store(true, std::memory_order_relaxed);
     // Anything this thread computes while playing (the step-2 projection offset) takes this
     // packet's eye.
     t_packet.has = true;
     t_packet.serial = serial;
+    t_packet.sign = (m.game_seq != 0u && ByPacket()) ? SignFor(m.game_seq)
+                    : (g_last_game_eye.load(std::memory_order_relaxed) ? -1.0f : 1.0f);
   }
 
   __imp__sub_8259E050(ctx, base);

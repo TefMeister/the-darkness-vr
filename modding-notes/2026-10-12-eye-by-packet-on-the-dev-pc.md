@@ -40,3 +40,13 @@ Music set to 0 in the save profile (backup beside it).
 - Why the freeze does not hold a pair together in packet mode (the reader is on it).
 - Whether the screen-effects switch removes visible blur or flares (built, not yet run).
 - Whether the music is actually silent (not heard).
+
+## Later the same day: the corrected freeze makes a pair one moment
+
+The reader found why: holding the clock also froze the game's own wait-for-a-free-packet loop (tens of
+millions of fake clock reads), and the held value was the frame's last reading instead of its first. The fix
+(probe fx2 + SDK patch 08c, fillers repeat the last pair) is installed. In the car scene with the hold
+compose on, the log reads `frame_start_dt mean=0.00ms max=0.00ms` and, by eye, the characters hold the same
+pose in both halves while the viewpoint shifts: a real stereo pair `[verified-live 2026-10-12, n=1 run]`.
+The other two runs of that test (B, freeze-off) never left the menu, so there is no freeze-off comparison yet.
+Pictures: `dev-archive/recon/2026-10-12-eye-by-packet-dev-pc/fx2-hold-pairs-same-moment-four-pictures.png`.
