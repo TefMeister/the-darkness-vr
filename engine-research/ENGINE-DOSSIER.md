@@ -928,6 +928,8 @@ Full account: `modding-notes/2026-09-28-the-freeze-works-and-the-eye-slips.md`.
 - **Window grabs include the ~8 px invisible borders** (`winshot.grab` uses the window rect, not the
   client rect). Any half-split or pixel measurement must crop to `client_box` first `[verified-numerically 2026-09-28]`.
 
+- **SDK nightlies after 0.10.0 change guest atomics and fences** (`/gr` 2026-10-04, from the release notes `[reported 2026-10-04]`): `7f7c92e` (2026-09-30) makes `stwcx.` a `std::atomic` compare-and-swap; `ea222e9` (2026-10-01) requires SSE4.1 (both PCs have it); `bd833a2` (2026-10-02) adds real fences for `sync`/`lwsync`/`eieio`. The note suggested an A/B against the 60-90 ms "holds", but those holds are OUR freeze (`DK_FREEZE`), not a stall, so that test would measure nothing. Still worth knowing if a cross-thread race shows up (the packet queue is exactly such a place) `[hypothesis]`.
+
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version
