@@ -4,9 +4,8 @@ Notes and tooling for getting **The Darkness** (Starbreeze, 2007) playable on PC
 VR headset.
 
 The Darkness never had a PC release — it shipped on Xbox 360 and PlayStation 3 and stayed there.
-A community **static recompilation** to native PC is in progress elsewhere (a working build has been
-shown publicly, source not yet released at the time of writing). This repository is not that port.
-It is our own preparation and research around it, with VR as the goal.
+A community **static recompilation** to native PC is in progress elsewhere. This repository is not that
+port: we built our own, with the open ReXGlue toolkit and files from a disc we own, as the base for VR.
 
 **This is the project we most want in VR.** Everything here is aimed at that.
 
@@ -20,13 +19,13 @@ It is our own preparation and research around it, with VR as the goal.
 
 ## Status
 
-**Preparation done, waiting on someone else's release.**
+**Our own PC build plays in real-time 3D, and the two-eye picture is being built.**
 
-Groundwork is done, so the moment a PC recompilation is published we can use it immediately. Those
-projects ship no game content and require every user to supply the files from their own copy of the
-game.
+Our build first reached live gameplay on 2026-09-16 and made its first left/right stereo pair on
+2026-09-18. Since 2026-10-12 each picture knows which eye it is for, and both eyes can show the same
+moment (seen in one test so far). Confirming that pair and taking it into the headset comes next.
 
-No VR work has begun, and it cannot begin until there is a PC build to attach it to.
+Like the community ports, it ships no game content: every user supplies the files from their own copy.
 
 ## Why VR is realistic here, eventually
 
@@ -38,9 +37,6 @@ We have already done exactly that groundwork on a closely-related project —
 [**condemned-2-vr**](https://github.com/TefMeister/condemned-2-vr), another 2007-08 Xbox 360 title
 now running on PC from a self-built recompilation. The build knowledge, the fixes and the renderer
 notes there apply directly here.
-
-⚠️ **This depends on the Darkness port releasing its source.** If it ships as binaries only, the
-cheap source-level route closes and this becomes a much harder problem.
 
 ## What this is not
 
