@@ -1217,6 +1217,38 @@ the launch and only release it after the game has closed. `run_pair_test_dev.py`
 run (its pad lives until the script exits, after `close_game`). Separate scripts that each make their
 own pad and exit mid-session will pause the game.
 
+## 6c. Seeing and driving the running game from outside, and OpenXR per eye from the SDK (2026-10-23)
+
+A private remote-control layer for sessions (pictures, log, a virtual pad) is now compiled into our dev-PC build;
+its code and notes live in the private `staging` repo until the tool is public. The engine facts it rests on, read
+from the SDK source `[inferred-static 2026-10-23]`, belong here:
+
+- **Frame pictures without the window:** the SDK has `D3D12Presenter::CaptureGuestOutput(RawImage&)` (the xenia
+  screenshot path). It reads back the guest's latest finished frame through its own command list and fence, from any
+  thread, reached by `runtime()->graphics_system()->presenter()`. Pixels are R8 G8 B8 X8. It never touches the
+  window, so it avoids the stale screen copies met on 2026-09-21.
+- **An extra pad, from the port:** `RuntimeConfig::input_factory` can be replaced in `OnPreSetup` (ReXApp sets the
+  default first, then calls the hook), so the port can build `CreateDefaultInputSystem()` and `AddDriver()` one more
+  `InputDriver`. A device marked `synthetic` feeds guest user 0 without taking an ordinal
+  (`InputSystem::RefreshDevices`), so a real pad stays player one; states are merged (buttons OR, larger stick).
+  Menus that read `XInputGetKeystroke` need the driver to queue key events too.
+- **Focus:** nothing in the SDK pauses on focus loss (`OnLostFocus` only calls an empty hook); only the real-pad
+  drivers care (SDL needs `input_background_events`, patch 04). A driver living inside the port is read whatever
+  window is in front, and it exists from start-up to shutdown, so it cannot cause the disconnect pause above.
+- **Log:** `rex::AddSink` (from `OnPostInitLogging`) takes an extra spdlog sink.
+- ⚠️ **Building the game rebuilds the shared SDK** in `D:/condemned-2-vr/src/rexglue-sdk` when its tree changed. The
+  2026-10-23 dev-PC build therefore also carries **SDK patch 09 (OpenXR per eye, off unless `DK_XR=1`)** and the
+  **LLVM-MinGW 23.1.1** compiler (2026-10-15), neither ever run in The Darkness. If its first run misbehaves, those
+  two are suspects too; the previous four files are in `build-local/_backup-2026-10-23-before-bridge/`.
+
+**SDK patch 09 (from `/pd condemned-2-vr`, 2026-10-15, folded in from the inbox):** `condemned-2-vr/patches/
+09-rexglue-sdk-openxr-per-eye.patch`, on top of 07-08c. `DK_XR=1` (with `DK_SBS=1`, best `DK_SBS_HOLD=1`) sends each
+committed pair to OpenXR as one frame; simulator test 1,500 frames, no draw errors, each eye on its own side
+`[verified-live 2026-10-15, n=2]` (a test program, not a game). For full use the game exports two optional
+functions, `dk_xr_pair_sample(pair, &id)` and `dk_xr_eye_fov(float[4])` (Condemned 2's: its `vr_head_pose.cpp`);
+without them the picture stays fixed to the face with the headset's own field of view. This covers the output half
+of the `[PD] OpenXR submission per eye` row; replacing P with the headset's per-eye projection is still open.
+
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version
