@@ -94,6 +94,8 @@ on the disc — **none is Bink**:
 
 ### ⭐⭐ A developer menu AND a free camera are in the retail data — present, not yet reachable (2026-09-18)
 
+> **✅ OPENED 2026-10-24** with one hook on `cheat()` (`vr_devmenu_unlock.cpp`, `DK_DEVMENU=1`): X on the main menu shows DevMenu. See §6c.
+
 A `/gr` lead (Riddick: Assault on Dark Athena enables a debug menu by editing `CubeWnd.xrg`,
 `[reported]`) checked out against this game's own files, with a passing positive control.
 
@@ -944,6 +946,24 @@ Full account: `modding-notes/2026-09-28-the-freeze-works-and-the-eye-slips.md`.
 
 Code: `staging/the-darkness-vr/eye-by-packet-2026-10-12/` (new `vr_viewport_probe.cpp` and SDK
 patch `08-sbs-eye-from-the-game.patch`, on top of 07). Not built or run yet.
+
+### 6c. Home PC: the bridge build, the developer menu, and two eyes that look different ways (2026-10-24, `/lm`)
+
+- **The home PC's build now equals the dev PC's** (SDK v0.10.0 release + 01/04/05/06/07 + **08/08b/08c**, port = repo `port-project` with the fx2 probe) **plus the MCP Game Bridge³ and the dev-menu unlock** `[compile-verified 2026-10-24]`. Installed separately in the home PC's `build-home-bridge` folder (older builds untouched). Patch 09 (OpenXR per eye) is not on the home PC.
+- **The bridge drives the game on this PC with no pad driver and no focus:** title → main menu → car scene, pictures from the engine's own frames `[verified-live 2026-10-24, n=6 runs]`. In the side-by-side build a bridge picture is **2560 x 720: both eyes at full size**, no letterbox.
+- **Route that works unattended (home PC):** title ~48-51 s after launch (matched against a saved title picture; a colour count is fooled by the intro films), START once, then A every 4.5 s until the probe's log shows `cam_in_packet>0`; the level camera appears at ~75 s `[verified-live 2026-10-24, n=3]`. ⚠️ Matching the save notice and the main menu by picture did NOT work: the background drifts and glows (mean grey difference 9-22 on the right screen) `[measured 2026-10-24]`. ⚠️ The bridge's in-memory `log` is swamped by `[VP] PERSP` lines: read the log FILES for probe counters. Script: `staging/the-darkness-vr/bridge-2026-10-23/run_pair_test_bridge.py`.
+- ⭐⭐ **The developer menu opens.** With `DK_DEVMENU=1`, **X on the main menu** reaches `cheat("cg_submenu('DevMenu')")` and DevMenu draws: Load Scriptlayer / Zones / Soakmode / Unlock all / CUSTOMIZE CONTROLS / CCTest `[verified-live 2026-10-24, n=3]`. Y does nothing. **Unlock all** opens EXTRA CONTENT with every item available (videos, comics); the save files were not rewritten by it `[verified-live 2026-10-24, n=1]`. **Zones** opens an empty list `[verified-live 2026-10-24, n=1]`. Not tried yet: the pause-menu doorway (`GAMEMENU2`: god mode, noclip, FreezeCam) and a `DK_DEVMENU_MAP` level jump.
+- ⚠️ **The stereo pair is NOT one view from two eyes on the home PC.** In the car scene each half is steady, but the two halves look in clearly different directions (hands up near the face in the left half, low at the bottom in the right), far more than a 1.25-unit sideways step could do. **The same with the freeze off (O) as on (H)**, while the log says the bookkeeping is perfect (`same_eye_twice=0`, orphans 0, `frame_start_dt` 0.00 ms, `cam_in_packet` > 0; camera builds per frame 0:35k 1:5.6k 2:2k) `[verified-live 2026-10-24, n=1 run each, by eye]`. The shift measure reads 0 for 90% of pictures, which only means the halves do not line up at any small shift. The left half is also much brighter (washed out). So the freeze is not the cause. Candidates: the two packets render different viewports or cameras, or one eye's camera comes from a different camera build `[hypothesis]`. Pictures stay on the home PC (game content).
+
+#### From the reader: 2026-10-24-reader-devmenu-unlock (folded from its report; the inbox file itself was lost in the drain)
+
+- **Command executor:** `sub_8277B388(r3 = guest CStr*, passed by value and destroyed; r4 = const char* tag; r5 = 0)`. Finds `SYSTEM.CONSOLE` (0x82060ECC), runs the text through `sub_82782E28`, returns r3 = 1 if a console was found. ~170 callers `[inferred-static 2026-10-24]`.
+- **`cheat()` calling convention:** r3 = front end, r4 = a CStr by value that the callee must destroy. Read from `sub_8236D420` (`cachecommand`, slot +264, same binder `sub_8236EB50`: copies r4 into this+43292 under the lock at this+468, then destroys r4) and from the retail stub `sub_8276AA20` (destroys r4). Registration table: `sub_8236D738` `[inferred-static 2026-10-24]`.
+- Slot +268 (`docachedcommand`, `sub_8236D478`, via the shared thunk `sub_8277B980`) and +272 (`cg_backout`) both call `sub_8277B388` from inside a running script command, so calling it from inside `cheat()` is something the game already does. Slot +276 (`sub_8236D570`) runs no commands: it walks a list on this+24 and sets the byte at +4961 `[inferred-static 2026-10-24]`.
+- **CStr is 8 bytes:** +0 vtable (0x82065568), +4 pointer to a data block (u16 header, characters from +2). Constructor from a C string `sub_821F86A8` (copies to the heap), copy constructor `sub_821F8918`, destructor `sub_821F8AD0`. Literals run with the tag "ConExecute" (0x82051210) `[inferred-static 2026-10-24]`.
+- The front-end and console locks are recursive on the same thread (`sub_820C85A8`), so a nested run cannot deadlock `[inferred-static 2026-10-24]`.
+- **Doorways** `[measured 2026-10-24, CubeWnd.xcr]`: main menu `space` / `GUI_BUTTON2` / `JOY_BUTTON_02` call `cheat("cg_submenu('DevMenu')")` (live: the pad's X); pause menu (`GAMEMENU_real`) the same keys call `cheat("cg_rootmenu('GAMEMENU2')")`. GAMEMENU2's God-mode entry runs `cmd_forced(godmode); cg_clearmenus()`; noclip and FreezeCam (`cl_toggledebugcamera();pause(1)`) likewise. DevMenu's Milestone pages run `cachecommand("cg_blackloading(); campaignmap(\"NY1_Chinatown\")"); cg_rootmenu("begin_loadtransform")`.
+- **Switches** in `vr_devmenu_unlock.cpp`: `DK_DEVMENU=1`; `DK_DEVMENU_MAP=<map>` (main-menu doorway jumps to that level with the Milestone line); `DK_DEVMENU_MAIN_CMD=<text>`; `DK_DEVMENU_GAME_CMD=<text>` (e.g. `cmd_forced(godmode); cg_clearmenus()`). Every `cheat()` call logs a `[DEVMENU]` line (first 60).
 
 ## Facts read from the generated code
 
