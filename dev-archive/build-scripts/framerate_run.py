@@ -23,7 +23,7 @@ import vgamepad as vg
 from PIL import Image
 
 # ---- settings (named, in one place) --------------------------------------------------
-MEASURE_TOOL = r"~\github-backups\claude-memory\tools\measure-frame-rate.py"
+MEASURE_TOOL = os.path.expanduser(r"~\github-backups\claude-memory\tools\measure-frame-rate.py")
 WINDOW_WAIT_S = 90.0        # give up if no window by then
 STEP_S = 4.0                # between presses; each step ends with a screenshot
 HOLD_SHOT_EVERY_S = 10.0    # screenshot spacing while sitting still at the end
