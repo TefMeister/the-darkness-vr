@@ -14,6 +14,7 @@ include(generated/rexglue.cmake)
 set(DARKNESSRECOMP_SOURCES
     src/main.cpp
     src/vr_viewport_probe.cpp
+    src/vr_devmenu_unlock.cpp
 )
 
 if(WIN32)
