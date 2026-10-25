@@ -15,6 +15,7 @@ set(DARKNESSRECOMP_SOURCES
     src/main.cpp
     src/vr_viewport_probe.cpp
     src/vr_devmenu_unlock.cpp
+    src/vr_xr_head.cpp
 )
 
 if(WIN32)
