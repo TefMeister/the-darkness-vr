@@ -121,6 +121,8 @@
 
 #include <rex/hook.h>
 
+#include "vr_xr_head.h"
+
 #include <atomic>
 #include <chrono>
 #include <mutex>
@@ -736,6 +738,17 @@ REX_HOOK_RAW(sub_823F9B00) {
   // Counted whether or not an offset is applied, so an offset-0 freeze run still shows
   // whether builds happen inside the packet window.
   const float sign = EyeSignForThisThread(base, true);
+
+  // DK_XR_HEAD=1 (vr_xr_head.cpp, 2026-10-25): the head turns the rows first (+0 forward, +16 right,
+  // +32 up), so the eye shift below follows the turned right row.
+  if (out != 0u && dkxr::HeadOn()) {
+    float rows[3][3];
+    for (uint32_t r = 0; r < 3u; ++r)
+      for (uint32_t i = 0; i < 3u; ++i) rows[r][i] = LoadGuestFloat(base, out + 16u * r + 4u * i);
+    dkxr::TurnCamera(rows[0], rows[1], rows[2], sign > 0.0f);
+    for (uint32_t r = 0; r < 3u; ++r)
+      for (uint32_t i = 0; i < 3u; ++i) StoreGuestFloat(base, out + 16u * r + 4u * i, rows[r][i]);
+  }
 
   const StereoSettings& stereo = Stereo();
   if (stereo.cam_eye == 0.0f || out == 0u) {
