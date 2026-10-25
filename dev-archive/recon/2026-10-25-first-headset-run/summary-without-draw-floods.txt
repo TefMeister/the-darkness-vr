@@ -1,0 +1,342 @@
+[2026-10-25 21:19:26.576] [info] [gpu] [t10052] [VP] FREEZE frames=84900 pinned_frames=0 clock_calls=1383659576 pinned_calls=0 max_hold=22.5ms frame_end_calls=84900 no_swap_calls=0
+[2026-10-25 21:19:28.651] [info] [gpu] [t10052] [VP] PAIRS game_swaps=81964 filler_swaps=3236 pairs=40982 frame_start_dt mean=0.00ms max=0.00ms | pins=40983 capped=4 pinned_calls=866071516 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:28.654] [info] [gpu] [t10052] [VP] FREEZE frames=85200 pinned_frames=0 clock_calls=1387527242 pinned_calls=0 max_hold=17.0ms frame_end_calls=85200 no_swap_calls=0
+[2026-10-25 21:19:28.654] [info] [gpu] [t10052] [VP] frames=85200 near-viewport applies per frame: 0:85200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:19:28.654] [info] [gpu] [t10052] [VP] frames=85200 camera builds per frame: 0:55893 1:19432 2:9866 3+:9
+[2026-10-25 21:19:30.303] [info] [gpu] [t10572] [XR] frames=41100 not_rendered=0 sample_hits=0 sample_misses=41100 draw_errors=0 wait_ms_mean=3.66
+[2026-10-25 21:19:30.734] [info] [gpu] [t10052] [VP] PAIRS game_swaps=82264 filler_swaps=3236 pairs=41132 frame_start_dt mean=0.00ms max=0.00ms | pins=41133 capped=4 pinned_calls=869128678 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:30.737] [info] [gpu] [t10052] [VP] FREEZE frames=85500 pinned_frames=0 clock_calls=1391389463 pinned_calls=0 max_hold=17.4ms frame_end_calls=85500 no_swap_calls=0
+[2026-10-25 21:19:32.818] [info] [gpu] [t10052] [VP] PAIRS game_swaps=82564 filler_swaps=3236 pairs=41282 frame_start_dt mean=0.00ms max=0.00ms | pins=41283 capped=4 pinned_calls=871775900 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:32.820] [info] [gpu] [t10052] [VP] FREEZE frames=85800 pinned_frames=0 clock_calls=1394988889 pinned_calls=0 max_hold=19.2ms frame_end_calls=85800 no_swap_calls=0
+[2026-10-25 21:19:32.820] [info] [gpu] [t10052] [VP] frames=85800 near-viewport applies per frame: 0:85800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:19:32.820] [info] [gpu] [t10052] [VP] frames=85800 camera builds per frame: 0:56493 1:19432 2:9866 3+:9
+[2026-10-25 21:19:34.469] [info] [gpu] [t10572] [XR] frames=41400 not_rendered=0 sample_hits=0 sample_misses=41400 draw_errors=0 wait_ms_mean=3.67
+[2026-10-25 21:19:34.901] [info] [gpu] [t10052] [VP] PAIRS game_swaps=82864 filler_swaps=3236 pairs=41432 frame_start_dt mean=0.00ms max=0.00ms | pins=41433 capped=4 pinned_calls=874639455 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:34.905] [info] [gpu] [t10052] [VP] FREEZE frames=86100 pinned_frames=0 clock_calls=1398757538 pinned_calls=0 max_hold=15.3ms frame_end_calls=86100 no_swap_calls=0
+[2026-10-25 21:19:36.984] [info] [gpu] [t10052] [VP] PAIRS game_swaps=83164 filler_swaps=3236 pairs=41582 frame_start_dt mean=0.00ms max=0.00ms | pins=41583 capped=4 pinned_calls=877632087 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:36.987] [info] [gpu] [t10052] [VP] FREEZE frames=86400 pinned_frames=0 clock_calls=1402637612 pinned_calls=0 max_hold=20.5ms frame_end_calls=86400 no_swap_calls=0
+[2026-10-25 21:19:36.987] [info] [gpu] [t10052] [VP] frames=86400 near-viewport applies per frame: 0:86400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:19:36.987] [info] [gpu] [t10052] [VP] frames=86400 camera builds per frame: 0:57093 1:19432 2:9866 3+:9
+[2026-10-25 21:19:38.636] [info] [gpu] [t10572] [XR] frames=41700 not_rendered=0 sample_hits=0 sample_misses=41700 draw_errors=0 wait_ms_mean=3.67
+[2026-10-25 21:19:39.067] [info] [gpu] [t10052] [VP] PAIRS game_swaps=83464 filler_swaps=3236 pairs=41732 frame_start_dt mean=0.00ms max=0.00ms | pins=41733 capped=4 pinned_calls=880559674 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:39.071] [info] [gpu] [t10052] [VP] FREEZE frames=86700 pinned_frames=0 clock_calls=1406509439 pinned_calls=0 max_hold=14.9ms frame_end_calls=86700 no_swap_calls=0
+[2026-10-25 21:19:41.151] [info] [gpu] [t10052] [VP] PAIRS game_swaps=83764 filler_swaps=3236 pairs=41882 frame_start_dt mean=0.00ms max=0.00ms | pins=41883 capped=4 pinned_calls=883524490 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:41.155] [info] [gpu] [t10052] [VP] FREEZE frames=87000 pinned_frames=0 clock_calls=1410395814 pinned_calls=0 max_hold=15.3ms frame_end_calls=87000 no_swap_calls=0
+[2026-10-25 21:19:41.155] [info] [gpu] [t10052] [VP] frames=87000 near-viewport applies per frame: 0:87000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:19:41.155] [info] [gpu] [t10052] [VP] frames=87000 camera builds per frame: 0:57693 1:19432 2:9866 3+:9
+[2026-10-25 21:19:42.803] [info] [gpu] [t10572] [XR] frames=42000 not_rendered=0 sample_hits=0 sample_misses=42000 draw_errors=0 wait_ms_mean=3.68
+[2026-10-25 21:19:43.234] [info] [gpu] [t10052] [VP] PAIRS game_swaps=84064 filler_swaps=3236 pairs=42032 frame_start_dt mean=0.00ms max=0.00ms | pins=42033 capped=4 pinned_calls=886583668 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:43.237] [info] [gpu] [t10052] [VP] FREEZE frames=87300 pinned_frames=0 clock_calls=1414256075 pinned_calls=0 max_hold=17.2ms frame_end_calls=87300 no_swap_calls=0
+[2026-10-25 21:19:45.317] [info] [gpu] [t10052] [VP] PAIRS game_swaps=84364 filler_swaps=3236 pairs=42182 frame_start_dt mean=0.00ms max=0.00ms | pins=42183 capped=4 pinned_calls=889532267 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:45.321] [info] [gpu] [t10052] [VP] FREEZE frames=87600 pinned_frames=0 clock_calls=1418089769 pinned_calls=0 max_hold=20.5ms frame_end_calls=87600 no_swap_calls=0
+[2026-10-25 21:19:45.321] [info] [gpu] [t10052] [VP] frames=87600 near-viewport applies per frame: 0:87600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:19:45.321] [info] [gpu] [t10052] [VP] frames=87600 camera builds per frame: 0:58293 1:19432 2:9866 3+:9
+[2026-10-25 21:19:46.969] [info] [gpu] [t10572] [XR] frames=42300 not_rendered=0 sample_hits=0 sample_misses=42300 draw_errors=0 wait_ms_mean=3.68
+[2026-10-25 21:19:47.401] [info] [gpu] [t10052] [VP] PAIRS game_swaps=84664 filler_swaps=3236 pairs=42332 frame_start_dt mean=0.00ms max=0.00ms | pins=42333 capped=4 pinned_calls=892409606 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:47.405] [info] [gpu] [t10052] [VP] FREEZE frames=87900 pinned_frames=0 clock_calls=1421868420 pinned_calls=0 max_hold=20.0ms frame_end_calls=87900 no_swap_calls=0
+[2026-10-25 21:19:49.484] [info] [gpu] [t10052] [VP] PAIRS game_swaps=84964 filler_swaps=3236 pairs=42482 frame_start_dt mean=0.00ms max=0.00ms | pins=42483 capped=4 pinned_calls=895173523 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:49.487] [info] [gpu] [t10052] [VP] FREEZE frames=88200 pinned_frames=0 clock_calls=1425485030 pinned_calls=0 max_hold=15.6ms frame_end_calls=88200 no_swap_calls=0
+[2026-10-25 21:19:49.487] [info] [gpu] [t10052] [VP] frames=88200 near-viewport applies per frame: 0:88200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:19:49.487] [info] [gpu] [t10052] [VP] frames=88200 camera builds per frame: 0:58893 1:19432 2:9866 3+:9
+[2026-10-25 21:19:51.136] [info] [gpu] [t10572] [XR] frames=42600 not_rendered=0 sample_hits=0 sample_misses=42600 draw_errors=0 wait_ms_mean=3.69
+[2026-10-25 21:19:51.568] [info] [gpu] [t10052] [VP] PAIRS game_swaps=85264 filler_swaps=3236 pairs=42632 frame_start_dt mean=0.00ms max=0.00ms | pins=42633 capped=4 pinned_calls=897896896 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:51.572] [info] [gpu] [t10052] [VP] FREEZE frames=88500 pinned_frames=0 clock_calls=1429137115 pinned_calls=0 max_hold=16.0ms frame_end_calls=88500 no_swap_calls=0
+[2026-10-25 21:19:53.651] [info] [gpu] [t10052] [VP] PAIRS game_swaps=85564 filler_swaps=3236 pairs=42782 frame_start_dt mean=0.00ms max=0.00ms | pins=42783 capped=4 pinned_calls=900809190 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:53.654] [info] [gpu] [t10052] [VP] FREEZE frames=88800 pinned_frames=0 clock_calls=1432927615 pinned_calls=0 max_hold=15.4ms frame_end_calls=88800 no_swap_calls=0
+[2026-10-25 21:19:53.654] [info] [gpu] [t10052] [VP] frames=88800 near-viewport applies per frame: 0:88800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:19:53.654] [info] [gpu] [t10052] [VP] frames=88800 camera builds per frame: 0:59493 1:19432 2:9866 3+:9
+[2026-10-25 21:19:55.303] [info] [gpu] [t10572] [XR] frames=42900 not_rendered=0 sample_hits=0 sample_misses=42900 draw_errors=0 wait_ms_mean=3.70
+[2026-10-25 21:19:55.739] [info] [gpu] [t10052] [VP] PAIRS game_swaps=85864 filler_swaps=3236 pairs=42932 frame_start_dt mean=0.00ms max=0.00ms | pins=42933 capped=4 pinned_calls=905070787 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:55.740] [info] [gpu] [t10052] [VP] FREEZE frames=89100 pinned_frames=0 clock_calls=1437560635 pinned_calls=0 max_hold=26.0ms frame_end_calls=89100 no_swap_calls=0
+[2026-10-25 21:19:57.823] [info] [gpu] [t10052] [VP] PAIRS game_swaps=86164 filler_swaps=3236 pairs=43082 frame_start_dt mean=0.00ms max=0.00ms | pins=43083 capped=4 pinned_calls=909630751 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:57.823] [info] [gpu] [t10052] [VP] FREEZE frames=89400 pinned_frames=0 clock_calls=1442394198 pinned_calls=0 max_hold=22.2ms frame_end_calls=89400 no_swap_calls=0
+[2026-10-25 21:19:57.823] [info] [gpu] [t10052] [VP] frames=89400 near-viewport applies per frame: 0:89400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:19:57.823] [info] [gpu] [t10052] [VP] frames=89400 camera builds per frame: 0:60093 1:19432 2:9866 3+:9
+[2026-10-25 21:19:59.475] [info] [gpu] [t10572] [XR] frames=43200 not_rendered=0 sample_hits=0 sample_misses=43200 draw_errors=0 wait_ms_mean=3.74
+[2026-10-25 21:19:59.935] [info] [gpu] [t10052] [VP] PAIRS game_swaps=86464 filler_swaps=3236 pairs=43232 frame_start_dt mean=0.00ms max=0.00ms | pins=43233 capped=4 pinned_calls=914282344 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:19:59.935] [info] [gpu] [t10052] [VP] FREEZE frames=89700 pinned_frames=0 clock_calls=1447311339 pinned_calls=0 max_hold=53.1ms frame_end_calls=89700 no_swap_calls=0
+[2026-10-25 21:20:02.019] [info] [gpu] [t10052] [VP] PAIRS game_swaps=86764 filler_swaps=3236 pairs=43382 frame_start_dt mean=0.00ms max=0.00ms | pins=43383 capped=4 pinned_calls=918793800 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:02.019] [info] [gpu] [t10052] [VP] FREEZE frames=90000 pinned_frames=0 clock_calls=1452094937 pinned_calls=0 max_hold=17.3ms frame_end_calls=90000 no_swap_calls=0
+[2026-10-25 21:20:02.019] [info] [gpu] [t10052] [VP] frames=90000 near-viewport applies per frame: 0:90000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:02.019] [info] [gpu] [t10052] [VP] frames=90000 camera builds per frame: 0:60693 1:19432 2:9866 3+:9
+[2026-10-25 21:20:03.671] [info] [gpu] [t10572] [XR] frames=43500 not_rendered=0 sample_hits=0 sample_misses=43500 draw_errors=0 wait_ms_mean=3.78
+[2026-10-25 21:20:04.102] [info] [gpu] [t10052] [VP] PAIRS game_swaps=87064 filler_swaps=3236 pairs=43532 frame_start_dt mean=0.00ms max=0.00ms | pins=43533 capped=4 pinned_calls=923179742 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:04.103] [info] [gpu] [t10052] [VP] FREEZE frames=90300 pinned_frames=0 clock_calls=1456755912 pinned_calls=0 max_hold=21.5ms frame_end_calls=90300 no_swap_calls=0
+[2026-10-25 21:20:06.185] [info] [gpu] [t10052] [VP] PAIRS game_swaps=87364 filler_swaps=3236 pairs=43682 frame_start_dt mean=0.00ms max=0.00ms | pins=43683 capped=4 pinned_calls=927755307 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:06.186] [info] [gpu] [t10052] [VP] FREEZE frames=90600 pinned_frames=0 clock_calls=1461601262 pinned_calls=0 max_hold=14.2ms frame_end_calls=90600 no_swap_calls=0
+[2026-10-25 21:20:06.186] [info] [gpu] [t10052] [VP] frames=90600 near-viewport applies per frame: 0:90600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:06.186] [info] [gpu] [t10052] [VP] frames=90600 camera builds per frame: 0:61293 1:19432 2:9866 3+:9
+[2026-10-25 21:20:07.838] [info] [gpu] [t10572] [XR] frames=43800 not_rendered=0 sample_hits=0 sample_misses=43800 draw_errors=0 wait_ms_mean=3.82
+[2026-10-25 21:20:08.269] [info] [gpu] [t10052] [VP] PAIRS game_swaps=87664 filler_swaps=3236 pairs=43832 frame_start_dt mean=0.00ms max=0.00ms | pins=43833 capped=4 pinned_calls=932326516 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:08.269] [info] [gpu] [t10052] [VP] FREEZE frames=90900 pinned_frames=0 clock_calls=1466451502 pinned_calls=0 max_hold=18.5ms frame_end_calls=90900 no_swap_calls=0
+[2026-10-25 21:20:10.352] [info] [gpu] [t10052] [VP] PAIRS game_swaps=87964 filler_swaps=3236 pairs=43982 frame_start_dt mean=0.00ms max=0.00ms | pins=43983 capped=4 pinned_calls=936916601 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:10.352] [info] [gpu] [t10052] [VP] FREEZE frames=91200 pinned_frames=0 clock_calls=1471295958 pinned_calls=0 max_hold=15.8ms frame_end_calls=91200 no_swap_calls=0
+[2026-10-25 21:20:10.352] [info] [gpu] [t10052] [VP] frames=91200 near-viewport applies per frame: 0:91200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:10.352] [info] [gpu] [t10052] [VP] frames=91200 camera builds per frame: 0:61893 1:19432 2:9866 3+:9
+[2026-10-25 21:20:12.004] [info] [gpu] [t10572] [XR] frames=44100 not_rendered=0 sample_hits=0 sample_misses=44100 draw_errors=0 wait_ms_mean=3.86
+[2026-10-25 21:20:12.435] [info] [gpu] [t10052] [VP] PAIRS game_swaps=88264 filler_swaps=3236 pairs=44132 frame_start_dt mean=0.00ms max=0.00ms | pins=44133 capped=4 pinned_calls=941500353 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:12.437] [info] [gpu] [t10052] [VP] FREEZE frames=91500 pinned_frames=0 clock_calls=1476156844 pinned_calls=0 max_hold=26.3ms frame_end_calls=91500 no_swap_calls=0
+[2026-10-25 21:20:14.525] [info] [gpu] [t10052] [VP] PAIRS game_swaps=88564 filler_swaps=3236 pairs=44282 frame_start_dt mean=0.00ms max=0.00ms | pins=44283 capped=4 pinned_calls=946084967 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:14.525] [info] [gpu] [t10052] [VP] FREEZE frames=91800 pinned_frames=0 clock_calls=1481010047 pinned_calls=0 max_hold=29.7ms frame_end_calls=91800 no_swap_calls=0
+[2026-10-25 21:20:14.525] [info] [gpu] [t10052] [VP] frames=91800 near-viewport applies per frame: 0:91800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:14.525] [info] [gpu] [t10052] [VP] frames=91800 camera builds per frame: 0:62493 1:19432 2:9866 3+:9
+[2026-10-25 21:20:16.183] [info] [gpu] [t10572] [XR] frames=44400 not_rendered=0 sample_hits=0 sample_misses=44400 draw_errors=0 wait_ms_mean=3.89
+[2026-10-25 21:20:16.614] [info] [gpu] [t10052] [VP] PAIRS game_swaps=88864 filler_swaps=3236 pairs=44432 frame_start_dt mean=0.00ms max=0.00ms | pins=44433 capped=4 pinned_calls=950654408 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:16.614] [info] [gpu] [t10052] [VP] FREEZE frames=92100 pinned_frames=0 clock_calls=1485853986 pinned_calls=0 max_hold=29.4ms frame_end_calls=92100 no_swap_calls=0
+[2026-10-25 21:20:18.697] [info] [gpu] [t10052] [VP] PAIRS game_swaps=89164 filler_swaps=3236 pairs=44582 frame_start_dt mean=0.00ms max=0.00ms | pins=44583 capped=4 pinned_calls=955198278 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:18.698] [info] [gpu] [t10052] [VP] FREEZE frames=92400 pinned_frames=0 clock_calls=1490676933 pinned_calls=0 max_hold=16.5ms frame_end_calls=92400 no_swap_calls=0
+[2026-10-25 21:20:18.698] [info] [gpu] [t10052] [VP] frames=92400 near-viewport applies per frame: 0:92400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:18.698] [info] [gpu] [t10052] [VP] frames=92400 camera builds per frame: 0:63093 1:19432 2:9866 3+:9
+[2026-10-25 21:20:20.358] [info] [gpu] [t10572] [XR] frames=44700 not_rendered=0 sample_hits=0 sample_misses=44700 draw_errors=0 wait_ms_mean=3.93
+[2026-10-25 21:20:20.787] [info] [gpu] [t10052] [VP] PAIRS game_swaps=89464 filler_swaps=3236 pairs=44732 frame_start_dt mean=0.00ms max=0.00ms | pins=44733 capped=4 pinned_calls=959621739 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:20.788] [info] [gpu] [t10052] [VP] FREEZE frames=92700 pinned_frames=0 clock_calls=1495376202 pinned_calls=0 max_hold=22.7ms frame_end_calls=92700 no_swap_calls=0
+[2026-10-25 21:20:22.871] [info] [gpu] [t10052] [VP] PAIRS game_swaps=89764 filler_swaps=3236 pairs=44882 frame_start_dt mean=0.00ms max=0.00ms | pins=44883 capped=4 pinned_calls=964146072 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:22.871] [info] [gpu] [t10052] [VP] FREEZE frames=93000 pinned_frames=0 clock_calls=1500171707 pinned_calls=0 max_hold=22.4ms frame_end_calls=93000 no_swap_calls=0
+[2026-10-25 21:20:22.871] [info] [gpu] [t10052] [VP] frames=93000 near-viewport applies per frame: 0:93000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:22.871] [info] [gpu] [t10052] [VP] frames=93000 camera builds per frame: 0:63693 1:19432 2:9866 3+:9
+[2026-10-25 21:20:24.526] [info] [gpu] [t10572] [XR] frames=45000 not_rendered=0 sample_hits=0 sample_misses=45000 draw_errors=0 wait_ms_mean=3.94
+[2026-10-25 21:20:24.955] [info] [gpu] [t10052] [VP] PAIRS game_swaps=90064 filler_swaps=3236 pairs=45032 frame_start_dt mean=0.00ms max=0.00ms | pins=45033 capped=4 pinned_calls=968720974 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:24.956] [info] [gpu] [t10052] [VP] FREEZE frames=93300 pinned_frames=0 clock_calls=1505032268 pinned_calls=0 max_hold=21.5ms frame_end_calls=93300 no_swap_calls=0
+[2026-10-25 21:20:27.037] [info] [gpu] [t10052] [VP] PAIRS game_swaps=90364 filler_swaps=3236 pairs=45182 frame_start_dt mean=0.00ms max=0.00ms | pins=45183 capped=4 pinned_calls=973289876 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:27.038] [info] [gpu] [t10052] [VP] FREEZE frames=93600 pinned_frames=0 clock_calls=1509890780 pinned_calls=0 max_hold=22.2ms frame_end_calls=93600 no_swap_calls=0
+[2026-10-25 21:20:27.038] [info] [gpu] [t10052] [VP] frames=93600 near-viewport applies per frame: 0:93600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:27.038] [info] [gpu] [t10052] [VP] frames=93600 camera builds per frame: 0:64293 1:19432 2:9866 3+:9
+[2026-10-25 21:20:28.690] [info] [gpu] [t10572] [XR] frames=45300 not_rendered=0 sample_hits=0 sample_misses=45300 draw_errors=0 wait_ms_mean=3.96
+[2026-10-25 21:20:29.121] [info] [gpu] [t10052] [VP] PAIRS game_swaps=90664 filler_swaps=3236 pairs=45332 frame_start_dt mean=0.00ms max=0.00ms | pins=45333 capped=4 pinned_calls=977876938 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:29.121] [info] [gpu] [t10052] [VP] FREEZE frames=93900 pinned_frames=0 clock_calls=1514739490 pinned_calls=0 max_hold=21.8ms frame_end_calls=93900 no_swap_calls=0
+[2026-10-25 21:20:31.208] [info] [gpu] [t10052] [VP] PAIRS game_swaps=90964 filler_swaps=3236 pairs=45482 frame_start_dt mean=0.00ms max=0.00ms | pins=45483 capped=4 pinned_calls=982325838 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:31.208] [info] [gpu] [t10052] [VP] FREEZE frames=94200 pinned_frames=0 clock_calls=1519475966 pinned_calls=0 max_hold=19.0ms frame_end_calls=94200 no_swap_calls=0
+[2026-10-25 21:20:31.208] [info] [gpu] [t10052] [VP] frames=94200 near-viewport applies per frame: 0:94200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:31.208] [info] [gpu] [t10052] [VP] frames=94200 camera builds per frame: 0:64893 1:19432 2:9866 3+:9
+[2026-10-25 21:20:32.857] [info] [gpu] [t10572] [XR] frames=45600 not_rendered=0 sample_hits=0 sample_misses=45600 draw_errors=0 wait_ms_mean=3.99
+[2026-10-25 21:20:33.287] [info] [gpu] [t10052] [VP] PAIRS game_swaps=91264 filler_swaps=3236 pairs=45632 frame_start_dt mean=0.00ms max=0.00ms | pins=45633 capped=4 pinned_calls=986817113 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:33.288] [info] [gpu] [t10052] [VP] FREEZE frames=94500 pinned_frames=0 clock_calls=1524243521 pinned_calls=0 max_hold=23.2ms frame_end_calls=94500 no_swap_calls=0
+[2026-10-25 21:20:35.371] [info] [gpu] [t10052] [VP] PAIRS game_swaps=91564 filler_swaps=3236 pairs=45782 frame_start_dt mean=0.00ms max=0.00ms | pins=45783 capped=4 pinned_calls=991406294 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:35.372] [info] [gpu] [t10052] [VP] FREEZE frames=94800 pinned_frames=0 clock_calls=1529104920 pinned_calls=0 max_hold=20.7ms frame_end_calls=94800 no_swap_calls=0
+[2026-10-25 21:20:35.372] [info] [gpu] [t10052] [VP] frames=94800 near-viewport applies per frame: 0:94800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:35.372] [info] [gpu] [t10052] [VP] frames=94800 camera builds per frame: 0:65493 1:19432 2:9866 3+:9
+[2026-10-25 21:20:37.024] [info] [gpu] [t10572] [XR] frames=45900 not_rendered=0 sample_hits=0 sample_misses=45900 draw_errors=0 wait_ms_mean=4.03
+[2026-10-25 21:20:37.455] [info] [gpu] [t10052] [VP] PAIRS game_swaps=91864 filler_swaps=3236 pairs=45932 frame_start_dt mean=0.00ms max=0.00ms | pins=45933 capped=4 pinned_calls=996012284 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:37.455] [info] [gpu] [t10052] [VP] FREEZE frames=95100 pinned_frames=0 clock_calls=1533994825 pinned_calls=0 max_hold=19.9ms frame_end_calls=95100 no_swap_calls=0
+[2026-10-25 21:20:39.556] [info] [gpu] [t10052] [VP] PAIRS game_swaps=92164 filler_swaps=3236 pairs=46082 frame_start_dt mean=0.00ms max=0.00ms | pins=46083 capped=4 pinned_calls=999160127 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:39.560] [info] [gpu] [t10052] [VP] FREEZE frames=95400 pinned_frames=0 clock_calls=1538005206 pinned_calls=0 max_hold=27.0ms frame_end_calls=95400 no_swap_calls=0
+[2026-10-25 21:20:39.560] [info] [gpu] [t10052] [VP] frames=95400 near-viewport applies per frame: 0:95400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:39.560] [info] [gpu] [t10052] [VP] frames=95400 camera builds per frame: 0:66093 1:19432 2:9866 3+:9
+[2026-10-25 21:20:41.208] [info] [gpu] [t10572] [XR] frames=46200 not_rendered=0 sample_hits=0 sample_misses=46200 draw_errors=0 wait_ms_mean=4.03
+[2026-10-25 21:20:41.639] [info] [gpu] [t10052] [VP] PAIRS game_swaps=92464 filler_swaps=3236 pairs=46232 frame_start_dt mean=0.00ms max=0.00ms | pins=46233 capped=4 pinned_calls=1001833129 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:41.643] [info] [gpu] [t10052] [VP] FREEZE frames=95700 pinned_frames=0 clock_calls=1541623504 pinned_calls=0 max_hold=16.4ms frame_end_calls=95700 no_swap_calls=0
+[2026-10-25 21:20:43.723] [info] [gpu] [t10052] [VP] PAIRS game_swaps=92764 filler_swaps=3236 pairs=46382 frame_start_dt mean=0.00ms max=0.00ms | pins=46383 capped=4 pinned_calls=1004725595 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:43.726] [info] [gpu] [t10052] [VP] FREEZE frames=96000 pinned_frames=0 clock_calls=1545351187 pinned_calls=0 max_hold=15.3ms frame_end_calls=96000 no_swap_calls=0
+[2026-10-25 21:20:43.726] [info] [gpu] [t10052] [VP] frames=96000 near-viewport applies per frame: 0:96000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:43.726] [info] [gpu] [t10052] [VP] frames=96000 camera builds per frame: 0:66693 1:19432 2:9866 3+:9
+[2026-10-25 21:20:45.375] [info] [gpu] [t10572] [XR] frames=46500 not_rendered=0 sample_hits=0 sample_misses=46500 draw_errors=0 wait_ms_mean=4.03
+[2026-10-25 21:20:45.806] [info] [gpu] [t10052] [VP] PAIRS game_swaps=93064 filler_swaps=3236 pairs=46532 frame_start_dt mean=0.00ms max=0.00ms | pins=46533 capped=4 pinned_calls=1007571878 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:45.809] [info] [gpu] [t10052] [VP] FREEZE frames=96300 pinned_frames=0 clock_calls=1549155846 pinned_calls=0 max_hold=15.6ms frame_end_calls=96300 no_swap_calls=0
+[2026-10-25 21:20:47.890] [info] [gpu] [t10052] [VP] PAIRS game_swaps=93364 filler_swaps=3236 pairs=46682 frame_start_dt mean=0.00ms max=0.00ms | pins=46683 capped=4 pinned_calls=1010425168 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:47.893] [info] [gpu] [t10052] [VP] FREEZE frames=96600 pinned_frames=0 clock_calls=1552920832 pinned_calls=0 max_hold=15.5ms frame_end_calls=96600 no_swap_calls=0
+[2026-10-25 21:20:47.893] [info] [gpu] [t10052] [VP] frames=96600 near-viewport applies per frame: 0:96600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:47.893] [info] [gpu] [t10052] [VP] frames=96600 camera builds per frame: 0:67293 1:19432 2:9866 3+:9
+[2026-10-25 21:20:49.542] [info] [gpu] [t10572] [XR] frames=46800 not_rendered=0 sample_hits=0 sample_misses=46800 draw_errors=0 wait_ms_mean=4.03
+[2026-10-25 21:20:49.973] [info] [gpu] [t10052] [VP] PAIRS game_swaps=93664 filler_swaps=3236 pairs=46832 frame_start_dt mean=0.00ms max=0.00ms | pins=46833 capped=4 pinned_calls=1013424244 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:49.977] [info] [gpu] [t10052] [VP] FREEZE frames=96900 pinned_frames=0 clock_calls=1556777621 pinned_calls=0 max_hold=15.4ms frame_end_calls=96900 no_swap_calls=0
+[2026-10-25 21:20:52.056] [info] [gpu] [t10052] [VP] PAIRS game_swaps=93964 filler_swaps=3236 pairs=46982 frame_start_dt mean=0.00ms max=0.00ms | pins=46983 capped=4 pinned_calls=1016377163 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:52.060] [info] [gpu] [t10052] [VP] FREEZE frames=97200 pinned_frames=0 clock_calls=1560608442 pinned_calls=0 max_hold=15.1ms frame_end_calls=97200 no_swap_calls=0
+[2026-10-25 21:20:52.060] [info] [gpu] [t10052] [VP] frames=97200 near-viewport applies per frame: 0:97200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:52.060] [info] [gpu] [t10052] [VP] frames=97200 camera builds per frame: 0:67893 1:19432 2:9866 3+:9
+[2026-10-25 21:20:53.708] [info] [gpu] [t10572] [XR] frames=47100 not_rendered=0 sample_hits=0 sample_misses=47100 draw_errors=0 wait_ms_mean=4.04
+[2026-10-25 21:20:54.139] [info] [gpu] [t10052] [VP] PAIRS game_swaps=94264 filler_swaps=3236 pairs=47132 frame_start_dt mean=0.00ms max=0.00ms | pins=47133 capped=4 pinned_calls=1019292450 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:54.142] [info] [gpu] [t10052] [VP] FREEZE frames=97500 pinned_frames=0 clock_calls=1564415644 pinned_calls=0 max_hold=17.0ms frame_end_calls=97500 no_swap_calls=0
+[2026-10-25 21:20:56.223] [info] [gpu] [t10052] [VP] PAIRS game_swaps=94564 filler_swaps=3236 pairs=47282 frame_start_dt mean=0.00ms max=0.00ms | pins=47283 capped=4 pinned_calls=1022258461 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:56.227] [info] [gpu] [t10052] [VP] FREEZE frames=97800 pinned_frames=0 clock_calls=1568252185 pinned_calls=0 max_hold=18.2ms frame_end_calls=97800 no_swap_calls=0
+[2026-10-25 21:20:56.227] [info] [gpu] [t10052] [VP] frames=97800 near-viewport applies per frame: 0:97800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:20:56.227] [info] [gpu] [t10052] [VP] frames=97800 camera builds per frame: 0:68493 1:19432 2:9866 3+:9
+[2026-10-25 21:20:57.875] [info] [gpu] [t10572] [XR] frames=47400 not_rendered=0 sample_hits=0 sample_misses=47400 draw_errors=0 wait_ms_mean=4.04
+[2026-10-25 21:20:58.306] [info] [gpu] [t10052] [VP] PAIRS game_swaps=94864 filler_swaps=3236 pairs=47432 frame_start_dt mean=0.00ms max=0.00ms | pins=47433 capped=4 pinned_calls=1025101006 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:20:58.311] [info] [gpu] [t10052] [VP] FREEZE frames=98100 pinned_frames=0 clock_calls=1572057694 pinned_calls=0 max_hold=15.2ms frame_end_calls=98100 no_swap_calls=0
+[2026-10-25 21:21:00.390] [info] [gpu] [t10052] [VP] PAIRS game_swaps=95164 filler_swaps=3236 pairs=47582 frame_start_dt mean=0.00ms max=0.00ms | pins=47583 capped=4 pinned_calls=1027900234 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:00.394] [info] [gpu] [t10052] [VP] FREEZE frames=98400 pinned_frames=0 clock_calls=1575777668 pinned_calls=0 max_hold=16.1ms frame_end_calls=98400 no_swap_calls=0
+[2026-10-25 21:21:00.394] [info] [gpu] [t10052] [VP] frames=98400 near-viewport applies per frame: 0:98400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:00.394] [info] [gpu] [t10052] [VP] frames=98400 camera builds per frame: 0:69093 1:19432 2:9866 3+:9
+[2026-10-25 21:21:02.042] [info] [gpu] [t10572] [XR] frames=47700 not_rendered=0 sample_hits=0 sample_misses=47700 draw_errors=0 wait_ms_mean=4.04
+[2026-10-25 21:21:02.473] [info] [gpu] [t10052] [VP] PAIRS game_swaps=95464 filler_swaps=3236 pairs=47732 frame_start_dt mean=0.00ms max=0.00ms | pins=47733 capped=4 pinned_calls=1030743463 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:02.477] [info] [gpu] [t10052] [VP] FREEZE frames=98700 pinned_frames=0 clock_calls=1579464491 pinned_calls=0 max_hold=18.0ms frame_end_calls=98700 no_swap_calls=0
+[2026-10-25 21:21:04.557] [info] [gpu] [t10052] [VP] PAIRS game_swaps=95764 filler_swaps=3236 pairs=47882 frame_start_dt mean=0.00ms max=0.00ms | pins=47883 capped=4 pinned_calls=1033704109 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:04.560] [info] [gpu] [t10052] [VP] FREEZE frames=99000 pinned_frames=0 clock_calls=1583292777 pinned_calls=0 max_hold=19.5ms frame_end_calls=99000 no_swap_calls=0
+[2026-10-25 21:21:04.560] [info] [gpu] [t10052] [VP] frames=99000 near-viewport applies per frame: 0:99000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:04.560] [info] [gpu] [t10052] [VP] frames=99000 camera builds per frame: 0:69693 1:19432 2:9866 3+:9
+[2026-10-25 21:21:06.209] [info] [gpu] [t10572] [XR] frames=48000 not_rendered=0 sample_hits=0 sample_misses=48000 draw_errors=0 wait_ms_mean=4.04
+[2026-10-25 21:21:06.640] [info] [gpu] [t10052] [VP] PAIRS game_swaps=96064 filler_swaps=3236 pairs=48032 frame_start_dt mean=0.00ms max=0.00ms | pins=48033 capped=4 pinned_calls=1036687337 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:06.644] [info] [gpu] [t10052] [VP] FREEZE frames=99300 pinned_frames=0 clock_calls=1587163510 pinned_calls=0 max_hold=15.2ms frame_end_calls=99300 no_swap_calls=0
+[2026-10-25 21:21:08.723] [info] [gpu] [t10052] [VP] PAIRS game_swaps=96364 filler_swaps=3236 pairs=48182 frame_start_dt mean=0.00ms max=0.00ms | pins=48183 capped=4 pinned_calls=1039490417 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:08.727] [info] [gpu] [t10052] [VP] FREEZE frames=99600 pinned_frames=0 clock_calls=1590899067 pinned_calls=0 max_hold=18.3ms frame_end_calls=99600 no_swap_calls=0
+[2026-10-25 21:21:08.727] [info] [gpu] [t10052] [VP] frames=99600 near-viewport applies per frame: 0:99600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:08.727] [info] [gpu] [t10052] [VP] frames=99600 camera builds per frame: 0:70293 1:19432 2:9866 3+:9
+[2026-10-25 21:21:10.375] [info] [gpu] [t10572] [XR] frames=48300 not_rendered=0 sample_hits=0 sample_misses=48300 draw_errors=0 wait_ms_mean=4.04
+[2026-10-25 21:21:10.807] [info] [gpu] [t10052] [VP] PAIRS game_swaps=96664 filler_swaps=3236 pairs=48332 frame_start_dt mean=0.00ms max=0.00ms | pins=48333 capped=4 pinned_calls=1042264873 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:10.811] [info] [gpu] [t10052] [VP] FREEZE frames=99900 pinned_frames=0 clock_calls=1594604244 pinned_calls=0 max_hold=15.1ms frame_end_calls=99900 no_swap_calls=0
+[2026-10-25 21:21:12.890] [info] [gpu] [t10052] [VP] PAIRS game_swaps=96964 filler_swaps=3236 pairs=48482 frame_start_dt mean=0.00ms max=0.00ms | pins=48483 capped=4 pinned_calls=1045000862 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:12.894] [info] [gpu] [t10052] [VP] FREEZE frames=100200 pinned_frames=0 clock_calls=1598269154 pinned_calls=0 max_hold=15.4ms frame_end_calls=100200 no_swap_calls=0
+[2026-10-25 21:21:12.894] [info] [gpu] [t10052] [VP] frames=100200 near-viewport applies per frame: 0:100200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:12.894] [info] [gpu] [t10052] [VP] frames=100200 camera builds per frame: 0:70893 1:19432 2:9866 3+:9
+[2026-10-25 21:21:14.542] [info] [gpu] [t10572] [XR] frames=48600 not_rendered=0 sample_hits=0 sample_misses=48600 draw_errors=0 wait_ms_mean=4.04
+[2026-10-25 21:21:14.974] [info] [gpu] [t10052] [VP] PAIRS game_swaps=97264 filler_swaps=3236 pairs=48632 frame_start_dt mean=0.00ms max=0.00ms | pins=48633 capped=4 pinned_calls=1047763445 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:14.978] [info] [gpu] [t10052] [VP] FREEZE frames=100500 pinned_frames=0 clock_calls=1601979017 pinned_calls=0 max_hold=15.4ms frame_end_calls=100500 no_swap_calls=0
+[2026-10-25 21:21:17.057] [info] [gpu] [t10052] [VP] PAIRS game_swaps=97564 filler_swaps=3236 pairs=48782 frame_start_dt mean=0.00ms max=0.00ms | pins=48783 capped=4 pinned_calls=1050550468 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:17.060] [info] [gpu] [t10052] [VP] FREEZE frames=100800 pinned_frames=0 clock_calls=1605692393 pinned_calls=0 max_hold=15.1ms frame_end_calls=100800 no_swap_calls=0
+[2026-10-25 21:21:17.060] [info] [gpu] [t10052] [VP] frames=100800 near-viewport applies per frame: 0:100800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:17.060] [info] [gpu] [t10052] [VP] frames=100800 camera builds per frame: 0:71493 1:19432 2:9866 3+:9
+[2026-10-25 21:21:18.709] [info] [gpu] [t10572] [XR] frames=48900 not_rendered=0 sample_hits=0 sample_misses=48900 draw_errors=0 wait_ms_mean=4.04
+[2026-10-25 21:21:19.141] [info] [gpu] [t10052] [VP] PAIRS game_swaps=97864 filler_swaps=3236 pairs=48932 frame_start_dt mean=0.00ms max=0.00ms | pins=48933 capped=4 pinned_calls=1053248234 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:19.145] [info] [gpu] [t10052] [VP] FREEZE frames=101100 pinned_frames=0 clock_calls=1609360228 pinned_calls=0 max_hold=15.7ms frame_end_calls=101100 no_swap_calls=0
+[2026-10-25 21:21:21.224] [info] [gpu] [t10052] [VP] PAIRS game_swaps=98164 filler_swaps=3236 pairs=49082 frame_start_dt mean=0.00ms max=0.00ms | pins=49083 capped=4 pinned_calls=1056127970 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:21.229] [info] [gpu] [t10052] [VP] FREEZE frames=101400 pinned_frames=0 clock_calls=1613109629 pinned_calls=0 max_hold=18.0ms frame_end_calls=101400 no_swap_calls=0
+[2026-10-25 21:21:21.229] [info] [gpu] [t10052] [VP] frames=101400 near-viewport applies per frame: 0:101400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:21.229] [info] [gpu] [t10052] [VP] frames=101400 camera builds per frame: 0:72093 1:19432 2:9866 3+:9
+[2026-10-25 21:21:22.876] [info] [gpu] [t10572] [XR] frames=49200 not_rendered=0 sample_hits=0 sample_misses=49200 draw_errors=0 wait_ms_mean=4.04
+[2026-10-25 21:21:23.307] [info] [gpu] [t10052] [VP] PAIRS game_swaps=98464 filler_swaps=3236 pairs=49232 frame_start_dt mean=0.00ms max=0.00ms | pins=49233 capped=4 pinned_calls=1059331053 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:23.308] [info] [gpu] [t10052] [VP] FREEZE frames=101700 pinned_frames=0 clock_calls=1616979727 pinned_calls=0 max_hold=21.1ms frame_end_calls=101700 no_swap_calls=0
+[2026-10-25 21:21:25.403] [info] [gpu] [t10052] [VP] PAIRS game_swaps=98764 filler_swaps=3236 pairs=49382 frame_start_dt mean=0.00ms max=0.00ms | pins=49383 capped=4 pinned_calls=1063797187 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:25.403] [info] [gpu] [t10052] [VP] FREEZE frames=102000 pinned_frames=0 clock_calls=1621742786 pinned_calls=0 max_hold=19.0ms frame_end_calls=102000 no_swap_calls=0
+[2026-10-25 21:21:25.403] [info] [gpu] [t10052] [VP] frames=102000 near-viewport applies per frame: 0:102000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:25.403] [info] [gpu] [t10052] [VP] frames=102000 camera builds per frame: 0:72693 1:19432 2:9866 3+:9
+[2026-10-25 21:21:27.056] [info] [gpu] [t10572] [XR] frames=49500 not_rendered=0 sample_hits=0 sample_misses=49500 draw_errors=0 wait_ms_mean=4.05
+[2026-10-25 21:21:27.487] [info] [gpu] [t10052] [VP] PAIRS game_swaps=99064 filler_swaps=3236 pairs=49532 frame_start_dt mean=0.00ms max=0.00ms | pins=49533 capped=4 pinned_calls=1068250976 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:27.487] [info] [gpu] [t10052] [VP] FREEZE frames=102300 pinned_frames=0 clock_calls=1626470353 pinned_calls=0 max_hold=17.5ms frame_end_calls=102300 no_swap_calls=0
+[2026-10-25 21:21:29.567] [info] [gpu] [t10052] [VP] PAIRS game_swaps=99364 filler_swaps=3236 pairs=49682 frame_start_dt mean=0.00ms max=0.00ms | pins=49683 capped=4 pinned_calls=1072731231 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:29.568] [info] [gpu] [t10052] [VP] FREEZE frames=102600 pinned_frames=0 clock_calls=1631232771 pinned_calls=0 max_hold=25.4ms frame_end_calls=102600 no_swap_calls=0
+[2026-10-25 21:21:29.568] [info] [gpu] [t10052] [VP] frames=102600 near-viewport applies per frame: 0:102600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:29.568] [info] [gpu] [t10052] [VP] frames=102600 camera builds per frame: 0:73293 1:19432 2:9866 3+:9
+[2026-10-25 21:21:31.222] [info] [gpu] [t10572] [XR] frames=49800 not_rendered=0 sample_hits=0 sample_misses=49800 draw_errors=0 wait_ms_mean=4.06
+[2026-10-25 21:21:31.654] [info] [gpu] [t10052] [VP] PAIRS game_swaps=99664 filler_swaps=3236 pairs=49832 frame_start_dt mean=0.00ms max=0.00ms | pins=49833 capped=4 pinned_calls=1077230934 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:31.655] [info] [gpu] [t10052] [VP] FREEZE frames=102900 pinned_frames=0 clock_calls=1636010500 pinned_calls=0 max_hold=20.7ms frame_end_calls=102900 no_swap_calls=0
+[2026-10-25 21:21:33.750] [info] [gpu] [t10052] [VP] PAIRS game_swaps=99964 filler_swaps=3236 pairs=49982 frame_start_dt mean=0.00ms max=0.00ms | pins=49983 capped=4 pinned_calls=1081725372 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:33.750] [info] [gpu] [t10052] [VP] FREEZE frames=103200 pinned_frames=0 clock_calls=1640809272 pinned_calls=0 max_hold=23.6ms frame_end_calls=103200 no_swap_calls=0
+[2026-10-25 21:21:33.750] [info] [gpu] [t10052] [VP] frames=103200 near-viewport applies per frame: 0:103200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:33.750] [info] [gpu] [t10052] [VP] frames=103200 camera builds per frame: 0:73893 1:19432 2:9866 3+:9
+[2026-10-25 21:21:35.400] [info] [gpu] [t10572] [XR] frames=50100 not_rendered=0 sample_hits=0 sample_misses=50100 draw_errors=0 wait_ms_mean=4.05
+[2026-10-25 21:21:35.830] [info] [gpu] [t10052] [VP] PAIRS game_swaps=100264 filler_swaps=3236 pairs=50132 frame_start_dt mean=0.00ms max=0.00ms | pins=50133 capped=4 pinned_calls=1086214146 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:35.831] [info] [gpu] [t10052] [VP] FREEZE frames=103500 pinned_frames=0 clock_calls=1645587282 pinned_calls=0 max_hold=20.2ms frame_end_calls=103500 no_swap_calls=0
+[2026-10-25 21:21:37.916] [info] [gpu] [t10052] [VP] PAIRS game_swaps=100564 filler_swaps=3236 pairs=50282 frame_start_dt mean=0.00ms max=0.00ms | pins=50283 capped=4 pinned_calls=1090685428 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:37.917] [info] [gpu] [t10052] [VP] FREEZE frames=103800 pinned_frames=0 clock_calls=1650332975 pinned_calls=0 max_hold=19.8ms frame_end_calls=103800 no_swap_calls=0
+[2026-10-25 21:21:37.917] [info] [gpu] [t10052] [VP] frames=103800 near-viewport applies per frame: 0:103800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:37.917] [info] [gpu] [t10052] [VP] frames=103800 camera builds per frame: 0:74493 1:19432 2:9866 3+:9
+[2026-10-25 21:21:39.568] [info] [gpu] [t10572] [XR] frames=50400 not_rendered=0 sample_hits=0 sample_misses=50400 draw_errors=0 wait_ms_mean=4.06
+[2026-10-25 21:21:40.000] [info] [gpu] [t10052] [VP] PAIRS game_swaps=100864 filler_swaps=3236 pairs=50432 frame_start_dt mean=0.00ms max=0.00ms | pins=50433 capped=4 pinned_calls=1095151059 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:40.001] [info] [gpu] [t10052] [VP] FREEZE frames=104100 pinned_frames=0 clock_calls=1655070789 pinned_calls=0 max_hold=22.9ms frame_end_calls=104100 no_swap_calls=0
+[2026-10-25 21:21:42.081] [info] [gpu] [t10052] [VP] PAIRS game_swaps=101164 filler_swaps=3236 pairs=50582 frame_start_dt mean=0.00ms max=0.00ms | pins=50583 capped=4 pinned_calls=1099604743 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:42.081] [info] [gpu] [t10052] [VP] FREEZE frames=104400 pinned_frames=0 clock_calls=1659805241 pinned_calls=0 max_hold=18.2ms frame_end_calls=104400 no_swap_calls=0
+[2026-10-25 21:21:42.081] [info] [gpu] [t10052] [VP] frames=104400 near-viewport applies per frame: 0:104400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:42.081] [info] [gpu] [t10052] [VP] frames=104400 camera builds per frame: 0:75093 1:19432 2:9866 3+:9
+[2026-10-25 21:21:43.734] [info] [gpu] [t10572] [XR] frames=50700 not_rendered=0 sample_hits=0 sample_misses=50700 draw_errors=0 wait_ms_mean=4.06
+[2026-10-25 21:21:44.167] [info] [gpu] [t10052] [VP] PAIRS game_swaps=101464 filler_swaps=3236 pairs=50732 frame_start_dt mean=0.00ms max=0.00ms | pins=50733 capped=4 pinned_calls=1104056749 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:44.167] [info] [gpu] [t10052] [VP] FREEZE frames=104700 pinned_frames=0 clock_calls=1664559925 pinned_calls=0 max_hold=21.5ms frame_end_calls=104700 no_swap_calls=0
+[2026-10-25 21:21:46.248] [info] [gpu] [t10052] [VP] PAIRS game_swaps=101764 filler_swaps=3236 pairs=50882 frame_start_dt mean=0.00ms max=0.00ms | pins=50883 capped=4 pinned_calls=1108519390 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:46.249] [info] [gpu] [t10052] [VP] FREEZE frames=105000 pinned_frames=0 clock_calls=1669299387 pinned_calls=0 max_hold=19.4ms frame_end_calls=105000 no_swap_calls=0
+[2026-10-25 21:21:46.249] [info] [gpu] [t10052] [VP] frames=105000 near-viewport applies per frame: 0:105000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:46.249] [info] [gpu] [t10052] [VP] frames=105000 camera builds per frame: 0:75693 1:19432 2:9866 3+:9
+[2026-10-25 21:21:47.900] [info] [gpu] [t10572] [XR] frames=51000 not_rendered=0 sample_hits=0 sample_misses=51000 draw_errors=0 wait_ms_mean=4.07
+[2026-10-25 21:21:48.341] [info] [gpu] [t10052] [VP] PAIRS game_swaps=102064 filler_swaps=3236 pairs=51032 frame_start_dt mean=0.00ms max=0.00ms | pins=51033 capped=4 pinned_calls=1112977865 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:48.341] [info] [gpu] [t10052] [VP] FREEZE frames=105300 pinned_frames=0 clock_calls=1674063979 pinned_calls=0 max_hold=22.4ms frame_end_calls=105300 no_swap_calls=0
+[2026-10-25 21:21:50.413] [info] [gpu] [t10052] [VP] PAIRS game_swaps=102364 filler_swaps=3236 pairs=51182 frame_start_dt mean=0.00ms max=0.00ms | pins=51183 capped=4 pinned_calls=1117406373 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:50.413] [info] [gpu] [t10052] [VP] FREEZE frames=105600 pinned_frames=0 clock_calls=1678765601 pinned_calls=0 max_hold=20.8ms frame_end_calls=105600 no_swap_calls=0
+[2026-10-25 21:21:50.413] [info] [gpu] [t10052] [VP] frames=105600 near-viewport applies per frame: 0:105600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:50.413] [info] [gpu] [t10052] [VP] frames=105600 camera builds per frame: 0:76293 1:19432 2:9866 3+:9
+[2026-10-25 21:21:52.067] [info] [gpu] [t10572] [XR] frames=51300 not_rendered=0 sample_hits=0 sample_misses=51300 draw_errors=0 wait_ms_mean=4.10
+[2026-10-25 21:21:52.496] [info] [gpu] [t10052] [VP] PAIRS game_swaps=102664 filler_swaps=3236 pairs=51332 frame_start_dt mean=0.00ms max=0.00ms | pins=51333 capped=4 pinned_calls=1121906800 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:52.496] [info] [gpu] [t10052] [VP] FREEZE frames=105900 pinned_frames=0 clock_calls=1683526775 pinned_calls=0 max_hold=19.0ms frame_end_calls=105900 no_swap_calls=0
+[2026-10-25 21:21:54.581] [info] [gpu] [t10052] [VP] PAIRS game_swaps=102964 filler_swaps=3236 pairs=51482 frame_start_dt mean=0.00ms max=0.00ms | pins=51483 capped=4 pinned_calls=1126371616 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:54.582] [info] [gpu] [t10052] [VP] FREEZE frames=106200 pinned_frames=0 clock_calls=1688266891 pinned_calls=0 max_hold=19.4ms frame_end_calls=106200 no_swap_calls=0
+[2026-10-25 21:21:54.582] [info] [gpu] [t10052] [VP] frames=106200 near-viewport applies per frame: 0:106200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:54.582] [info] [gpu] [t10052] [VP] frames=106200 camera builds per frame: 0:76893 1:19432 2:9866 3+:9
+[2026-10-25 21:21:56.232] [info] [gpu] [t10572] [XR] frames=51600 not_rendered=0 sample_hits=0 sample_misses=51600 draw_errors=0 wait_ms_mean=4.12
+[2026-10-25 21:21:56.663] [info] [gpu] [t10052] [VP] PAIRS game_swaps=103264 filler_swaps=3236 pairs=51632 frame_start_dt mean=0.00ms max=0.00ms | pins=51633 capped=4 pinned_calls=1130872047 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:56.664] [info] [gpu] [t10052] [VP] FREEZE frames=106500 pinned_frames=0 clock_calls=1693057347 pinned_calls=0 max_hold=19.2ms frame_end_calls=106500 no_swap_calls=0
+[2026-10-25 21:21:58.760] [info] [gpu] [t10052] [VP] PAIRS game_swaps=103564 filler_swaps=3236 pairs=51782 frame_start_dt mean=0.00ms max=0.00ms | pins=51783 capped=4 pinned_calls=1135401710 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:21:58.760] [info] [gpu] [t10052] [VP] FREEZE frames=106800 pinned_frames=0 clock_calls=1697894760 pinned_calls=0 max_hold=20.1ms frame_end_calls=106800 no_swap_calls=0
+[2026-10-25 21:21:58.760] [info] [gpu] [t10052] [VP] frames=106800 near-viewport applies per frame: 0:106800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:21:58.760] [info] [gpu] [t10052] [VP] frames=106800 camera builds per frame: 0:77493 1:19432 2:9866 3+:9
+[2026-10-25 21:22:00.413] [info] [gpu] [t10572] [XR] frames=51900 not_rendered=0 sample_hits=0 sample_misses=51900 draw_errors=0 wait_ms_mean=4.12
+[2026-10-25 21:22:00.843] [info] [gpu] [t10052] [VP] PAIRS game_swaps=103864 filler_swaps=3236 pairs=51932 frame_start_dt mean=0.00ms max=0.00ms | pins=51933 capped=4 pinned_calls=1139847268 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:00.844] [info] [gpu] [t10052] [VP] FREEZE frames=107100 pinned_frames=0 clock_calls=1702636588 pinned_calls=0 max_hold=24.6ms frame_end_calls=107100 no_swap_calls=0
+[2026-10-25 21:22:02.926] [info] [gpu] [t10052] [VP] PAIRS game_swaps=104164 filler_swaps=3236 pairs=52082 frame_start_dt mean=0.00ms max=0.00ms | pins=52083 capped=4 pinned_calls=1144306530 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:02.927] [info] [gpu] [t10052] [VP] FREEZE frames=107400 pinned_frames=0 clock_calls=1707375317 pinned_calls=0 max_hold=19.4ms frame_end_calls=107400 no_swap_calls=0
+[2026-10-25 21:22:02.927] [info] [gpu] [t10052] [VP] frames=107400 near-viewport applies per frame: 0:107400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:02.927] [info] [gpu] [t10052] [VP] frames=107400 camera builds per frame: 0:78093 1:19432 2:9866 3+:9
+[2026-10-25 21:22:04.579] [info] [gpu] [t10572] [XR] frames=52200 not_rendered=0 sample_hits=0 sample_misses=52200 draw_errors=0 wait_ms_mean=4.14
+[2026-10-25 21:22:05.011] [info] [gpu] [t10052] [VP] PAIRS game_swaps=104464 filler_swaps=3236 pairs=52232 frame_start_dt mean=0.00ms max=0.00ms | pins=52233 capped=4 pinned_calls=1148761045 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:05.012] [info] [gpu] [t10052] [VP] FREEZE frames=107700 pinned_frames=0 clock_calls=1712105012 pinned_calls=0 max_hold=17.9ms frame_end_calls=107700 no_swap_calls=0
+[2026-10-25 21:22:07.100] [info] [gpu] [t10052] [VP] PAIRS game_swaps=104764 filler_swaps=3236 pairs=52382 frame_start_dt mean=0.00ms max=0.00ms | pins=52383 capped=4 pinned_calls=1152792995 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:07.103] [info] [gpu] [t10052] [VP] FREEZE frames=108000 pinned_frames=0 clock_calls=1716605349 pinned_calls=0 max_hold=28.6ms frame_end_calls=108000 no_swap_calls=0
+[2026-10-25 21:22:07.103] [info] [gpu] [t10052] [VP] frames=108000 near-viewport applies per frame: 0:108000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:07.103] [info] [gpu] [t10052] [VP] frames=108000 camera builds per frame: 0:78693 1:19432 2:9866 3+:9
+[2026-10-25 21:22:08.753] [info] [gpu] [t10572] [XR] frames=52500 not_rendered=0 sample_hits=0 sample_misses=52500 draw_errors=0 wait_ms_mean=4.15
+[2026-10-25 21:22:09.184] [info] [gpu] [t10052] [VP] PAIRS game_swaps=105064 filler_swaps=3236 pairs=52532 frame_start_dt mean=0.00ms max=0.00ms | pins=52533 capped=4 pinned_calls=1155612979 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:09.187] [info] [gpu] [t10052] [VP] FREEZE frames=108300 pinned_frames=0 clock_calls=1720294180 pinned_calls=0 max_hold=15.0ms frame_end_calls=108300 no_swap_calls=0
+[2026-10-25 21:22:11.268] [info] [gpu] [t10052] [VP] PAIRS game_swaps=105364 filler_swaps=3236 pairs=52682 frame_start_dt mean=0.00ms max=0.00ms | pins=52683 capped=4 pinned_calls=1158408834 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:11.271] [info] [gpu] [t10052] [VP] FREEZE frames=108600 pinned_frames=0 clock_calls=1724011255 pinned_calls=0 max_hold=15.6ms frame_end_calls=108600 no_swap_calls=0
+[2026-10-25 21:22:11.271] [info] [gpu] [t10052] [VP] frames=108600 near-viewport applies per frame: 0:108600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:11.271] [info] [gpu] [t10052] [VP] frames=108600 camera builds per frame: 0:79293 1:19432 2:9866 3+:9
+[2026-10-25 21:22:12.919] [info] [gpu] [t10572] [XR] frames=52800 not_rendered=0 sample_hits=0 sample_misses=52800 draw_errors=0 wait_ms_mean=4.15
+[2026-10-25 21:22:13.351] [info] [gpu] [t10052] [VP] PAIRS game_swaps=105664 filler_swaps=3236 pairs=52832 frame_start_dt mean=0.00ms max=0.00ms | pins=52833 capped=4 pinned_calls=1161067163 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:13.354] [info] [gpu] [t10052] [VP] FREEZE frames=108900 pinned_frames=0 clock_calls=1727641132 pinned_calls=0 max_hold=16.0ms frame_end_calls=108900 no_swap_calls=0
+[2026-10-25 21:22:15.444] [info] [gpu] [t10052] [VP] PAIRS game_swaps=105964 filler_swaps=3236 pairs=52982 frame_start_dt mean=0.00ms max=0.00ms | pins=52983 capped=4 pinned_calls=1163808071 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:15.447] [info] [gpu] [t10052] [VP] FREEZE frames=109200 pinned_frames=0 clock_calls=1731332024 pinned_calls=0 max_hold=38.1ms frame_end_calls=109200 no_swap_calls=0
+[2026-10-25 21:22:15.447] [info] [gpu] [t10052] [VP] frames=109200 near-viewport applies per frame: 0:109200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:15.447] [info] [gpu] [t10052] [VP] frames=109200 camera builds per frame: 0:79893 1:19432 2:9866 3+:9
+[2026-10-25 21:22:17.096] [info] [gpu] [t10572] [XR] frames=53100 not_rendered=0 sample_hits=0 sample_misses=53100 draw_errors=0 wait_ms_mean=4.14
+[2026-10-25 21:22:17.527] [info] [gpu] [t10052] [VP] PAIRS game_swaps=106264 filler_swaps=3236 pairs=53132 frame_start_dt mean=0.00ms max=0.00ms | pins=53133 capped=4 pinned_calls=1166535630 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:17.531] [info] [gpu] [t10052] [VP] FREEZE frames=109500 pinned_frames=0 clock_calls=1734986772 pinned_calls=0 max_hold=17.0ms frame_end_calls=109500 no_swap_calls=0
+[2026-10-25 21:22:19.611] [info] [gpu] [t10052] [VP] PAIRS game_swaps=106564 filler_swaps=3236 pairs=53282 frame_start_dt mean=0.00ms max=0.00ms | pins=53283 capped=4 pinned_calls=1169247738 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:19.615] [info] [gpu] [t10052] [VP] FREEZE frames=109800 pinned_frames=0 clock_calls=1738648110 pinned_calls=0 max_hold=19.9ms frame_end_calls=109800 no_swap_calls=0
+[2026-10-25 21:22:19.615] [info] [gpu] [t10052] [VP] frames=109800 near-viewport applies per frame: 0:109800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:19.615] [info] [gpu] [t10052] [VP] frames=109800 camera builds per frame: 0:80493 1:19432 2:9866 3+:9
+[2026-10-25 21:22:21.263] [info] [gpu] [t10572] [XR] frames=53400 not_rendered=0 sample_hits=0 sample_misses=53400 draw_errors=0 wait_ms_mean=4.14
+[2026-10-25 21:22:21.694] [info] [gpu] [t10052] [VP] PAIRS game_swaps=106864 filler_swaps=3236 pairs=53432 frame_start_dt mean=0.00ms max=0.00ms | pins=53433 capped=4 pinned_calls=1172001233 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:21.698] [info] [gpu] [t10052] [VP] FREEZE frames=110100 pinned_frames=0 clock_calls=1742290150 pinned_calls=0 max_hold=15.6ms frame_end_calls=110100 no_swap_calls=0
+[2026-10-25 21:22:23.778] [info] [gpu] [t10052] [VP] PAIRS game_swaps=107164 filler_swaps=3236 pairs=53582 frame_start_dt mean=0.00ms max=0.00ms | pins=53583 capped=4 pinned_calls=1174803529 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:23.782] [info] [gpu] [t10052] [VP] FREEZE frames=110400 pinned_frames=0 clock_calls=1745949222 pinned_calls=0 max_hold=21.4ms frame_end_calls=110400 no_swap_calls=0
+[2026-10-25 21:22:23.782] [info] [gpu] [t10052] [VP] frames=110400 near-viewport applies per frame: 0:110400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:23.782] [info] [gpu] [t10052] [VP] frames=110400 camera builds per frame: 0:81093 1:19432 2:9866 3+:9
+[2026-10-25 21:22:25.430] [info] [gpu] [t10572] [XR] frames=53700 not_rendered=0 sample_hits=0 sample_misses=53700 draw_errors=0 wait_ms_mean=4.14
+[2026-10-25 21:22:25.861] [info] [gpu] [t10052] [VP] PAIRS game_swaps=107464 filler_swaps=3236 pairs=53732 frame_start_dt mean=0.00ms max=0.00ms | pins=53733 capped=4 pinned_calls=1177515153 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:25.865] [info] [gpu] [t10052] [VP] FREEZE frames=110700 pinned_frames=0 clock_calls=1749589200 pinned_calls=0 max_hold=19.5ms frame_end_calls=110700 no_swap_calls=0
+[2026-10-25 21:22:27.945] [info] [gpu] [t10052] [VP] PAIRS game_swaps=107764 filler_swaps=3236 pairs=53882 frame_start_dt mean=0.00ms max=0.00ms | pins=53883 capped=4 pinned_calls=1180320244 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:27.948] [info] [gpu] [t10052] [VP] FREEZE frames=111000 pinned_frames=0 clock_calls=1753277056 pinned_calls=0 max_hold=14.9ms frame_end_calls=111000 no_swap_calls=0
+[2026-10-25 21:22:27.948] [info] [gpu] [t10052] [VP] frames=111000 near-viewport applies per frame: 0:111000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:27.948] [info] [gpu] [t10052] [VP] frames=111000 camera builds per frame: 0:81693 1:19432 2:9866 3+:9
+[2026-10-25 21:22:29.597] [info] [gpu] [t10572] [XR] frames=54000 not_rendered=0 sample_hits=0 sample_misses=54000 draw_errors=0 wait_ms_mean=4.14
+[2026-10-25 21:22:30.028] [info] [gpu] [t10052] [VP] PAIRS game_swaps=108064 filler_swaps=3236 pairs=54032 frame_start_dt mean=0.00ms max=0.00ms | pins=54033 capped=4 pinned_calls=1183033748 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:30.032] [info] [gpu] [t10052] [VP] FREEZE frames=111300 pinned_frames=0 clock_calls=1756926506 pinned_calls=0 max_hold=16.2ms frame_end_calls=111300 no_swap_calls=0
+[2026-10-25 21:22:32.112] [info] [gpu] [t10052] [VP] PAIRS game_swaps=108364 filler_swaps=3236 pairs=54182 frame_start_dt mean=0.00ms max=0.00ms | pins=54183 capped=4 pinned_calls=1185721243 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:32.116] [info] [gpu] [t10052] [VP] FREEZE frames=111600 pinned_frames=0 clock_calls=1760558061 pinned_calls=0 max_hold=18.6ms frame_end_calls=111600 no_swap_calls=0
+[2026-10-25 21:22:32.116] [info] [gpu] [t10052] [VP] frames=111600 near-viewport applies per frame: 0:111600 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:32.116] [info] [gpu] [t10052] [VP] frames=111600 camera builds per frame: 0:82293 1:19432 2:9866 3+:9
+[2026-10-25 21:22:33.764] [info] [gpu] [t10572] [XR] frames=54300 not_rendered=0 sample_hits=0 sample_misses=54300 draw_errors=0 wait_ms_mean=4.14
+[2026-10-25 21:22:34.198] [info] [gpu] [t10052] [VP] PAIRS game_swaps=108664 filler_swaps=3236 pairs=54332 frame_start_dt mean=0.00ms max=0.00ms | pins=54333 capped=4 pinned_calls=1188511131 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:34.203] [info] [gpu] [t10052] [VP] FREEZE frames=111900 pinned_frames=0 clock_calls=1764224012 pinned_calls=0 max_hold=16.3ms frame_end_calls=111900 no_swap_calls=0
+[2026-10-25 21:22:36.283] [info] [gpu] [t10052] [VP] PAIRS game_swaps=108964 filler_swaps=3236 pairs=54482 frame_start_dt mean=0.00ms max=0.00ms | pins=54483 capped=4 pinned_calls=1191338472 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:36.286] [info] [gpu] [t10052] [VP] FREEZE frames=112200 pinned_frames=0 clock_calls=1767948603 pinned_calls=0 max_hold=20.2ms frame_end_calls=112200 no_swap_calls=0
+[2026-10-25 21:22:36.286] [info] [gpu] [t10052] [VP] frames=112200 near-viewport applies per frame: 0:112200 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:36.286] [info] [gpu] [t10052] [VP] frames=112200 camera builds per frame: 0:82893 1:19432 2:9866 3+:9
+[2026-10-25 21:22:37.935] [info] [gpu] [t10572] [XR] frames=54600 not_rendered=0 sample_hits=0 sample_misses=54600 draw_errors=0 wait_ms_mean=4.13
+[2026-10-25 21:22:38.367] [info] [gpu] [t10052] [VP] PAIRS game_swaps=109264 filler_swaps=3236 pairs=54632 frame_start_dt mean=0.00ms max=0.00ms | pins=54633 capped=4 pinned_calls=1194023680 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:38.371] [info] [gpu] [t10052] [VP] FREEZE frames=112500 pinned_frames=0 clock_calls=1771630080 pinned_calls=0 max_hold=18.2ms frame_end_calls=112500 no_swap_calls=0
+[2026-10-25 21:22:40.449] [info] [gpu] [t10052] [VP] PAIRS game_swaps=109564 filler_swaps=3236 pairs=54782 frame_start_dt mean=0.00ms max=0.00ms | pins=54783 capped=4 pinned_calls=1196870768 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:40.453] [info] [gpu] [t10052] [VP] FREEZE frames=112800 pinned_frames=0 clock_calls=1775379356 pinned_calls=0 max_hold=21.8ms frame_end_calls=112800 no_swap_calls=0
+[2026-10-25 21:22:40.453] [info] [gpu] [t10052] [VP] frames=112800 near-viewport applies per frame: 0:112800 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:40.453] [info] [gpu] [t10052] [VP] frames=112800 camera builds per frame: 0:83493 1:19432 2:9866 3+:9
+[2026-10-25 21:22:42.102] [info] [gpu] [t10572] [XR] frames=54900 not_rendered=0 sample_hits=0 sample_misses=54900 draw_errors=0 wait_ms_mean=4.12
+[2026-10-25 21:22:42.533] [info] [gpu] [t10052] [VP] PAIRS game_swaps=109864 filler_swaps=3236 pairs=54932 frame_start_dt mean=0.00ms max=0.00ms | pins=54933 capped=4 pinned_calls=1199604057 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:42.536] [info] [gpu] [t10052] [VP] FREEZE frames=113100 pinned_frames=0 clock_calls=1779010798 pinned_calls=0 max_hold=23.2ms frame_end_calls=113100 no_swap_calls=0
+[2026-10-25 21:22:44.617] [info] [gpu] [t10052] [VP] PAIRS game_swaps=110164 filler_swaps=3236 pairs=55082 frame_start_dt mean=0.00ms max=0.00ms | pins=55083 capped=4 pinned_calls=1202286712 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:44.620] [info] [gpu] [t10052] [VP] FREEZE frames=113400 pinned_frames=0 clock_calls=1782700318 pinned_calls=0 max_hold=19.7ms frame_end_calls=113400 no_swap_calls=0
+[2026-10-25 21:22:44.620] [info] [gpu] [t10052] [VP] frames=113400 near-viewport applies per frame: 0:113400 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:44.620] [info] [gpu] [t10052] [VP] frames=113400 camera builds per frame: 0:84093 1:19432 2:9866 3+:9
+[2026-10-25 21:22:46.269] [info] [gpu] [t10572] [XR] frames=55200 not_rendered=0 sample_hits=0 sample_misses=55200 draw_errors=0 wait_ms_mean=4.11
+[2026-10-25 21:22:46.701] [info] [gpu] [t10052] [VP] PAIRS game_swaps=110464 filler_swaps=3236 pairs=55232 frame_start_dt mean=0.00ms max=0.00ms | pins=55233 capped=4 pinned_calls=1205084682 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:46.704] [info] [gpu] [t10052] [VP] FREEZE frames=113700 pinned_frames=0 clock_calls=1786412707 pinned_calls=0 max_hold=20.4ms frame_end_calls=113700 no_swap_calls=0
+[2026-10-25 21:22:48.784] [info] [gpu] [t10052] [VP] PAIRS game_swaps=110764 filler_swaps=3236 pairs=55382 frame_start_dt mean=0.00ms max=0.00ms | pins=55383 capped=4 pinned_calls=1207940230 exempt_wait_calls=0 max_calls_in_one_pin=610420 exact=1 cap=250ms skip_fillers=1
+[2026-10-25 21:22:48.787] [info] [gpu] [t10052] [VP] FREEZE frames=114000 pinned_frames=0 clock_calls=1790147462 pinned_calls=0 max_hold=18.5ms frame_end_calls=114000 no_swap_calls=0
+[2026-10-25 21:22:48.787] [info] [gpu] [t10052] [VP] frames=114000 near-viewport applies per frame: 0:114000 1:0 2:0 3:0 4:0 5:0 6:0 7+:0
+[2026-10-25 21:22:48.787] [info] [gpu] [t10052] [VP] frames=114000 camera builds per frame: 0:84693 1:19432 2:9866 3+:9
+[2026-10-25 21:22:50.437] [info] [gpu] [t10572] [XR] frames=55500 not_rendered=0 sample_hits=0 sample_misses=55500 draw_errors=0 wait_ms_mean=4.10
