@@ -1268,6 +1268,7 @@ committed pair to OpenXR as one frame; simulator test 1,500 frames, no draw erro
 functions, `dk_xr_pair_sample(pair, &id)` and `dk_xr_eye_fov(float[4])` (Condemned 2's: its `vr_head_pose.cpp`);
 without them the picture stays fixed to the face with the headset's own field of view. This covers the output half
 of the `[PD] OpenXR submission per eye` row; replacing P with the headset's per-eye projection is still open.
+**2026-10-25: patches 09 / 09b applied on the home PC (cleanly on top of 08c) and RUN in the real headset** with the game side `vr_xr_head.cpp` (the head turns the camera rows in `sub_823F9B00` before the eye shift; `dk_xr_eye_fov` exports 0.9336 x 0.5252): in VR, 42,300 headset frames, 0 draw errors `[verified-live 2026-10-25, n=1]`, but the head turn curves, the eyes are off sideways and up-down, and the controls lag (modding-notes 2026-10-25-first-headset-run).
 
 ## 7. Not yet looked at
 
