@@ -12,3 +12,8 @@ are not, or you are a rights holder who wants something corrected or removed, op
 - **PCGamingWiki**, **GameFAQs** and **GameRevolution** contributors (Dark Athena PC console notes)
 - **ReXGlue** SDK developers — https://github.com/rexglue/rexglue-sdk
 - **furqanagwan**, recomp-framework — https://github.com/furqanagwan/recomp-framework
+
+## Sources (2026-10-26)
+
+- **portingpete**, The Darkness Recomp (README, RENDERING.md) — https://github.com/portingpete/The-Darkness-Recomp
+- **invinceble55-wq**, Estacado (README, CHANGELOG, docs) — https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp
