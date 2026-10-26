@@ -1,6 +1,8 @@
 # Research index
 
-**Last `/gr` pass: 2026-10-04 (estate sweep) — CHECK-IN.** Inbox empty. Three rexglue-sdk nightlies since (2026-09-30 to 10-02) change generated atomics and memory fences, which bears on the world-pause question; pointer with a rebuild A/B sent to the dossier.
+**Last `/gr` pass: 2026-10-26 (estate sweep) — CHECK-IN.** Inbox empty. Found two public PC ports we did not know: portingpete's (draws through the engine's own D3D11 backend, F5 dev tools) and Estacado (same ReXGlue SDK, offsets the scene projection per frame, threading docs); one topic, pointer sent to the dossier.
+
+_Previous: **Last `/gr` pass: 2026-10-04 (estate sweep) — CHECK-IN.** Inbox empty. Three rexglue-sdk nightlies since (2026-09-30 to 10-02) change generated atomics and memory fences, which bears on the world-pause question; pointer with a rebuild A/B sent to the dossier._
 
 _Previous: **Last `/gr` pass: 2026-09-29 (estate sweep) — CHECK-IN.** Nothing new. rexglue-sdk has three nightlies since v0.10.0 (window/fullscreen without restart, input, one vector-pack codegen fix, #449); none touches guest threading, which is the current resume row._
 
@@ -18,4 +20,5 @@ write-up in `topics/`. Status tags:
 
 | Date | Topic | Status | Why it matters |
 | --- | --- | --- | --- |
+| 2026-10-26 | [Two public PC ports of The Darkness appeared in Sept/Oct 2026 (one with a native D3D11 renderer)](topics/2026-10-26-two-public-pc-ports-of-the-darkness.md) | 🆕 | portingpete's port draws through the engine's own D3D11 backend (route choice); Estacado (same ReXGlue SDK) offsets the scene projection per frame and documents its threading; both have FOV, motion-blur off and dev/unlock tools. |
 | 2026-09-17 | [Riddick: Assault on Dark Athena (same studio, PC release) enables a debug menu through an `.xrg` file; no ReXGlue project has done VR](topics/2026-09-17-starbreeze-dark-athena-xrg-debug-menu-and-rexglue-landscape.md) | 🆕 | The Darkness uses the same `.xrg` config format; and this project would be first in its ecosystem |
