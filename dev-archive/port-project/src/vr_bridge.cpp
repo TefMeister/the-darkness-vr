@@ -272,6 +272,35 @@ XrButtonsFn XrButtons() {
   return fn;
 }
 constexpr float kXrStickDead = 0.15f;   // a stick this far from the middle takes over from the virtual pad's
+// 2026-10-29, first wear (Tefa): "quest A - A, Quest B - X, Quest X - B and Quest Y - Y on a gamepad"; "long press of the
+// menu button should be the start button, click the select button". The SDK hands the Quest buttons over as they are
+// (A 0x1000 B 0x2000 X 0x4000 Y 0x8000, menu as 0x0010); the swap and the menu timing happen here.
+constexpr uint32_t kXrA = 0x1000, kXrB = 0x2000, kXrX = 0x4000, kXrY = 0x8000, kXrMenu = 0x0010;
+constexpr uint32_t kPadStart = 0x0010, kPadBack = 0x0020;
+constexpr int kMenuHoldMs = 600;    // held this long = START; let go sooner = one tap of BACK (select)
+constexpr int kMenuTapFrames = 6;   // how many pad reads the BACK tap is held for
+uint32_t RemapXr(uint32_t b) {
+  static std::chrono::steady_clock::time_point menu_since;
+  static bool menu_was = false, start_sent = false;
+  static int back_frames = 0;
+  uint32_t out = b & ~(kXrA | kXrB | kXrX | kXrY | kXrMenu);
+  if (b & kXrA) out |= kXrA;
+  if (b & kXrB) out |= kXrX;   // Quest B = pad X
+  if (b & kXrX) out |= kXrB;   // Quest X = pad B
+  if (b & kXrY) out |= kXrY;
+  const bool menu = (b & kXrMenu) != 0;
+  const auto now = std::chrono::steady_clock::now();
+  if (menu && !menu_was) { menu_since = now; start_sent = false; }
+  if (menu) {
+    const auto held = std::chrono::duration_cast<std::chrono::milliseconds>(now - menu_since).count();
+    if (held >= kMenuHoldMs) { out |= kPadStart; start_sent = true; }
+  } else if (menu_was && !start_sent) {
+    back_frames = kMenuTapFrames;   // a short click: one tap of BACK
+  }
+  if (back_frames > 0) { out |= kPadBack; --back_frames; }
+  menu_was = menu;
+  return out;
+}
 
 class BridgePadDriver final : public rex::input::InputDriver {
  public:
@@ -303,7 +332,7 @@ class BridgePadDriver final : public rex::input::InputDriver {
       if (const XrButtonsFn xr = XrButtons()) {   // 2026-10-29: the motion controllers laid over
         uint32_t b = 0; float ax[6];
         if (xr(&b, ax)) {
-          out->gamepad.buttons = static_cast<uint16_t>(out->gamepad.buttons | b);
+          out->gamepad.buttons = static_cast<uint16_t>(out->gamepad.buttons | RemapXr(b));
           const auto trig = [](float v) { return static_cast<uint8_t>(v <= 0 ? 0 : v >= 1 ? 255 : v * 255.0f + 0.5f); };
           const auto axis = [](float v) { return static_cast<int16_t>(v <= -1 ? -32768 : v >= 1 ? 32767 : v * 32767.0f); };
           if (trig(ax[0]) > out->gamepad.left_trigger) out->gamepad.left_trigger = trig(ax[0]);
