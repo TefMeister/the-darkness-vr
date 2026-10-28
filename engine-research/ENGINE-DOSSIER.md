@@ -1392,10 +1392,17 @@ Tefa's ask: hands (and later arms, body) that follow the motion controllers. Fir
   - **The shadow nudge (build b003, `skin.bone` through the bridge):** worked once (bone 48 moved the sleeve-and-hand
     most; bones 1-14, 30-36, 43-52 all did something) and then stopped for every bone; slots above the drawn object's
     bone count hold stale values (my own accumulated shifts). Parked; the IK route replaces it.
-  - **Next:** the controllers (step 2, `rex_xr_sample_hands` in the SDK; a draft patch asked of the reader), then the
-    controller's grip point into `IK+1864/1892` instead of the camera-relative test point; the vtable check for the
-    player's IK object; lock the hook's counters (it runs on several threads at once).
-
+  - ⭐⭐⭐ **FIFTH PASS, LIVE (same evening, simulator): THE MOTION CONTROLLERS DRIVE BOTH HANDS.** SDK patch 10
+    (`dev-archive/sdk-patches/10-xr-hands.patch`: an OpenXR action set, `rex_xr_sample_hands`, grips located with the head
+    sample) + `ik.src=1` in `vr_hand_ik.cpp` (grip relative to the head, into head axes, along the head-turned camera rows,
+    39.37 units per metre). A controller at the test point's place lands on the same world point to 0.1 unit; moving the
+    right controller moves the right hand the same way; the left controller drives the left arm
+    `[verified-live 2026-10-28, simulator, n=1 per pose]`. **Chain A (bones 18-19-21) is the RIGHT hand, chain B the
+    LEFT** `[verified-live 2026-10-28, n=1]`. The hand keeps the animation's rotation (position only). ClientData vtables
+    seen: 0x82061FE0 ×4, 0x82064FD0 ×2 (0x82062190 not seen). ⚠️ The simulator's controller command measures posY from
+    head height (control profiles `routes/the-darkness/KNOWN.md`). Note: `modding-notes/2026-10-28-the-hand-goes-where-we-point.md`.
+  - **Next:** the controller's ROTATION into the hand (reader asked); `ik.only`/`ik.vtable` to feed only the player;
+    `ik.snap`; then the real controllers in the headset.
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version

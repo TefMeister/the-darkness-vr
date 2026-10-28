@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 
 #include <windows.h>
 
@@ -95,6 +96,35 @@ Rot FromQuat(float x, float y, float z, float w) {
   return r;
 }
 
+// The controllers (SDK patch 10): sampled right after every head sample, kept for the hand IK hook.
+using HandsFn = int (*)(uint32_t*, float*, float*, uint32_t*);
+HandsFn HandSampler() {
+  static const HandsFn fn = [] {
+    HMODULE gpu = GetModuleHandleW(L"rexgpu-xenos.dll");
+    HandsFn f = gpu ? reinterpret_cast<HandsFn>(
+                          reinterpret_cast<void*>(GetProcAddress(gpu, "rex_xr_sample_hands")))
+                    : nullptr;
+    REXGPU_INFO("[DKXR] controller sampling {}", f ? "found (rex_xr_sample_hands)" : "NOT in this SDK build");
+    return f;
+  }();
+  return fn;
+}
+std::mutex g_hands_mu;
+dkxr::HandSample g_hands;
+
+void SampleHands(const float o[4], const float p[3]) {
+  const HandsFn fn = HandSampler();
+  if (!fn) return;
+  dkxr::HandSample h;
+  uint32_t id = 0;
+  fn(&id, h.grip[0], h.grip[1], &h.flags);
+  for (int i = 0; i < 4; ++i) h.head_q[i] = o[i];
+  for (int i = 0; i < 3; ++i) h.head_p[i] = p[i];
+  std::lock_guard<std::mutex> lock(g_hands_mu);
+  h.serial = g_hands.serial + 1;
+  g_hands = h;
+}
+
 // Samples the head; returns the SDK's sample id (0 = none) and updates g_last.
 uint32_t Sample() {
   uint32_t id = 0;
@@ -102,6 +132,7 @@ uint32_t Sample() {
   const SampleFn fn = Sampler();
   const bool ok = fn && fn(&id, o, p);
   ++(ok ? g_samples : g_none);
+  if (ok) SampleHands(o, p);
   if (ok) {
     float x = o[0], y = o[1], z = o[2];
     if (Get().mirror) { y = -y; z = -z; }  // mirrored in X: the turn about up and forward reverses
@@ -190,6 +221,17 @@ void NoteView(uint8_t* base, uint32_t out) {
 bool LastView(float rows[16]) {
   if (!g_view_have.load(std::memory_order_acquire)) return false;
   for (int i = 0; i < 16; ++i) rows[i] = g_view[i];
+  return true;
+}
+
+}  // namespace dkxr
+
+namespace dkxr {
+
+bool LastHands(HandSample* out) {
+  std::lock_guard<std::mutex> lock(g_hands_mu);
+  if (g_hands.serial == 0) return false;
+  *out = g_hands;
   return true;
 }
 

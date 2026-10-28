@@ -23,4 +23,16 @@ void NoteView(uint8_t* base, uint32_t out);
 // Copies the newest view buffer into rows[16]; false until the first camera build.
 bool LastView(float rows[16]);
 
+// The motion controllers (SDK patch 10, rex_xr_sample_hands), taken with every head sample so both are
+// for the same moment and in the same OpenXR local space (+X right, +Y up, -Z forward, metres).
+struct HandSample {
+  float head_q[4] = {0, 0, 0, 1};   // the head's orientation, x y z w
+  float head_p[3] = {0, 0, 0};      // the head's position
+  float grip[2][7] = {{0, 0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0, 0, 1}};   // left, right: px py pz qx qy qz qw
+  uint32_t flags = 0;               // DK_XR_HAND_* bits from the SDK (0x02 left position, 0x20 right position)
+  uint32_t serial = 0;              // counts samples; 0 = none yet
+};
+// Copies the newest controller sample; false until the SDK has given one.
+bool LastHands(HandSample* out);
+
 }  // namespace dkxr
