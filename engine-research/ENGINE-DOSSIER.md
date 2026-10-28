@@ -1326,6 +1326,20 @@ Tefa's ask: hands (and later arms, body) that follow the motion controllers. Fir
 - **So two levers exist, cheapest first:** (a) the game's own hand IK target; (b) the skeleton instance's bone transforms
   just before the palette is built. Either needs the controllers: SDK patch 09 samples only the head
   (`rex_xr_sample_head`); a `rex_xr_sample_hands` is SDK work shared with Condemned 2.
+- **Second pass (Fable, later the same day), the constant side mapped a little further** `[inferred-static 2026-10-28]`:
+  the vertex constants' host shadow is at **`RC+1920`** (16 bytes per constant; a dirty mask word sits just before it,
+  `sub_82248A78` sets bits 62-63 of it for c0-c7). The pre-draw commit `sub_82249488` calls `sub_82248A78` (c0-c7),
+  `sub_82248C80` (the shader program choice: reads eight per-stage flag bytes at `RC+16944..16951`, loads the bone-index
+  multiplier 510.0002 from `0x8209DE9C`, calls `sub_8224DC70` twice for a program key) and `sub_82249250` (clip planes).
+  `sub_82248C80` → `sub_8224A2E8` fills **eight 3-constant slots** from per-slot pointers (a 48-byte 4x3 each, `memcpy` =
+  `sub_82899BF0`, or zeros): texture matrices and the like, **not** the bone palette. No function in the generated code
+  scales a count by 48 bytes, so the palette is not copied with one `memcpy` per table: it is either copied bone by bone
+  from somewhere not yet read, or handed to the GPU as a vertex-constant block through a command packet rather than the
+  shadow. **Next, and probably faster than more static reading:** hook `sub_82249488` (the pre-draw commit) in a flat
+  run, and on a draw whose program key is a skinned one dump the shadow above c7 and the packet stream; where the hand's
+  matrices land will be visible, and the writer can be found from the dirty bits it set. The IK side: `sub_821B22E0`
+  is called only from `sub_821A3228`; the flags word `this+1856` is the thread to pull for the solver.
+  The unpacked program for this PC is at `D:/the-darkness-build/unpacked/default.bin` (game content, off git).
 
 ## 7. Not yet looked at
 
