@@ -311,6 +311,7 @@ struct PacketOnThread {
   bool has = false;
   uint32_t serial = 0;
   float sign = 1.0f;  // fx2: the eye this thread's packet uses (from game_seq, not the serial)
+  uint32_t game_seq = 0;  // the GAME packet's sequence number (0 = filler); the SDK pairs on it
 };
 thread_local PacketOnThread t_packet;
 std::atomic<uint32_t> g_game_seq{0};  // fx2: game-thread packets acquired so far; decides eyes
@@ -780,7 +781,13 @@ REX_HOOK_RAW(sub_823F9B00) {
       up[i] = -LoadGuestFloat(base, out + kRowUp + 4u * i);
       fwd[i] = LoadGuestFloat(base, out + kRowFwd + 4u * i);
     }
-    dkxr::TurnCamera(fwd, right, up, sign > 0.0f);
+    // The SDK's pair number for this build (08b/09: game sequence / (2 * period)), so both eyes of a
+    // pair share one head sample and the SDK can show the pair with it.
+    const int period = Stereo().period;
+    const uint32_t pair = (ByPacket() && t_packet.has && t_packet.game_seq != 0u && period > 0)
+                              ? t_packet.game_seq / (2u * static_cast<uint32_t>(period))
+                              : dkxr::kNoPair;
+    dkxr::TurnCamera(fwd, right, up, sign > 0.0f, pair);
     for (uint32_t i = 0; i < 3u; ++i) {
       StoreGuestFloat(base, out + kRowRight + 4u * i, right[i]);
       StoreGuestFloat(base, out + kRowUp + 4u * i, -up[i]);
@@ -937,6 +944,7 @@ REX_HOOK_RAW(sub_825A3FD8) {
     }
     // fx2: the eye and the freeze follow GAME packets only.
     const uint32_t seq = g_game_seq.fetch_add(1, std::memory_order_relaxed) + 1u;
+    t_packet.game_seq = seq;
     t_is_game_thread = true;
     if (ByPacket()) {
       t_packet.sign = SignFor(seq);
@@ -951,6 +959,7 @@ REX_HOOK_RAW(sub_825A3FD8) {
       m->frame_start = 0;
     }
   } else if (caller == kAcquireLrFiller) {
+    t_packet.game_seq = 0u;
     g_pk_filler[eye].fetch_add(1, std::memory_order_relaxed);
     t_packet.sign = g_last_game_eye.load(std::memory_order_relaxed) ? -1.0f : 1.0f;
     {

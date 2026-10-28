@@ -20,6 +20,7 @@
 
 #include "generated/default/darknessrecomp_pch.h"
 
+#include <atomic>
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
@@ -68,17 +69,33 @@ SampleFn Sampler() {
 
 // The head's rotation as a 3x3 matrix in OpenXR axes (+X right, +Y up, -Z forward), columns = where
 // the head's own right, up and back axes point.
-float g_m[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+struct Rot {
+  float m[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+};
+Rot g_last;  // the newest sample, for builds with no pair number
 bool g_have = false;
 uint64_t g_samples = 0, g_none = 0;
 
-void FromQuat(float x, float y, float z, float w) {
-  g_m[0][0] = 1 - 2 * (y * y + z * z); g_m[0][1] = 2 * (x * y - z * w);     g_m[0][2] = 2 * (x * z + y * w);
-  g_m[1][0] = 2 * (x * y + z * w);     g_m[1][1] = 1 - 2 * (x * x + z * z); g_m[1][2] = 2 * (y * z - x * w);
-  g_m[2][0] = 2 * (x * z - y * w);     g_m[2][1] = 2 * (y * z + x * w);     g_m[2][2] = 1 - 2 * (x * x + y * y);
+// One head sample per pair, so the SDK can show each pair with the pose it was drawn with
+// (condemned-2-vr vr_head_pose.cpp's ring). Written on the game thread, read by the SDK's GPU thread.
+constexpr uint32_t kPairRing = 64;
+struct PairHead {
+  std::atomic<uint32_t> pair{dkxr::kNoPair};
+  std::atomic<uint32_t> id{0};
+  Rot rot;
+};
+PairHead g_pairs[kPairRing];
+
+Rot FromQuat(float x, float y, float z, float w) {
+  Rot r;
+  r.m[0][0] = 1 - 2 * (y * y + z * z); r.m[0][1] = 2 * (x * y - z * w);     r.m[0][2] = 2 * (x * z + y * w);
+  r.m[1][0] = 2 * (x * y + z * w);     r.m[1][1] = 1 - 2 * (x * x + z * z); r.m[1][2] = 2 * (y * z - x * w);
+  r.m[2][0] = 2 * (x * z - y * w);     r.m[2][1] = 2 * (y * z + x * w);     r.m[2][2] = 1 - 2 * (x * x + y * y);
+  return r;
 }
 
-void Sample() {
+// Samples the head; returns the SDK's sample id (0 = none) and updates g_last.
+uint32_t Sample() {
   uint32_t id = 0;
   float o[4] = {0, 0, 0, 1}, p[3] = {0, 0, 0};
   const SampleFn fn = Sampler();
@@ -87,12 +104,31 @@ void Sample() {
   if (ok) {
     float x = o[0], y = o[1], z = o[2];
     if (Get().mirror) { y = -y; z = -z; }  // mirrored in X: the turn about up and forward reverses
-    FromQuat(x, y, z, o[3]);
+    g_last = FromQuat(x, y, z, o[3]);
     g_have = true;
   }
   if ((g_samples + g_none) % kReportEverySamples == 1)
     REXGPU_INFO("[DKXR] head samples={} none={} q=({:.3f} {:.3f} {:.3f} {:.3f})", g_samples, g_none, o[0],
                 o[1], o[2], o[3]);
+  return ok ? id : 0u;
+}
+
+// The rotation for this camera build: the pair's own sample (taken at its first build), or the
+// newest one when no pair number is known.
+const Rot* RotFor(bool first_eye, uint32_t pair) {
+  if (pair == dkxr::kNoPair) {
+    if (first_eye || !g_have) Sample();
+    return g_have ? &g_last : nullptr;
+  }
+  PairHead& slot = g_pairs[pair % kPairRing];
+  if (slot.pair.load(std::memory_order_acquire) != pair) {
+    const uint32_t id = Sample();
+    if (!g_have) return nullptr;
+    slot.rot = g_last;
+    slot.id.store(id, std::memory_order_relaxed);
+    slot.pair.store(pair, std::memory_order_release);
+  }
+  return &slot.rot;
 }
 
 }  // namespace
@@ -101,9 +137,10 @@ namespace dkxr {
 
 bool HeadOn() { return Get().xr && Get().head; }
 
-void TurnCamera(float fwd[3], float right[3], float up[3], bool first_eye) {
-  if (first_eye || !g_have) Sample();
-  if (!g_have) return;
+void TurnCamera(float fwd[3], float right[3], float up[3], bool first_eye, uint32_t pair) {
+  const Rot* rot = RotFor(first_eye, pair);
+  if (rot == nullptr) return;
+  const float (&g_m)[3][3] = rot->m;
   // A head-local vector (a, b, c) in OpenXR axes lands in the world at a*right + b*up - c*fwd.
   float f[3], r[3], u[3];
   for (int i = 0; i < 3; ++i) {
@@ -115,6 +152,15 @@ void TurnCamera(float fwd[3], float right[3], float up[3], bool first_eye) {
 }
 
 }  // namespace dkxr
+
+// Asked by SDK patch 09: which head sample was pair `pair` drawn with? (2026-10-28; without it the
+// SDK showed every pair with the newest pose: sample_hits=0 in the 2026-10-25 and 10-28 logs.)
+extern "C" __declspec(dllexport) int dk_xr_pair_sample(uint32_t pair, uint32_t* id) {
+  const PairHead& slot = g_pairs[pair % kPairRing];
+  if (slot.pair.load(std::memory_order_acquire) != pair) return 0;
+  *id = slot.id.load(std::memory_order_relaxed);
+  return *id != 0;
+}
 
 // Asked by SDK patch 09: the player view's tangents (left, right, up, down), all positive.
 extern "C" __declspec(dllexport) int dk_xr_eye_fov(float t[4]) {

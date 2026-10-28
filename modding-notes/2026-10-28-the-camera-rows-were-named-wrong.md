@@ -81,6 +81,19 @@ headset needs, and the stereo pair is the right way round. Not yet seen in the r
   `vr_head_pose.cpp` pair ring, not ported yet; the port is the next step for the lag.
 - Nothing here has been seen in the real headset.
 
+## Later the same session (Opus): the picture lagging the head, fixed
+The SDK showed every pair with the NEWEST head pose (`sample_hits=0`): the game never told it which sample a pair was
+drawn with, so the world swam behind a moving head. Ported Condemned 2's pair ring into `vr_xr_head.cpp`: the head is
+sampled once per pair (pair = the game packet's sequence / (2 x `DK_STEREO_PERIOD`), the number the SDK pairs on; the
+camera thread now carries `t_packet.game_seq`), both eyes use that sample, and `dk_xr_pair_sample` tells the SDK which
+one it was. Exe a7667e7cea10, installed in `build-home-xr` (previous in `_backup-2026-10-28-before-pair-sample/`), stamped.
+- On the simulator, in the car scene: **every headset frame matched its pair's sample, 300 of 300 per log line, two lines
+  running** (18:07:33 and 18:07:44); the misses before that were all menus and films, where no 3D camera is built
+  `[verified-live 2026-10-28, simulator, n=1 run]`.
+- Head yaw 30° re-measured: the same picture change as the previous build (content dx −104, dy −160 px), so the turn
+  is unharmed `[verified-live 2026-10-28, n=1]`.
+- Not established: how it FEELS (that needs the headset), and the controls lag (a separate row).
+
 ## Later the same session: motion-controlled hands, first static look (Tefa's "go")
 Tefa: *"actual body and IK and hands moving with motion controls, we have never done that."* Plan on the board (five
 steps, cheapest first); step 1 (find the skeleton) started, findings in dossier §6e. Short form: the game already has a
