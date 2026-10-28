@@ -2,7 +2,7 @@
 
 **Result: about 284 frames a second in the opening car scene** `[measured 2026-09-21, n=2]`.
 
-Home PC (RTX): i5-14600K, RTX 5080. The build is the 2026-09-18 one in
+Home PC: i5-14600K, RTX 5080. The build is the 2026-09-18 one in
 `C:\NonSteam\the-darkness\build-local`, in a 1280×720 window with vsync off, so the dev PC's numbers
 compare directly. The dev PC gets about 15 in the same scene.
 

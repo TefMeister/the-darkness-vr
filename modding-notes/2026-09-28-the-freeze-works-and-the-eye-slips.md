@@ -100,7 +100,7 @@ question (safely, on NO). `sbs_pair_test.py` takes `DK_TEST_SEQ` to override the
 ## Installed now
 
 `C:/NonSteam/the-darkness/build-home-sbs/darknessrecomp.exe` is the new probe build (skip guard,
-thread and camera-build logging), sha256 `b3dbbaae4a53b7cf…` (stamped in `claude-memory/deployed/RTX/the-darkness-vr.tsv`). `rexgpu-xenos.dll` is patch 07 as
+thread and camera-build logging), sha256 `b3dbbaae4a53b7cf…` (stamped in `claude-memory/deployed/<home PC>/the-darkness-vr.tsv`). `rexgpu-xenos.dll` is patch 07 as
 before. `build-home/` is untouched and still holds the previous program, byte-identical to what
 `build-home-sbs` had this morning.
 
