@@ -16,7 +16,7 @@
 //      rows from the camera position, times ik.scale (world units per metre; 1 unit ~ 1 inch, so ~39.37
 //      [inferred-static, dossier: "ONE WORLD UNIT IS ABOUT ONE INCH"]). ik.right_chain says which chain the RIGHT
 //      controller drives (the other drives the left); only a controller whose position is valid is fed.
-// ik.only limits it to one IK object; ik.vtable to the objects whose ClientData vtable (*(ik-4384)) matches (the
+// DK_HANDS=1 (environment) starts with ik.on=1 ik.src=1. ik.only limits it to one IK object; ik.vtable to the objects whose ClientData vtable (*(ik-4384)) matches (the
 // reader's table: 0x82062190 most likely the playable player). ik.snap=1 also sets the hand's blend state to "held"
 // with full weight (+1448/+1450 = 3, +1452/+1456 = 1.0), skipping the game's 0.2 s blend-in [untried].
 // Counters and the seen-list are behind one mutex: the hook runs on several game threads at once.
@@ -88,6 +88,11 @@ void RegisterVars() {
   static bool done = false;
   if (done) return;
   done = true;
+  // DK_HANDS=1 starts with the controllers driving the hands (ik.on=1, ik.src=1), for headset runs with no bridge.
+  if (const char* v = std::getenv("DK_HANDS")) {
+    if (v[0] == '1') { g_on = 1; g_src = 1; }
+    REXGPU_INFO("[IK] DK_HANDS={}: hands from the controllers {}", v, g_on ? "ON" : "off");
+  }
   bridge_var("ik.on", BRIDGE_I32, &g_on, 1, "1 = feed the game's hand IK a target of ours");
   bridge_var("ik.src", BRIDGE_I32, &g_src, 1, "0 = test point (camera + fwd/right/up), 1 = the motion controllers");
   bridge_var("ik.hand", BRIDGE_I32, &g_hand, 1, "src 0: 0 = hand chain A, 1 = chain B, 2 = both");
@@ -213,4 +218,99 @@ REX_HOOK_RAW(sub_821BF988) {
       REXGPU_INFO("[IK] calls={} set={} no_hands={} src={} last: {}", g_calls, g_set, g_no_hands, g_src, g_last_text);
   }
   __imp__sub_821BF988(ctx, base);
+}
+
+// ---- the controller's ROTATION into the hand (2026-10-28, from the reader's static pass) -------------------------
+// sub_821BF988 builds the hand's 64-byte target on its stack (rotation rows from the animated hand bone, position from
+// IK+1864/+1892) and hands it to the two-bone solver sub_821EE4E0(r3 = IK+32, ..., r6 = &target). The solver makes
+// the target's rows the hand bone's world rotation. So on the solver's ENTRY, for chain 0 (A, right hand) or 1 (B,
+// left) of an object whose explicit-target flag is on, the rows are rewritten from the controller:
+//   C = the controller's axes in the game world: X right, Y up (out of the top), F pointing (OpenXR grip -Z), from the
+//       grip quaternion taken into the head's axes and laid along the head-turned camera rows;
+//   O = a fixed 3x3 per hand that maps the controller's axes to the hand bone's axes, CALIBRATED once: at the first
+//       solve after ik.rot is switched on (or ik.calib=1), O = H * C^T, with H the animation's rows at that moment.
+//       So whatever way the controller is held then counts as "the animation's hand pose" [the reader's route 2].
+//   rows = O * C from then on: turning the controller turns the hand by the same turn.
+// ik.rot=1 (or DK_HANDS_ROT=1) switches it on; off by default. Position is untouched (the solver's own +48 row).
+// [compile-verified] at most until it has run.
+namespace {
+
+constexpr uint32_t kSolverChain = 8u;   // the chain byte at IK+40 = r3+8
+constexpr uint32_t kSolverBack = 32u;   // r3 = IK+32
+
+int32_t g_rot = 0;                      // ik.rot
+int32_t g_calib = 0;                    // ik.calib: 1 = take a new calibration at the next solve of each hand
+bool g_have_o[2] = {false, false};      // per chain
+float g_o[2][3][3];
+uint32_t g_rot_set = 0;                 // ik.rot_set
+
+void RegisterRotVars() {
+  static bool done = false;
+  if (done) return;
+  done = true;
+  if (const char* v = std::getenv("DK_HANDS_ROT")) g_rot = v[0] == '1' ? 1 : 0;
+  bridge_var("ik.rot", BRIDGE_I32, &g_rot, 1, "1 = the hands also take the controllers' rotation (src 1)");
+  bridge_var("ik.calib", BRIDGE_I32, &g_calib, 1, "1 = re-calibrate: the controllers' pose now = the animation's hand pose");
+  bridge_var("ik.rot_set", BRIDGE_U32, &g_rot_set, 0, "solves whose hand rotation was written from a controller");
+}
+
+// The controller's axes in the world, as rows: out[0] = X (right), out[1] = Y (up), out[2] = F (pointing).
+void ControllerAxes(const dkxr::HandSample& h, int hand, const float rows[16], float out[3][3]) {
+  float mh[3][3], mg[3][3];
+  QuatToRot(h.head_q, mh);
+  QuatToRot(h.grip[hand] + 3, mg);
+  for (int j = 0; j < 3; ++j) {
+    float c[3];   // the controller's axis j in the head's axes: Rh^T * Rg[:, j]
+    for (int k = 0; k < 3; ++k) c[k] = mh[0][k] * mg[0][j] + mh[1][k] * mg[1][j] + mh[2][k] * mg[2][j];
+    const float sign = j == 2 ? -1.f : 1.f;   // F = -(back axis)
+    for (int i = 0; i < 3; ++i)
+      out[j][i] = sign * (c[0] * rows[kRowRight / 4 + i] - c[1] * rows[kRowDown / 4 + i] - c[2] * rows[kRowFwd / 4 + i]);
+  }
+}
+
+}  // namespace
+
+DECLARE_REX_FUNC(sub_821EE4E0);
+
+REX_HOOK_RAW(sub_821EE4E0) {
+  RegisterRotVars();
+  const uint32_t block = ctx.r3.u32, target = ctx.r6.u32;
+  if (g_rot == 1 && g_on == 1 && g_src == 1 && block != 0u && target != 0u) {
+    const uint32_t chain = REX_LOAD_U8(block + kSolverChain);
+    const uint32_t ik = block - kSolverBack;
+    if (chain <= 1u && (REX_LOAD_U32(ik + kFlags) & kOn[chain])) {
+      std::lock_guard<std::mutex> lock(g_mu);
+      const bool picked = (g_only == 0u || g_only == ik) &&
+                          (g_vtable == 0u || g_vtable == REX_LOAD_U32(ik - kClientDataBack));
+      const int hand = (static_cast<int>(chain) == (g_right_chain & 1)) ? 1 : 0;   // 1 right, 0 left
+      dkxr::HandSample h;
+      float rows[16];
+      if (picked && dkxr::LastHands(&h) && dkxr::LastView(rows) && (h.flags & (hand ? 0x10u : 0x01u))) {
+        float c[3][3];
+        ControllerAxes(h, hand, rows, c);
+        if (g_calib == 1) { g_have_o[0] = g_have_o[1] = false; g_calib = 0; }
+        if (!g_have_o[chain]) {
+          float hm[3][3];
+          for (int k = 0; k < 3; ++k)
+            for (int i = 0; i < 3; ++i) hm[k][i] = GuestFloat(base, target + 16u * k + 4u * i);
+          for (int k = 0; k < 3; ++k)
+            for (int j = 0; j < 3; ++j) g_o[chain][k][j] = hm[k][0] * c[j][0] + hm[k][1] * c[j][1] + hm[k][2] * c[j][2];
+          g_have_o[chain] = true;
+          const float det = rows[0] * (-rows[5] * rows[10] + rows[6] * rows[9]) -
+                            rows[1] * (-rows[4] * rows[10] + rows[6] * rows[8]) +
+                            rows[2] * (-rows[4] * rows[9] + rows[5] * rows[8]);   // det[right; up; forward]
+          REXGPU_INFO("[IK] rotation calibrated, chain {} (hand {}): animation rows ({:.2f} {:.2f} {:.2f}) ({:.2f} {:.2f} "
+                      "{:.2f}) ({:.2f} {:.2f} {:.2f}); det[right,up,fwd]={:.3f}",
+                      chain, hand ? "right" : "left", hm[0][0], hm[0][1], hm[0][2], hm[1][0], hm[1][1], hm[1][2], hm[2][0],
+                      hm[2][1], hm[2][2], det);
+        }
+        for (int k = 0; k < 3; ++k)
+          for (int i = 0; i < 3; ++i)
+            StoreGuestFloat(base, target + 16u * k + 4u * i,
+                            g_o[chain][k][0] * c[0][i] + g_o[chain][k][1] * c[1][i] + g_o[chain][k][2] * c[2][i]);
+        ++g_rot_set;
+      }
+    }
+  }
+  __imp__sub_821EE4E0(ctx, base);
 }

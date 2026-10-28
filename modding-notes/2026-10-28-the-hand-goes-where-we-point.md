@@ -104,3 +104,25 @@ Tefa: *"install the plugin update, then the controller sampling and other stuff 
 - The left arm came in very close to the camera (a big sleeve across the view): the arm's shoulder sits where the game
   puts it, not where a real shoulder would be; how that feels needs the headset.
 - `ik.snap` untried; the 0.25 s blend is still in.
+
+## Last, the same evening: the hands turn with the controllers, and a start switch (simulator)
+- **Rotation** (the reader's static pass, verbatim in `dev-archive/recon/2026-10-28-hand-ik-sim/2026-10-28-reader-hand-rotation.md`):
+  `sub_821BF988` builds the hand's target on its stack (rows from the animated hand bone, position from IK+1864/1892) and
+  calls the two-bone solver `sub_821EE4E0(r3 = IK+32, ..., r6 = &target)`, which makes the target's rows the hand bone's
+  world rotation. `vr_hand_ik.cpp` now hooks the solver's entry and, for chain 0/1 with the explicit-target flag on,
+  rewrites the rows: the controller's axes in the world (grip quaternion into head axes, along the head-turned camera),
+  times a per-hand 3x3 taken once as "the animation's rows at the first solve x the controller's axes transposed"
+  (`ik.calib=1` takes it again). So the controller pose at calibration counts as the game's hand pose.
+- **Results, build b007** (exe in `build-home-xr`, stamped) `[verified-live 2026-10-28, simulator, n=1 per pose]`:
+  `DK_HANDS=1 DK_HANDS_ROT=1` at launch turn the controller hands on with no bridge command; after calibrating with the
+  right controller held out in front, yaw +0.6 rad shows more of the palm, yaw −0.6 the back of the hand, pitch ±0.6 tilts
+  the fingers, straight again comes back to the calibrated picture; `ik.rot=0` ignores the same yaw. Whether each turn
+  goes the RIGHT way round is not judged (the car-scene picture is rolled); positions, built from the same mapping, are
+  verified.
+- **A fact:** det[camera right, up, forward] = −1 at every calibration: the game's camera axes are a mirror-image set
+  compared with OpenXR's `[measured 2026-10-28, n=4 log lines]`. The calibrated route is proper anyway (a rotation seen in
+  a mirrored set of axes is still a rotation); a fixed axis-swap table would have needed a flip.
+- **Headset start:** `dk_vr_headset_hands.ps1` in `build-home-xr` (copy in `dev-archive/build-scripts/`): the usual
+  headset switches plus `DK_HANDS=1 DK_HANDS_ROT=1`. ⚠️ The rotation calibrates at the first moment the hands are used,
+  whatever way the controllers are held then; in a headset run a session sends `ik.calib=1` through the bridge when Tefa
+  holds the controllers the way the game's hands look.
