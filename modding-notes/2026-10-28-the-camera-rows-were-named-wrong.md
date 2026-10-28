@@ -103,6 +103,12 @@ weapons attach through `ATTACHPOINTS`, and the vertex shader skins from a matrix
 Second pass on Fable: the constant shadow (`RC+1920`), the pre-draw program setup (`sub_82248C80`) and its eight-slot
 matrix filler (`sub_8224A2E8`) read; the bone palette is NOT copied there, and no function copies a count × 48 bytes, so
 the next step is a live dump at the pre-draw commit rather than more reading (dossier §6e, second pass).
+Third pass, LIVE (simulator, Tefa's checkpoint): `vr_skin_probe.cpp` (new file, `DK_SKIN_PROBE=1`) dumped the constant
+table at twelve draws in the level; **the bone palette starts at c96, three constants per bone (a 4x3, translation in
+.w), at least 13 bones, animated** `[verified-live 2026-10-28, n=12 dumps]`. The supposed dirty mask is all-or-nothing,
+so the writer stays unknown; it is not needed: the hand can be moved by overwriting its three constants in the same
+hook before the draw. Next: which bone index is the hand (perturb one per run, look through the bridge), and which
+draws are the arms. Dossier §6e, third pass.
 ⚠️ The RE tools in `dev-archive/tools/` still point at the dev PC's `E:` folder (`idx.GEN`); on this PC set
 `idx.GEN = r"D:\the-darkness-build\src\DarknessRecomp\generated\default"` before use (done by hand today; worth a
 settings line).
