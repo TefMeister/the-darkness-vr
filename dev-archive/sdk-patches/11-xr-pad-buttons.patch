@@ -1,0 +1,218 @@
+Patch 11 (2026-10-29, built, SDK rebuilt): rex_xr_sample_buttons, the controllers as an Xbox pad.
+
+On top of patch 10. The dk_hands action set gets a/b/x/y, menu, the stick clicks (boolean), trigger and
+squeeze (float, both hands) and the thumbstick (vec2, both hands); each profile is suggested the bindings
+it has (Touch and Index the full set, simple/Vive/WMR what they can). rex_xr_sample_buttons(buttons, axes[6])
+syncs the set itself and answers XInput bits + lt rt lx ly rx ry. The game side lays it over the bridge pad
+(port-project/src/vr_bridge.cpp, BridgePadDriver), merged with the real pad by the input system.
+
+--- a/include/rex/graphics/d3d12/xr_output.h
++++ b/include/rex/graphics/d3d12/xr_output.h
+@@ -72,5 +72,12 @@
+                                                          float grip_right[7], uint32_t* flags);
+ // The aim poses (pointing ray: -Z forward) taken in the same rex_xr_sample_hands call. Returns 1
+ // when sample_id is that call's id, 0 when it is stale or unknown (outputs then hold identity).
++// Patch 11 (2026-10-29): the controllers' buttons, triggers, grips and sticks as an Xbox pad.
++// buttons: X_INPUT_GAMEPAD_* bits (A B X Y, START from the left menu button, LEFT/RIGHT_THUMB from
++// the stick clicks, LEFT/RIGHT_SHOULDER from the grips squeezed past half). axes: left trigger,
++// right trigger (0..1), left stick x y, right stick x y (-1..1). Syncs the action set itself.
++// Returns 1 when the session is focused and the controllers answered, else 0 with everything zero.
++extern "C" __declspec(dllexport) int rex_xr_sample_buttons(uint32_t* buttons, float axes[6]);
++
+ extern "C" __declspec(dllexport) int rex_xr_hands_aim(uint32_t sample_id, float aim_left[7],
+                                                       float aim_right[7]);
+--- a/src/graphics/d3d12/xr_output.cpp
++++ b/src/graphics/d3d12/xr_output.cpp
+@@ -64,7 +64,8 @@
+ // them only switches the hands off, never the headset picture.
+ #define DK_XR_HAND_FUNCS(X)                                                                    \
+   X(xrStringToPath) X(xrCreateActionSet) X(xrCreateAction) X(xrSuggestInteractionProfileBindings) \
+-  X(xrAttachSessionActionSets) X(xrCreateActionSpace) X(xrSyncActions) X(xrGetActionStatePose)
++  X(xrAttachSessionActionSets) X(xrCreateActionSpace) X(xrSyncActions) X(xrGetActionStatePose) \
++  X(xrGetActionStateBoolean) X(xrGetActionStateFloat) X(xrGetActionStateVector2f)
+ 
+ struct State {
+   bool tried = false, failed = false, exiting = false;
+@@ -111,6 +112,12 @@
+   std::atomic<bool> focused{false};  // xrSyncActions only takes effect in the FOCUSED state
+   XrActionSet hand_set = XR_NULL_HANDLE;
+   XrAction grip_action = XR_NULL_HANDLE, aim_action = XR_NULL_HANDLE;
++  // Patch 11: the buttons. One action per button (no subaction: a and b live on the right hand, x,
++  // y and menu on the left), and three two-handed actions (trigger, squeeze, thumbstick).
++  enum { BTN_A, BTN_B, BTN_X, BTN_Y, BTN_MENU, BTN_LSTICK, BTN_RSTICK, BTN_COUNT };
++  XrAction btn_action[BTN_COUNT] = {};
++  XrAction trigger_action = XR_NULL_HANDLE, squeeze_action = XR_NULL_HANDLE, stick_action = XR_NULL_HANDLE;
++  uint64_t button_calls = 0;
+   XrPath hand_path[2] = {XR_NULL_PATH, XR_NULL_PATH};  // /user/hand/left, /user/hand/right
+   XrSpace grip_space[2] = {XR_NULL_HANDLE, XR_NULL_HANDLE};
+   XrSpace aim_space[2] = {XR_NULL_HANDLE, XR_NULL_HANDLE};
+@@ -223,31 +230,94 @@
+   if (XR_FAILED(r = s.xrCreateAction(s.hand_set, &aci, &s.aim_action)))
+     return HandsOff(o, "aim action", r);
+ 
++  // Patch 11: the buttons (Tefa 2026-10-29: "map quest 3 buttons to the darkness, at least the main ones").
++  {
++    static const char* const kBtnNames[State::BTN_COUNT][2] = {
++        {"a_click", "A"}, {"b_click", "B"}, {"x_click", "X"}, {"y_click", "Y"},
++        {"menu_click", "Menu"}, {"lstick_click", "Left stick click"}, {"rstick_click", "Right stick click"}};
++    XrActionCreateInfo bci = {XR_TYPE_ACTION_CREATE_INFO};
++    bci.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
++    for (int i = 0; i < rex::graphics::d3d12::State::BTN_COUNT; ++i) {
++      std::strcpy(bci.actionName, kBtnNames[i][0]);
++      std::strcpy(bci.localizedActionName, kBtnNames[i][1]);
++      if (XR_FAILED(r = s.xrCreateAction(s.hand_set, &bci, &s.btn_action[i])))
++        return HandsOff(o, kBtnNames[i][0], r);
++    }
++    aci.actionType = XR_ACTION_TYPE_FLOAT_INPUT;
++    std::strcpy(aci.actionName, "trigger_value");
++    std::strcpy(aci.localizedActionName, "Trigger");
++    if (XR_FAILED(r = s.xrCreateAction(s.hand_set, &aci, &s.trigger_action)))
++      return HandsOff(o, "trigger action", r);
++    std::strcpy(aci.actionName, "squeeze_value");
++    std::strcpy(aci.localizedActionName, "Grip");
++    if (XR_FAILED(r = s.xrCreateAction(s.hand_set, &aci, &s.squeeze_action)))
++      return HandsOff(o, "squeeze action", r);
++    aci.actionType = XR_ACTION_TYPE_VECTOR2F_INPUT;
++    std::strcpy(aci.actionName, "thumbstick");
++    std::strcpy(aci.localizedActionName, "Thumbstick");
++    if (XR_FAILED(r = s.xrCreateAction(s.hand_set, &aci, &s.stick_action)))
++      return HandsOff(o, "thumbstick action", r);
++  }
++
+   // Every profile below has input/grip/pose and input/aim/pose on both hands. The runtime picks
+   // whichever matches the controllers in use; one it does not know is refused and skipped.
+-  static const char* const kProfiles[] = {
+-      "/interaction_profiles/khr/simple_controller",
+-      "/interaction_profiles/oculus/touch_controller",
+-      "/interaction_profiles/valve/index_controller",
+-      "/interaction_profiles/htc/vive_controller",
+-      "/interaction_profiles/microsoft/motion_controller",
++  // Patch 11: each profile also gets the button bindings IT has (a path a profile lacks would get
++  // the whole profile refused), so Touch and Index get the full pad, the older ones what they can.
++  struct Bind { XrAction action; const char* path; };
++  const Bind kPose[] = {
++      {s.grip_action, "/user/hand/left/input/grip/pose"}, {s.grip_action, "/user/hand/right/input/grip/pose"},
++      {s.aim_action, "/user/hand/left/input/aim/pose"}, {s.aim_action, "/user/hand/right/input/aim/pose"}};
++  const Bind kTouch[] = {
++      {s.btn_action[State::BTN_A], "/user/hand/right/input/a/click"}, {s.btn_action[State::BTN_B], "/user/hand/right/input/b/click"},
++      {s.btn_action[State::BTN_X], "/user/hand/left/input/x/click"}, {s.btn_action[State::BTN_Y], "/user/hand/left/input/y/click"},
++      {s.btn_action[State::BTN_MENU], "/user/hand/left/input/menu/click"},
++      {s.btn_action[State::BTN_LSTICK], "/user/hand/left/input/thumbstick/click"}, {s.btn_action[State::BTN_RSTICK], "/user/hand/right/input/thumbstick/click"},
++      {s.trigger_action, "/user/hand/left/input/trigger/value"}, {s.trigger_action, "/user/hand/right/input/trigger/value"},
++      {s.squeeze_action, "/user/hand/left/input/squeeze/value"}, {s.squeeze_action, "/user/hand/right/input/squeeze/value"},
++      {s.stick_action, "/user/hand/left/input/thumbstick"}, {s.stick_action, "/user/hand/right/input/thumbstick"}};
++  const Bind kIndex[] = {   // Index: a and b on both hands; the left pair stands in for X and Y
++      {s.btn_action[State::BTN_A], "/user/hand/right/input/a/click"}, {s.btn_action[State::BTN_B], "/user/hand/right/input/b/click"},
++      {s.btn_action[State::BTN_X], "/user/hand/left/input/a/click"}, {s.btn_action[State::BTN_Y], "/user/hand/left/input/b/click"},
++      {s.btn_action[State::BTN_LSTICK], "/user/hand/left/input/thumbstick/click"}, {s.btn_action[State::BTN_RSTICK], "/user/hand/right/input/thumbstick/click"},
++      {s.trigger_action, "/user/hand/left/input/trigger/value"}, {s.trigger_action, "/user/hand/right/input/trigger/value"},
++      {s.squeeze_action, "/user/hand/left/input/squeeze/value"}, {s.squeeze_action, "/user/hand/right/input/squeeze/value"},
++      {s.stick_action, "/user/hand/left/input/thumbstick"}, {s.stick_action, "/user/hand/right/input/thumbstick"}};
++  const Bind kSimple[] = {   // the simple profile: select = trigger, menu = menu
++      {s.trigger_action, "/user/hand/left/input/select/click"}, {s.trigger_action, "/user/hand/right/input/select/click"},
++      {s.btn_action[State::BTN_MENU], "/user/hand/left/input/menu/click"}};
++  const Bind kViveWmr[] = {   // trigger, grip (a click) and menu; the trackpad as the stick
++      {s.trigger_action, "/user/hand/left/input/trigger/value"}, {s.trigger_action, "/user/hand/right/input/trigger/value"},
++      {s.squeeze_action, "/user/hand/left/input/squeeze/click"}, {s.squeeze_action, "/user/hand/right/input/squeeze/click"},
++      {s.btn_action[State::BTN_MENU], "/user/hand/left/input/menu/click"},
++      {s.stick_action, "/user/hand/left/input/trackpad"}, {s.stick_action, "/user/hand/right/input/trackpad"}};
++  struct Profile { const char* path; const Bind* extra; size_t count; };
++  const Profile kProfiles[] = {
++      {"/interaction_profiles/khr/simple_controller", kSimple, sizeof(kSimple) / sizeof(kSimple[0])},
++      {"/interaction_profiles/oculus/touch_controller", kTouch, sizeof(kTouch) / sizeof(kTouch[0])},
++      {"/interaction_profiles/valve/index_controller", kIndex, sizeof(kIndex) / sizeof(kIndex[0])},
++      {"/interaction_profiles/htc/vive_controller", kViveWmr, sizeof(kViveWmr) / sizeof(kViveWmr[0])},
++      {"/interaction_profiles/microsoft/motion_controller", kViveWmr, sizeof(kViveWmr) / sizeof(kViveWmr[0])},
+   };
+-  static const char* const kBindings[4] = {
+-      "/user/hand/left/input/grip/pose", "/user/hand/right/input/grip/pose",
+-      "/user/hand/left/input/aim/pose", "/user/hand/right/input/aim/pose"};
+-  XrActionSuggestedBinding sb[4];
+-  for (int i = 0; i < 4; ++i) {
+-    sb[i].action = i < 2 ? s.grip_action : s.aim_action;
+-    if (XR_FAILED(r = s.xrStringToPath(s.instance, kBindings[i], &sb[i].binding)))
+-      return HandsOff(o, kBindings[i], r);
+-  }
+   int accepted = 0;
+-  for (const char* profile : kProfiles) {
++  for (const Profile& profile : kProfiles) {
+     XrInteractionProfileSuggestedBinding ipb = {XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+-    if (XR_FAILED(s.xrStringToPath(s.instance, profile, &ipb.interactionProfile))) continue;
+-    ipb.countSuggestedBindings = 4;
+-    ipb.suggestedBindings = sb;
+-    if (XR_SUCCEEDED(s.xrSuggestInteractionProfileBindings(s.instance, &ipb))) ++accepted;
++    if (XR_FAILED(s.xrStringToPath(s.instance, profile.path, &ipb.interactionProfile))) continue;
++    std::vector<XrActionSuggestedBinding> sb;
++    bool ok = true;
++    auto add = [&](const Bind& b) {
++      XrActionSuggestedBinding one;
++      one.action = b.action;
++      if (XR_FAILED(s.xrStringToPath(s.instance, b.path, &one.binding))) { ok = false; return; }
++      sb.push_back(one);
++    };
++    for (const Bind& b : kPose) add(b);
++    for (size_t i = 0; i < profile.count; ++i) add(profile.extra[i]);
++    if (!ok) continue;
++    ipb.countSuggestedBindings = static_cast<uint32_t>(sb.size());
++    ipb.suggestedBindings = sb.data();
++    const XrResult sr = s.xrSuggestInteractionProfileBindings(s.instance, &ipb);
++    if (XR_SUCCEEDED(sr)) ++accepted;
++    else o.Log("[XR] profile %s refused its bindings (%d)", profile.path, int(sr));
+   }
+   if (accepted == 0) return HandsOff(o, "no controller profile accepted", XR_SUCCESS);
+ 
+@@ -730,6 +800,54 @@
+   return (f & (DK_XR_HAND_L_ORIENT | DK_XR_HAND_R_ORIENT)) ? 1 : 0;
+ }
+ 
++// Patch 11: the pad. Synced here as well (the game's pad driver polls on its own thread, and the
++// hands may be switched off); xrSyncActions more than once a frame is allowed and cheap.
++extern "C" __declspec(dllexport) int rex_xr_sample_buttons(uint32_t* buttons, float axes[6]) {
++  auto& s = rex::graphics::d3d12::S();
++  *buttons = 0;
++  for (int i = 0; i < 6; ++i) axes[i] = 0.0f;
++  if (!s.running || !s.hands_ready || !s.focused) return 0;
++  std::lock_guard<std::mutex> hand_lock(s.hand_mutex);
++  ++s.button_calls;
++  XrActiveActionSet active = {s.hand_set, XR_NULL_PATH};
++  XrActionsSyncInfo si = {XR_TYPE_ACTIONS_SYNC_INFO};
++  si.countActiveActionSets = 1;
++  si.activeActionSets = &active;
++  if (s.xrSyncActions(s.session, &si) != XR_SUCCESS) return 0;
++  // XInput bits (rex/input/input.h): START 0x10, LEFT_THUMB 0x40, RIGHT_THUMB 0x80, LB 0x100, RB 0x200,
++  // A 0x1000, B 0x2000, X 0x4000, Y 0x8000
++  static const uint32_t kBits[rex::graphics::d3d12::State::BTN_COUNT] = {0x1000, 0x2000, 0x4000, 0x8000, 0x0010, 0x0040, 0x0080};
++  uint32_t b = 0;
++  for (int i = 0; i < rex::graphics::d3d12::State::BTN_COUNT; ++i) {
++    XrActionStateGetInfo gi = {XR_TYPE_ACTION_STATE_GET_INFO};
++    gi.action = s.btn_action[i];
++    XrActionStateBoolean st = {XR_TYPE_ACTION_STATE_BOOLEAN};
++    if (XR_SUCCEEDED(s.xrGetActionStateBoolean(s.session, &gi, &st)) && st.isActive && st.currentState) b |= kBits[i];
++  }
++  for (int h = 0; h < 2; ++h) {
++    XrActionStateGetInfo gi = {XR_TYPE_ACTION_STATE_GET_INFO};
++    gi.subactionPath = s.hand_path[h];
++    gi.action = s.trigger_action;
++    XrActionStateFloat fl = {XR_TYPE_ACTION_STATE_FLOAT};
++    if (XR_SUCCEEDED(s.xrGetActionStateFloat(s.session, &gi, &fl)) && fl.isActive) axes[h] = fl.currentState;
++    gi.action = s.squeeze_action;
++    fl = {XR_TYPE_ACTION_STATE_FLOAT};
++    if (XR_SUCCEEDED(s.xrGetActionStateFloat(s.session, &gi, &fl)) && fl.isActive && fl.currentState > 0.5f)
++      b |= h ? 0x0200u : 0x0100u;
++    gi.action = s.stick_action;
++    XrActionStateVector2f v2 = {XR_TYPE_ACTION_STATE_VECTOR2F};
++    if (XR_SUCCEEDED(s.xrGetActionStateVector2f(s.session, &gi, &v2)) && v2.isActive) {
++      axes[2 + 2 * h] = v2.currentState.x;
++      axes[3 + 2 * h] = v2.currentState.y;
++    }
++  }
++  *buttons = b;
++  if (s.button_calls == 1 || (s.button_calls % 600) == 0)
++    rex::graphics::d3d12::XrOutput::Get().Log("[XR] pad calls=%llu buttons=0x%04X lt=%.2f rt=%.2f",
++                                              (unsigned long long)s.button_calls, b, axes[0], axes[1]);
++  return 1;
++}
++
+ extern "C" __declspec(dllexport) int rex_xr_hands_aim(uint32_t sample_id, float aim_left[7],
+                                                       float aim_right[7]) {
+   auto& s = rex::graphics::d3d12::S();
