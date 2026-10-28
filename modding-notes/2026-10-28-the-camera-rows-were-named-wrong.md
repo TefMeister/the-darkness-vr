@@ -100,6 +100,9 @@ steps, cheapest first); step 1 (find the skeleton) started, findings in dossier 
 hand IK with a switch (`DISABLE_HAND_IK` → flags word `this+1856` in `sub_821B22E0`), the skeleton classes are named,
 weapons attach through `ATTACHPOINTS`, and the vertex shader skins from a matrix palette of three constants per bone
 (`System/Gl/VP.xrg`). Not found yet: the IK solver, the palette writer, the `$MP` base. All `[inferred-static 2026-10-28]`.
+Second pass on Fable: the constant shadow (`RC+1920`), the pre-draw program setup (`sub_82248C80`) and its eight-slot
+matrix filler (`sub_8224A2E8`) read; the bone palette is NOT copied there, and no function copies a count × 48 bytes, so
+the next step is a live dump at the pre-draw commit rather than more reading (dossier §6e, second pass).
 ⚠️ The RE tools in `dev-archive/tools/` still point at the dev PC's `E:` folder (`idx.GEN`); on this PC set
 `idx.GEN = r"D:\the-darkness-build\src\DarknessRecomp\generated\default"` before use (done by hand today; worth a
 settings line).
