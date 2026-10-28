@@ -1,0 +1,321 @@
+Patch 10 (DRAFT, 2026-10-28, not applied, SDK not built): rex_xr_sample_hands + rex_xr_hands_aim.
+
+Adds both motion controllers to DK_XR (patch 09's xr_output.cpp), for the game's hand IK:
+- one action set "dk_hands": grip_pose + aim_pose, subaction paths /user/hand/left and /user/hand/right,
+  suggested for khr/simple, oculus/touch, valve/index, htc/vive, microsoft/motion (each one the runtime
+  refuses is skipped), attached once right after the reference spaces in Start(); one action space per
+  hand per pose. Any failure logs "[XR] hands OFF: ..." and leaves the headset path untouched.
+- rex_xr_sample_hands(id, grip_left[7], grip_right[7], flags): xrSyncActions once per call (only while the
+  session is FOCUSED, tracked in PollEvents), then xrGetActionStatePose + xrLocateSpace of each grip space
+  in the SAME local space and at the SAME predicted time as rex_xr_sample_head. Pose = px py pz qx qy qz qw.
+  flags = DK_XR_HAND_* bits (header). rex_xr_hands_aim(id, ...) returns the aim poses of that call.
+- exported exactly like rex_xr_sample_head (extern "C" __declspec(dllexport) in rexgpu-xenos.dll); the game
+  looks them up with GetProcAddress(GetModuleHandleW(L"rexgpu-xenos.dll"), "rex_xr_sample_hands").
+
+Against: rexglue-sdk working tree on the home PC with patch 09/09b applied (xr_output.h/.cpp as of
+2026-10-28). Checked: `git apply --check` on copies of those two files passes; both the old and the new
+xr_output.cpp pass `clang++ -std=c++20 -fsyntax-only -Wall` (llvm-mingw, SDL3's bundled OpenXR headers).
+Not built with the SDK's own toolchain, not run.
+
+diff --git a/include/rex/graphics/d3d12/xr_output.h b/include/rex/graphics/d3d12/xr_output.h
+index 2cb90d0..35e5f75 100644
+--- a/include/rex/graphics/d3d12/xr_output.h
++++ b/include/rex/graphics/d3d12/xr_output.h
+@@ -49,3 +49,28 @@ class XrOutput {
+ // headset is tracking, 0 otherwise (outputs then hold identity).
+ extern "C" __declspec(dllexport) int rex_xr_sample_head(uint32_t* id_out, float orient_xyzw[4],
+                                                         float pos_xyz[3]);
++
++// Patch 10 (draft): the two motion controllers, for the game program's hand IK.
++// Samples both controllers' GRIP poses at the same predicted time a head sample uses, in the same
++// space (OpenXR local: +X right, +Y up, -Z forward, metres). Each pose is 7 floats:
++// position x, y, z, then orientation x, y, z, w. A hand that is not tracked holds identity.
++// sample_id: a fresh number per call (0 = no sample); hand it to rex_xr_hands_aim for the aim poses
++// of the same call. flags: which parts are valid this frame (DK_XR_HAND_* below). Returns 1 when at
++// least one grip orientation is valid, 0 otherwise (also when the actions could not be set up).
++enum : uint32_t {
++  DK_XR_HAND_L_ORIENT = 0x01,   // left grip orientation valid
++  DK_XR_HAND_L_POS = 0x02,      // left grip position valid
++  DK_XR_HAND_L_TRACKED = 0x04,  // left grip orientation AND position tracked (not inferred)
++  DK_XR_HAND_R_ORIENT = 0x10,
++  DK_XR_HAND_R_POS = 0x20,
++  DK_XR_HAND_R_TRACKED = 0x40,
++  DK_XR_HAND_L_AIM = 0x100,     // left aim pose valid (orientation and position)
++  DK_XR_HAND_R_AIM = 0x200,
++  DK_XR_HAND_SYNCED = 0x80000000u,  // xrSyncActions succeeded this call (session focused)
++};
++extern "C" __declspec(dllexport) int rex_xr_sample_hands(uint32_t* sample_id, float grip_left[7],
++                                                         float grip_right[7], uint32_t* flags);
++// The aim poses (pointing ray: -Z forward) taken in the same rex_xr_sample_hands call. Returns 1
++// when sample_id is that call's id, 0 when it is stale or unknown (outputs then hold identity).
++extern "C" __declspec(dllexport) int rex_xr_hands_aim(uint32_t sample_id, float aim_left[7],
++                                                      float aim_right[7]);
+diff --git a/src/graphics/d3d12/xr_output.cpp b/src/graphics/d3d12/xr_output.cpp
+index 40476af..7b72432 100644
+--- a/src/graphics/d3d12/xr_output.cpp
++++ b/src/graphics/d3d12/xr_output.cpp
+@@ -60,6 +60,12 @@ struct Chain {
+   X(xrWaitSwapchainImage) X(xrReleaseSwapchainImage) X(xrWaitFrame) X(xrBeginFrame)            \
+   X(xrEndFrame) X(xrLocateViews) X(xrLocateSpace)
+ 
++// Patch 10 (draft): the controllers. Loaded apart from the above so that a runtime missing any of
++// them only switches the hands off, never the headset picture.
++#define DK_XR_HAND_FUNCS(X)                                                                    \
++  X(xrStringToPath) X(xrCreateActionSet) X(xrCreateAction) X(xrSuggestInteractionProfileBindings) \
++  X(xrAttachSessionActionSets) X(xrCreateActionSpace) X(xrSyncActions) X(xrGetActionStatePose)
++
+ struct State {
+   bool tried = false, failed = false, exiting = false;
+   std::atomic<bool> running{false};
+@@ -96,6 +102,22 @@ struct State {
+ 
+   uint64_t frames = 0, not_rendered = 0, sample_hits = 0, sample_misses = 0, blit_errors = 0;
+   double wait_ms_sum = 0.0;
++
++  // Patch 10 (draft): the controllers. Set up once in Start, used from the game's frame thread.
++#define DK_XR_DECLARE(f) PFN_##f f = nullptr;
++  DK_XR_HAND_FUNCS(DK_XR_DECLARE)
++#undef DK_XR_DECLARE
++  bool hands_ready = false;
++  std::atomic<bool> focused{false};  // xrSyncActions only takes effect in the FOCUSED state
++  XrActionSet hand_set = XR_NULL_HANDLE;
++  XrAction grip_action = XR_NULL_HANDLE, aim_action = XR_NULL_HANDLE;
++  XrPath hand_path[2] = {XR_NULL_PATH, XR_NULL_PATH};  // /user/hand/left, /user/hand/right
++  XrSpace grip_space[2] = {XR_NULL_HANDLE, XR_NULL_HANDLE};
++  XrSpace aim_space[2] = {XR_NULL_HANDLE, XR_NULL_HANDLE};
++  std::mutex hand_mutex;  // our own sync + locate calls run one at a time
++  uint32_t hand_next_id = 0, aim_id = 0;
++  float aim[2][7] = {{0, 0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0, 0, 1}};
++  uint64_t hand_calls = 0, hand_unsynced = 0, hand_left_ok = 0, hand_right_ok = 0;
+ };
+ 
+ State& S() {
+@@ -161,6 +183,97 @@ bool Fail(XrOutput& o, State& s, const char* what, XrResult r) {
+   return false;
+ }
+ 
++// Patch 10 (draft): one action set with a grip pose and an aim pose for each hand, bound for the
++// common controller profiles, attached to the session, with one action space per hand and pose.
++// Must run after xrCreateSession and before the first xrSyncActions; attach is once per session.
++// Any failure leaves hands_ready false and the headset untouched.
++bool HandsOff(XrOutput& o, const char* what, XrResult r) {
++  o.Log("[XR] hands OFF: %s (XrResult %d)", what, int(r));
++  return false;
++}
++
++bool StartHands(XrOutput& o, State& s) {
++#define DK_XR_LOAD(f)                                                                       \
++  if (XR_FAILED(s.gipa(s.instance, #f, reinterpret_cast<PFN_xrVoidFunction*>(&s.f))))     \
++    return HandsOff(o, "missing " #f, XR_ERROR_FUNCTION_UNSUPPORTED);
++  DK_XR_HAND_FUNCS(DK_XR_LOAD)
++#undef DK_XR_LOAD
++  XrResult r;
++  if (XR_FAILED(r = s.xrStringToPath(s.instance, "/user/hand/left", &s.hand_path[0])) ||
++      XR_FAILED(r = s.xrStringToPath(s.instance, "/user/hand/right", &s.hand_path[1])))
++    return HandsOff(o, "hand paths", r);
++
++  XrActionSetCreateInfo asi = {XR_TYPE_ACTION_SET_CREATE_INFO};
++  std::strcpy(asi.actionSetName, "dk_hands");
++  std::strcpy(asi.localizedActionSetName, "Hands");
++  asi.priority = 0;
++  if (XR_FAILED(r = s.xrCreateActionSet(s.instance, &asi, &s.hand_set)))
++    return HandsOff(o, "xrCreateActionSet", r);
++
++  XrActionCreateInfo aci = {XR_TYPE_ACTION_CREATE_INFO};
++  aci.actionType = XR_ACTION_TYPE_POSE_INPUT;
++  aci.countSubactionPaths = 2;
++  aci.subactionPaths = s.hand_path;
++  std::strcpy(aci.actionName, "grip_pose");
++  std::strcpy(aci.localizedActionName, "Grip pose");
++  if (XR_FAILED(r = s.xrCreateAction(s.hand_set, &aci, &s.grip_action)))
++    return HandsOff(o, "grip action", r);
++  std::strcpy(aci.actionName, "aim_pose");
++  std::strcpy(aci.localizedActionName, "Aim pose");
++  if (XR_FAILED(r = s.xrCreateAction(s.hand_set, &aci, &s.aim_action)))
++    return HandsOff(o, "aim action", r);
++
++  // Every profile below has input/grip/pose and input/aim/pose on both hands. The runtime picks
++  // whichever matches the controllers in use; one it does not know is refused and skipped.
++  static const char* const kProfiles[] = {
++      "/interaction_profiles/khr/simple_controller",
++      "/interaction_profiles/oculus/touch_controller",
++      "/interaction_profiles/valve/index_controller",
++      "/interaction_profiles/htc/vive_controller",
++      "/interaction_profiles/microsoft/motion_controller",
++  };
++  static const char* const kBindings[4] = {
++      "/user/hand/left/input/grip/pose", "/user/hand/right/input/grip/pose",
++      "/user/hand/left/input/aim/pose", "/user/hand/right/input/aim/pose"};
++  XrActionSuggestedBinding sb[4];
++  for (int i = 0; i < 4; ++i) {
++    sb[i].action = i < 2 ? s.grip_action : s.aim_action;
++    if (XR_FAILED(r = s.xrStringToPath(s.instance, kBindings[i], &sb[i].binding)))
++      return HandsOff(o, kBindings[i], r);
++  }
++  int accepted = 0;
++  for (const char* profile : kProfiles) {
++    XrInteractionProfileSuggestedBinding ipb = {XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
++    if (XR_FAILED(s.xrStringToPath(s.instance, profile, &ipb.interactionProfile))) continue;
++    ipb.countSuggestedBindings = 4;
++    ipb.suggestedBindings = sb;
++    if (XR_SUCCEEDED(s.xrSuggestInteractionProfileBindings(s.instance, &ipb))) ++accepted;
++  }
++  if (accepted == 0) return HandsOff(o, "no controller profile accepted", XR_SUCCESS);
++
++  XrSessionActionSetsAttachInfo ati = {XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
++  ati.countActionSets = 1;
++  ati.actionSets = &s.hand_set;
++  if (XR_FAILED(r = s.xrAttachSessionActionSets(s.session, &ati)))
++    return HandsOff(o, "xrAttachSessionActionSets", r);
++
++  for (int h = 0; h < 2; ++h) {
++    XrActionSpaceCreateInfo sci = {XR_TYPE_ACTION_SPACE_CREATE_INFO};
++    sci.poseInActionSpace.orientation.w = 1.0f;
++    sci.subactionPath = s.hand_path[h];
++    sci.action = s.grip_action;
++    if (XR_FAILED(r = s.xrCreateActionSpace(s.session, &sci, &s.grip_space[h])))
++      return HandsOff(o, "grip space", r);
++    sci.action = s.aim_action;
++    if (XR_FAILED(r = s.xrCreateActionSpace(s.session, &sci, &s.aim_space[h])))
++      return HandsOff(o, "aim space", r);
++  }
++  s.hands_ready = true;
++  o.Log("[XR] hands ready: %d of %d controller profiles accepted", accepted,
++        int(sizeof(kProfiles) / sizeof(kProfiles[0])));
++  return true;
++}
++
+ bool Start(XrOutput& o, State& s, ID3D12Device* device, ID3D12CommandQueue* queue) {
+   if (const char* e = std::getenv("DK_XR_LOOKAHEAD")) s.lookahead = std::atoi(e);
+   HMODULE exe = GetModuleHandleW(nullptr);
+@@ -226,6 +339,7 @@ bool Start(XrOutput& o, State& s, ID3D12Device* device, ID3D12CommandQueue* queu
+   rsi.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+   if (XR_FAILED(r = s.xrCreateReferenceSpace(s.session, &rsi, &s.view)))
+     return Fail(o, s, "view space", r);
++  StartHands(o, s);  // patch 10 (draft): a failure here switches only the hands off
+ 
+   uint32_t count = 0;
+   s.xrEnumerateSwapchainFormats(s.session, 0, &count, nullptr);
+@@ -251,6 +365,7 @@ void PollEvents(XrOutput& o, State& s) {
+     if (ev.type == XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED) {
+       const auto& sc = *reinterpret_cast<XrEventDataSessionStateChanged*>(&ev);
+       o.Log("[XR] session state %d", int(sc.state));
++      s.focused = (sc.state == XR_SESSION_STATE_FOCUSED);  // patch 10: when actions take input
+       if (sc.state == XR_SESSION_STATE_READY) {
+         XrSessionBeginInfo bi = {XR_TYPE_SESSION_BEGIN_INFO};
+         bi.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+@@ -515,3 +630,114 @@ extern "C" __declspec(dllexport) int rex_xr_headset_tangents(float t[4]) {
+   std::memcpy(t, s.head_tan, sizeof(s.head_tan));
+   return 1;
+ }
++
++// Patch 10 (draft): the controllers. See xr_output.h for the layout and the flags.
++namespace {
++
++void IdentityPose(float p[7]) {
++  p[0] = p[1] = p[2] = 0.0f;
++  p[3] = p[4] = p[5] = 0.0f;
++  p[6] = 1.0f;
++}
++
++// Locates one action space in the local space at time t. Writes the pose and returns the
++// location flags (0 when the locate failed or the action is not bound to a live controller).
++XrSpaceLocationFlags LocateHand(rex::graphics::d3d12::State& s, XrAction action, XrPath hand,
++                                XrSpace space, XrTime t, float out[7]) {
++  IdentityPose(out);
++  XrActionStateGetInfo gi = {XR_TYPE_ACTION_STATE_GET_INFO};
++  gi.action = action;
++  gi.subactionPath = hand;
++  XrActionStatePose st = {XR_TYPE_ACTION_STATE_POSE};
++  if (XR_FAILED(s.xrGetActionStatePose(s.session, &gi, &st)) || !st.isActive) return 0;
++  XrSpaceLocation loc = {XR_TYPE_SPACE_LOCATION};
++  if (XR_FAILED(s.xrLocateSpace(space, s.local, t, &loc))) return 0;
++  if (loc.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) {
++    out[0] = loc.pose.position.x;
++    out[1] = loc.pose.position.y;
++    out[2] = loc.pose.position.z;
++  }
++  if (loc.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) {
++    out[3] = loc.pose.orientation.x;
++    out[4] = loc.pose.orientation.y;
++    out[5] = loc.pose.orientation.z;
++    out[6] = loc.pose.orientation.w;
++  }
++  return loc.locationFlags;
++}
++
++}  // namespace
++
++extern "C" __declspec(dllexport) int rex_xr_sample_hands(uint32_t* sample_id, float grip_left[7],
++                                                         float grip_right[7], uint32_t* flags) {
++  auto& s = rex::graphics::d3d12::S();
++  IdentityPose(grip_left);
++  IdentityPose(grip_right);
++  *sample_id = 0;
++  *flags = 0;
++  if (!s.running || !s.hands_ready || s.predicted == 0) return 0;
++  XrTime t;  // the same moment rex_xr_sample_head predicts for
++  {
++    std::lock_guard<std::mutex> lock(s.mutex);
++    t = s.predicted + XrTime(s.lookahead) * s.period;
++  }
++  std::lock_guard<std::mutex> hand_lock(s.hand_mutex);
++  ++s.hand_calls;
++  // Once per call (the game calls this once per frame). Outside FOCUSED the runtime answers
++  // XR_SESSION_NOT_FOCUSED and the poses go inactive, which the flags then show.
++  uint32_t f = 0;
++  if (s.focused) {
++    XrActiveActionSet active = {s.hand_set, XR_NULL_PATH};
++    XrActionsSyncInfo si = {XR_TYPE_ACTIONS_SYNC_INFO};
++    si.countActiveActionSets = 1;
++    si.activeActionSets = &active;
++    if (s.xrSyncActions(s.session, &si) == XR_SUCCESS) f |= DK_XR_HAND_SYNCED;
++  }
++  if (!(f & DK_XR_HAND_SYNCED)) ++s.hand_unsynced;
++
++  const XrSpaceLocationFlags kTracked =
++      XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT | XR_SPACE_LOCATION_POSITION_TRACKED_BIT;
++  float* grip[2] = {grip_left, grip_right};
++  float aim[2][7];
++  for (int h = 0; h < 2; ++h) {
++    const uint32_t shift = h ? 4u : 0u;
++    const XrSpaceLocationFlags g =
++        LocateHand(s, s.grip_action, s.hand_path[h], s.grip_space[h], t, grip[h]);
++    if (g & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) f |= DK_XR_HAND_L_ORIENT << shift;
++    if (g & XR_SPACE_LOCATION_POSITION_VALID_BIT) f |= DK_XR_HAND_L_POS << shift;
++    if ((g & kTracked) == kTracked) f |= DK_XR_HAND_L_TRACKED << shift;
++    const XrSpaceLocationFlags a =
++        LocateHand(s, s.aim_action, s.hand_path[h], s.aim_space[h], t, aim[h]);
++    const XrSpaceLocationFlags kValid =
++        XR_SPACE_LOCATION_ORIENTATION_VALID_BIT | XR_SPACE_LOCATION_POSITION_VALID_BIT;
++    if ((a & kValid) == kValid) f |= h ? DK_XR_HAND_R_AIM : DK_XR_HAND_L_AIM;
++  }
++  if (f & DK_XR_HAND_L_ORIENT) ++s.hand_left_ok;
++  if (f & DK_XR_HAND_R_ORIENT) ++s.hand_right_ok;
++
++  uint32_t id = ++s.hand_next_id;
++  if (id == 0) id = ++s.hand_next_id;  // 0 means "no sample"
++  s.aim_id = id;
++  std::memcpy(s.aim, aim, sizeof(aim));
++  *sample_id = id;
++  *flags = f;
++  if (s.hand_calls == 1 || (s.hand_calls % 300) == 0) {
++    rex::graphics::d3d12::XrOutput::Get().Log(
++        "[XR] hands calls=%llu unsynced=%llu left_ok=%llu right_ok=%llu flags=0x%08X",
++        (unsigned long long)s.hand_calls, (unsigned long long)s.hand_unsynced,
++        (unsigned long long)s.hand_left_ok, (unsigned long long)s.hand_right_ok, f);
++  }
++  return (f & (DK_XR_HAND_L_ORIENT | DK_XR_HAND_R_ORIENT)) ? 1 : 0;
++}
++
++extern "C" __declspec(dllexport) int rex_xr_hands_aim(uint32_t sample_id, float aim_left[7],
++                                                      float aim_right[7]) {
++  auto& s = rex::graphics::d3d12::S();
++  IdentityPose(aim_left);
++  IdentityPose(aim_right);
++  std::lock_guard<std::mutex> hand_lock(s.hand_mutex);
++  if (sample_id == 0 || sample_id != s.aim_id) return 0;
++  std::memcpy(aim_left, s.aim[0], sizeof(s.aim[0]));
++  std::memcpy(aim_right, s.aim[1], sizeof(s.aim[1]));
++  return 1;
++}

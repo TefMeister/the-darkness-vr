@@ -69,3 +69,38 @@ no bone index, no palette writing. What is still missing is the point itself (th
 - ⚠️ The repo's `port-project/src` still lacks `vr_bridge.cpp/.h` and its `main.cpp`/`darknessrecomp_app.h` are the
   pre-bridge ones; the build folder on this PC (`D:/the-darkness-build/src/DarknessRecomp/src`) is the one that builds.
   A `/pd` tidy row.
+
+## Later the same evening (Opus): the motion controllers drive the hands (simulator)
+Tefa: *"install the plugin update, then the controller sampling and other stuff you gotta do."*
+- **SDK patch 10** (`dev-archive/sdk-patches/10-xr-hands.patch`, the reader's draft, applied as written to
+  `D:/the-darkness-build/rexglue-sdk`): one OpenXR action set with a grip pose and an aim pose per hand, bound for the
+  simple/Touch/Index/Vive/WMR profiles, and `rex_xr_sample_hands`, which syncs the actions and locates both grips in the
+  same space and at the same predicted moment as the head sample. Built: `rexgpu-xenos.dll` exports it
+  `[compile-verified 2026-10-28]`. On the simulator both controllers report tracked (flags `0x80000377`: synced, both
+  grips orientation + position + tracked, both aims) `[verified-live 2026-10-28, n=1 run]`.
+- **Game side:** `vr_xr_head.cpp` takes the controllers right after every head sample (`dkxr::LastHands`);
+  `vr_hand_ik.cpp` `ik.src=1` turns each controller's grip position, relative to the head, into the head's own axes,
+  lays it along the head-turned camera rows from the camera position, times 39.37 units per metre, and writes it into
+  that hand's IK target. Also: `ik.vtable` (feed only one ClientData class), `ik.snap` (skip the blend, untried), the
+  counters behind a mutex, and `ik.last` showing the raw head/controller/camera numbers.
+- **Results** (builds b005/b006, exe fc0c426df3ac + rexgpu-xenos.dll 1d46e77a64d8, installed in `build-home-xr`, previous
+  pair in `_backup-2026-10-28-before-controllers/`) `[verified-live 2026-10-28, simulator, n=1 per pose]`:
+  - a controller 20 cm right, 15 cm below the eyes, 61 cm ahead lands on the same world point as the fixed test point
+    of the first pass, to 0.1 unit, and the picture is the same: the right hand reaching there;
+  - moving the RIGHT controller 15 cm left / up / down / 20 cm nearer moves the right hand the same way on screen
+    (down takes it out of view); each move changes the point by the right distance (15 cm ~ 5.9 units);
+  - the LEFT controller drives the left arm (chain B), which comes in from the left and follows up and across;
+  - so `ik.right_chain = 0` is right: chain A (bones 18-19-21) is the RIGHT hand, chain B the LEFT.
+- **A trap, in the simulator, not the game:** its `controller_pose_command.json` measures posY from head height (posY
+  1.55 came back as 3.25 with the head at 1.70), which first put both hands 1.5 m above the eyes. Written into the
+  game's `KNOWN.md` (control profiles repo) with a tool idea for the simulator's MCP server.
+- The player check: the six IK objects' ClientData vtables were 0x82061FE0 (four) and 0x82064FD0 (two) in this run;
+  the reader's guess of 0x82062190 for the player was not seen. Which 0x82061FE0 object is the player still needs
+  `ik.only` (feeding all of them works for now).
+
+## Not established (controllers)
+- Nothing on the real Quest controllers or in the headset. The hand keeps the animation's ROTATION (only its position
+  follows); the reader is working out how to feed the controller's rotation.
+- The left arm came in very close to the camera (a big sleeve across the view): the arm's shoulder sits where the game
+  puts it, not where a real shoulder would be; how that feels needs the headset.
+- `ik.snap` untried; the 0.25 s blend is still in.
