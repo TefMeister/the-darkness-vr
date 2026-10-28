@@ -1340,6 +1340,24 @@ Tefa's ask: hands (and later arms, body) that follow the motion controllers. Fir
   matrices land will be visible, and the writer can be found from the dirty bits it set. The IK side: `sub_821B22E0`
   is called only from `sub_821A3228`; the flags word `this+1856` is the thread to pull for the solver.
   The unpacked program for this PC is at `D:/the-darkness-build/unpacked/default.bin` (game content, off git).
+- ⭐⭐ **FOUND LIVE (2026-10-28 evening, simulator, Tefa's post-crash checkpoint): the bone palette is at c96, three
+  constants per bone, a 4x3 each (rows = the three rotation rows with the translation in .w).** `vr_skin_probe.cpp`
+  (`DK_SKIN_PROBE=1`, hooks the pre-draw commit `sub_82249488` BEFORE the original, reads the shadow at
+  `*(RC+15748) + 1920 + 16*i`) dumped c8..c135 at twelve commits in the level: in every one the orthonormal 3-constant
+  groups start at **c96** and run on in steps of three (96, 99, 102, 105, 108, ... to the window's end at c135, so the
+  table is at least 13 bones long and most likely runs to c255 = 53 bones); the values change between dumps the way
+  animated bones do (one bone's first row swung from (0.75, −0.63, 0.21) to (0.42, −0.90, 0.07) across the dumps)
+  `[verified-live 2026-10-28, n=12 dumps, one run]`. Before the level, c8..c10 hold only the `$BASE+8/+9` constants
+  (0, 1, 0.5, 510 and 2, 0, 0, 0): a dump trigger of "anything non-zero" fires in the menus, "16 or more non-zero
+  constants" does not. ⚠️ The 64-bit word at the shadow's +0 is NOT a per-constant dirty mask: it reads all-zeros or
+  all-ones only `[measured 2026-10-28, 1.5 M commits]`, so "find the writer by its dirty bits" is dead; the writer is
+  still unknown and, for the hands, no longer needed.
+  **The lever for milestone 3 (hand follows controller):** in the same hook, before the original commit, overwrite bone
+  b's three constants (c96+3b .. c96+3b+2) with the controller's pose expressed in the arms' model space. **Which b is
+  the hand:** not known; find it live by perturbing one bone per run (`DK_SKIN_BONE=<b>`, e.g. zero its rotation rows)
+  and looking at the picture through the bridge, no headset needed. Which draws are the arms: also not yet told apart
+  (every dump with a table was in the level; a per-draw program key from `sub_82248C80` would do it).
+  Analysis script: `staging/the-darkness-vr/xr-sim-2026-10-28/skin_dump_analyse.py`.
 
 ## 7. Not yet looked at
 
