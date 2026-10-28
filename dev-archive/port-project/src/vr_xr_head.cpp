@@ -11,6 +11,8 @@
 //
 // Settings (environment): DK_XR_HEAD=1 on. DK_XR_HEAD_MIRROR=1 if the view turns the wrong way (the
 // camera's "right" row may point to screen-left, as the eye-shift comment suggests; unproven).
+// 2026-10-28: the first headset run's curved head turn was the hook handing TurnCamera the rows in
+// the wrong order (the buffer is right, up, forward, not forward, right, up); fixed in the hook.
 // DK_XR_TAN_X / DK_XR_TAN_Y: the player view's half-width tangents (default from the authored
 // projection, dossier: P00 = 1.07111 at 16:9). DK_XR_FOV=0 stops the export.
 // Head POSITION is not applied: the world unit is not measured yet (board row).
