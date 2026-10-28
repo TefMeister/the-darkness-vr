@@ -1298,6 +1298,35 @@ floats `[verified-live 2026-10-28, simulator, n=1 run per head pose, three runs]
   runs' first pictures were rolled 90° with the head straight, and the first build's rows say the camera's down vector was
   horizontal `[inferred 2026-10-28]`); a `DK_XR_HEAD=0` control would settle it.
 
+## 6e. Motion-controlled hands: what the program and the shader template say (2026-10-28, static, first look)
+
+Tefa's ask: hands (and later arms, body) that follow the motion controllers. First static pass, all `[inferred-static
+2026-10-28]` unless marked; nothing run.
+
+- **The game has hand IK of its own, with a switch.** The strings `DISABLE_HAND_IK`, `DISABLE_CHAR_PLAYER_IK` and
+  `DISABLE_CHAR_DARKLING_IK` (0x82064F1C / 0x82064EE8 / 0x82064F00) are read by exactly one function, **`sub_821B22E0`**
+  (xref n=1 each). It is a big initialiser (fills a run of 4x4 identity-shaped matrices at `this+32..`, then looks the
+  keys up through the registry reader `sub_8275CE18`, the same one the camera build uses) and packs the answers as bits
+  into a flags word at **`this+1856`** (player IK into the top bit, hand IK into bit 2 from the top, `rlwimi`), then calls
+  `sub_821B3258`. Whatever reads `this+1856` is the IK code; the solver and its target (where the hand is told to go)
+  are not found yet. A working game IK that already aims a hand at a target is the cheapest lever there is for "hand
+  follows controller": give it the controller pose as the target.
+- **Skeleton classes:** `CXR_Skeleton`, `CXR_SkeletonInstance` (RTTI name at 0x82062E4C, referenced by seven functions:
+  `sub_8212B238 sub_82143BD8 sub_821CED18 sub_821D4BC8 sub_822EF998 sub_8268FF08 sub_826D4BA8`), `CXR_Anim_Base /
+  _Sequence / _SequenceTracks / _Keyframe`, `ANIMGRAPH2` (`AnimGraphs/AG2DarklingPlayer`), `LAYER_BONEBIND`,
+  `SKELETONSCALE`. Models attach things to bones through **`ATTACHPOINTS`** (read by `sub_82422978`, with `NODES`,
+  `NODEINDICES`, `CLOTH`): the weapon-in-hand attachment lives there.
+- **How bones reach the vertex shader** (`System/Gl/VP.xrg`, read directly `[verified-live 2026-10-28, from the file]`):
+  a **matrix palette** at dynamic constant base `$MP`, **three constants per bone** (rows of a 4x3 model-to-animated-model
+  transform, `c[A0.x+$MP+0..2]`, up to four weights per vertex, `MWComp1..4`), or a **quaternion form** (`MPQuat`, one
+  constant per bone, unpacked to a matrix in the shader). The bone index comes from the vertex (`@V_MI`) times
+  `c[$BASE+8].w = 2*255.0001`. The numeric `$MP` base is not in the template (the Xenon shaders are precompiled in
+  `ProgramCache.xpc`; the 2026-09-16 decode can read it off a skinned shader). `sub_82248A78` writes only c0-c7; the
+  palette writer (variable index, a loop) is a different function, not found yet.
+- **So two levers exist, cheapest first:** (a) the game's own hand IK target; (b) the skeleton instance's bone transforms
+  just before the palette is built. Either needs the controllers: SDK patch 09 samples only the head
+  (`rex_xr_sample_head`); a `rex_xr_sample_hands` is SDK work shared with Condemned 2.
+
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version

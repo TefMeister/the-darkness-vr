@@ -80,3 +80,13 @@ headset needs, and the stereo pair is the right way round. Not yet seen in the r
   gets each picture with the pose of the moment it is SENT, not the pose it was DRAWN with. That is Condemned 2's
   `vr_head_pose.cpp` pair ring, not ported yet; the port is the next step for the lag.
 - Nothing here has been seen in the real headset.
+
+## Later the same session: motion-controlled hands, first static look (Tefa's "go")
+Tefa: *"actual body and IK and hands moving with motion controls, we have never done that."* Plan on the board (five
+steps, cheapest first); step 1 (find the skeleton) started, findings in dossier §6e. Short form: the game already has a
+hand IK with a switch (`DISABLE_HAND_IK` → flags word `this+1856` in `sub_821B22E0`), the skeleton classes are named,
+weapons attach through `ATTACHPOINTS`, and the vertex shader skins from a matrix palette of three constants per bone
+(`System/Gl/VP.xrg`). Not found yet: the IK solver, the palette writer, the `$MP` base. All `[inferred-static 2026-10-28]`.
+⚠️ The RE tools in `dev-archive/tools/` still point at the dev PC's `E:` folder (`idx.GEN`); on this PC set
+`idx.GEN = r"D:\the-darkness-build\src\DarknessRecomp\generated\default"` before use (done by hand today; worth a
+settings line).
