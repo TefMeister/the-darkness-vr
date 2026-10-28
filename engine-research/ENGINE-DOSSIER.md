@@ -1401,8 +1401,17 @@ Tefa's ask: hands (and later arms, body) that follow the motion controllers. Fir
     LEFT** `[verified-live 2026-10-28, n=1]`. The hand keeps the animation's rotation (position only). ClientData vtables
     seen: 0x82061FE0 ×4, 0x82064FD0 ×2 (0x82062190 not seen). ⚠️ The simulator's controller command measures posY from
     head height (control profiles `routes/the-darkness/KNOWN.md`). Note: `modding-notes/2026-10-28-the-hand-goes-where-we-point.md`.
-  - **Next:** the controller's ROTATION into the hand (reader asked); `ik.only`/`ik.vtable` to feed only the player;
-    `ik.snap`; then the real controllers in the headset.
+  - ⭐⭐ **SIXTH PASS, LIVE (same evening, simulator): THE HANDS TURN WITH THE CONTROLLERS.** The target is built on
+    `sub_821BF988`'s stack (rows from the animated hand bone at `*(SI+36)+1344` (bone 21) / `+1024` (bone 16), position
+    from IK+1864/1892) and passed to the solver `sub_821EE4E0(r3 = IK+32, ..., r6 = &target)`, whose rows become the hand
+    bone's world rotation (it stores target × inverse(parent) as the hand's local matrix) `[inferred-static 2026-10-28,
+    reader]`. Matrices are row-major, rows = axes, row 3 = position (`sub_82114670`). A hook on the solver's entry rewrites
+    the rows as O × (controller axes in the world), O calibrated once per hand as H × Cᵀ: the hand then turns with the
+    controller (yaw and pitch, both ways) and comes back `[verified-live 2026-10-28, simulator, n=1 per pose]`.
+    det[camera right, up, forward] = −1: the game's camera axes are a mirror-image set relative to OpenXR's
+    `[measured 2026-10-28, n=4]`. `DK_HANDS=1` / `DK_HANDS_ROT=1` switch it all on at launch; `dk_vr_headset_hands.ps1`.
+  - **Next:** the real controllers in the headset (calibrate with `ik.calib=1` while Tefa holds them like the game's
+    hands); `ik.only`/`ik.vtable` to feed only the player; `ik.snap`; which way round each turn goes, by eye.
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version
