@@ -59,7 +59,7 @@ std::mutex g_mu;
 int32_t g_on = 0;                 // ik.on
 int32_t g_src = 0;                // ik.src: 0 test point, 1 controllers
 int32_t g_hand = 0;               // ik.hand (src 0): 0 = A, 1 = B, 2 = both
-int32_t g_right_chain = 0;        // ik.right_chain (src 1): the chain the RIGHT controller drives
+int32_t g_right_chain = 1;        // ik.right_chain (src 1): the chain the RIGHT controller drives (1 since 2026-10-29: 0 crossed the hands in the headset)
 float g_fwd = 24.f, g_right = 8.f, g_up = -6.f;   // ik.fwd / ik.right / ik.up (src 0)
 float g_scale = kUnitsPerMetre;   // ik.scale (src 1): world units per metre
 float g_time = 0.25f, g_const = 0.75f;            // what sub_821BF880 stores at +1876.. / +1884

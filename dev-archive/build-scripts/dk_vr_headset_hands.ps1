@@ -7,7 +7,10 @@ $env:DK_SBS = "1"
 $env:DK_SBS_HOLD = "1"
 $env:DK_STEREO_PERIOD = "1"
 $env:DK_CAM_EYE = "1.25"
-$env:DK_FREEZE = "1"
+# 2026-10-29: the freeze off for the speed test (Tefa: "Jackie still moves at super speeds"); dk_vr_headset_hands_freeze.ps1 keeps it on
+$env:DK_FREEZE = "0"
+# 2026-10-29: the screen effects off (Tefa: "motion blur is so blurry")
+$env:DK_VR_SCREEN_FX_OFF = "1"
 $env:DK_EYE_BY_PACKET = "1"
 $env:DK_XR = "1"
 $env:DK_XR_HEAD = "1"
