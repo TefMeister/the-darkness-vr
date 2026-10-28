@@ -17,4 +17,10 @@ constexpr uint32_t kNoPair = 0xFFFFFFFFu;
 // sample the pair was drawn with (2026-10-28). Without one: sampled on first_eye, as before.
 void TurnCamera(float fwd[3], float right[3], float up[3], bool first_eye, uint32_t pair);
 
+// The newest view buffer, copied at every camera build (2026-10-28, for the hand hooks): the 16 floats
+// of sub_823F9B00's output, +0 right, +16 screen-down, +32 forward, +48 position (dossier 6d).
+void NoteView(uint8_t* base, uint32_t out);
+// Copies the newest view buffer into rows[16]; false until the first camera build.
+bool LastView(float rows[16]);
+
 }  // namespace dkxr

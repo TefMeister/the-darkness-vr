@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
+#include <cstring>
 
 #include <windows.h>
 
@@ -169,3 +170,27 @@ extern "C" __declspec(dllexport) int dk_xr_eye_fov(float t[4]) {
   t[0] = s.tan_x; t[1] = s.tan_x; t[2] = s.tan_y; t[3] = s.tan_y;
   return 1;
 }
+
+// ---- the newest view buffer, for the hand hooks (2026-10-28) --------------------------------------------
+namespace {
+float g_view[16];
+std::atomic<bool> g_view_have{false};
+}  // namespace
+
+namespace dkxr {
+
+void NoteView(uint8_t* base, uint32_t out) {
+  for (uint32_t i = 0; i < 16u; ++i) {
+    const uint32_t bits = REX_LOAD_U32(out + 4u * i);
+    std::memcpy(&g_view[i], &bits, sizeof(float));
+  }
+  g_view_have.store(true, std::memory_order_release);
+}
+
+bool LastView(float rows[16]) {
+  if (!g_view_have.load(std::memory_order_acquire)) return false;
+  for (int i = 0; i < 16; ++i) rows[i] = g_view[i];
+  return true;
+}
+
+}  // namespace dkxr

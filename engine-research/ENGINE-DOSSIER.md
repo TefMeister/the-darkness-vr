@@ -1358,8 +1358,54 @@ Tefa's ask: hands (and later arms, body) that follow the motion controllers. Fir
   and looking at the picture through the bridge, no headset needed. Which draws are the arms: also not yet told apart
   (every dump with a table was in the level; a per-draw program key from `sub_82248C80` would do it).
   Analysis script: `staging/the-darkness-vr/xr-sim-2026-10-28/skin_dump_analyse.py`.
+- ⭐⭐⭐ **FOURTH PASS, LIVE (2026-10-28 evening, simulator): THE GAME'S OWN HAND IK TAKES A POINT OF OURS, AND THE
+  FIRST-PERSON HAND REACHES FOR IT.** Note: `modding-notes/2026-10-28-the-hand-goes-where-we-point.md`. The reader's
+  static passes (verbatim: `dev-archive/recon/2026-10-28-hand-ik-sim/2026-10-28-reader-hand-ik-solver*.md`) found:
+  - **Correction to the switch bits above:** in the flags word at `IK+0` the top bit `0x80000000` is the DARKLING IK,
+    `0x40000000` the PLAYER IK, `0x20000000` the HAND IK `[inferred-static 2026-10-28, reader]`. The IK object is
+    `ClientData+4384` (`ClientData = *(CWObject+396)`; `sub_821B22E0` builds it from the `CWO_Character_ClientData`
+    constructor `sub_821A3228`); the earlier "r7 of `sub_821CED18`" reading was wrong.
+  - **The solver:** `sub_821EE4E0(solver block IK+32, skeleton, skel instance, target 4x4*, ..., sway vec3*)`, one generic
+    two-bone routine; the byte at `IK+40` picks the chain: 0 = bones 18-19-21 (+23, the grip) = hand chain A, 1 = bones
+    13-14-16 (+22) = hand chain B, 4-7 legs, 8/9 the arms for the character IK `[inferred-static 2026-10-28]`.
+  - **The explicit-target path:** `sub_821BF988(ik, skeleton, skel instance, world, character)`: when `IK+0` has
+    `0x00100000` (A) / `0x00200000` (B) it solves the arm so the grip bone lands on the vec3 at `IK+1864` / `IK+1892`
+    (floats `+1876/+1880` = a blend time, `+1884` = 0.75; B: `+1904/+1908`, `+1912`), rotation from the animated bone 21/16
+    at `SI+36`; it returns 1 and the normal animation-driven hand IK (`sub_821B8300`) is skipped. The game sets the
+    points with `sub_821BF880(ik, pointA, ?, pointB)` (flags `|= 0x100000|0x400000`, and `0x200000|0x800000`), from a
+    game object that answers message `0x34F4` with two world points. The blend (`sub_821BC360`) runs at 5 x frame time
+    with per-hand state bytes at `IK+1448/1450` (0 off, 1 in, 2 out, 3 held) and weights at `+1452/+1456`.
+  - **The palette writer, found at last:** `sub_8224AB18`, called from `sub_82248C80` in the pre-draw commit; reads a
+    per-draw descriptor `*(attr+640)` (+0 = array of 64-byte 4x4 bone matrices, +4 = u16 remap or null, +8 = bone count,
+    capped at 52), writes c96..c251 (the byte at `RC+26` = 96, shadow offset +3456 = 1920 + 16*96) as three constants per
+    bone, each a COLUMN of the 4x4 (so the translation lands in .w), verbatim, no multiply: the palette is in the source
+    matrices' space, bone-to-world by the live numbers. **It re-uploads only when the descriptor pointer differs from the
+    one cached at `RC+17192`** `[inferred-static 2026-10-28]`, which is the likely reason the shadow nudge below worked
+    for three minutes and then not at all `[hypothesis]`.
+  - **Live, build b004 (`vr_hand_ik.cpp`, hook on `sub_821BF988`'s entry, bridge vars `ik.*`):** writing a camera-relative
+    point into `IK+1864` with the flags set makes the first-person hand swing into view and reach for that point, and it
+    follows the point wherever it is put (four places tried); off, it blends back. Only one of the six IK objects seen
+    moves the player's hand (0xD9CD95B0 in that run; the durable test is the ClientData vtable at `*(u32*)(ik-4384)`:
+    `0x82062190` most likely the playable player, `0x82064FD0`/`0x82065040` NPCs, per the reader, not checked live)
+    `[verified-live 2026-10-28, simulator, n=1 per point/object]`. **Milestone 3 of the plan, by the game's own IK: no
+    bone index needed.** Hand B is the other hand (mostly out of view in the car pose). Left/right not yet told apart.
+  - **The shadow nudge (build b003, `skin.bone` through the bridge):** worked once (bone 48 moved the sleeve-and-hand
+    most; bones 1-14, 30-36, 43-52 all did something) and then stopped for every bone; slots above the drawn object's
+    bone count hold stale values (my own accumulated shifts). Parked; the IK route replaces it.
+  - **Next:** the controllers (step 2, `rex_xr_sample_hands` in the SDK; a draft patch asked of the reader), then the
+    controller's grip point into `IK+1864/1892` instead of the camera-relative test point; the vtable check for the
+    player's IK object; lock the hook's counters (it runs on several threads at once).
 
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version
 offers anything easier. None of it is blocked by anything except §4.
+
+**Public PC ports to read beside ours (from `/gr` 2026-10-26, folded 2026-10-28; read online only, nothing copied)**
+`[reported 2026-10-26]`: **portingpete/The-Darkness-Recomp** (GPL-3.0, v0.1.7) draws through the engine's own D3D11
+backend instead of interpreting the console GPU packets, uses one display size for both the projection and the CPU
+visibility checks, and has F5 dev tools (mission select, all Darkness abilities, noclip); **invinceble55-wq/Estacado**
+(MIT, ReXGlue + XenonRecomp, v0.9.8) jitters the scene at the title's final composite with depth and camera motion kept
+and the HUD separated, and documents the guest threading and the runtime wait graph. Estacado's projection-jitter point
+is an independent second location to compare with our set-view hook `[hypothesis]`. Topic file:
+`external-research/topics/2026-10-26-two-public-pc-ports-of-the-darkness.md`.

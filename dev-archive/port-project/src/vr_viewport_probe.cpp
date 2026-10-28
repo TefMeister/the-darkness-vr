@@ -795,6 +795,8 @@ REX_HOOK_RAW(sub_823F9B00) {
     }
   }
 
+  dkxr::NoteView(base, out);  // the hand hooks read the newest camera from here (2026-10-28)
+
   const StereoSettings& stereo = Stereo();
   if (stereo.cam_eye == 0.0f) {
     return;
