@@ -176,8 +176,12 @@ inline void StoreGuestFloat(uint8_t* base, uint32_t guest_address, float value) 
 //
 // Shifting the camera instead means every CPU decision, and world-space lighting with
 // it, sees the true eye. sub_823F9B00(client, out) builds the client view into the
-// buffer in r4: rows at +0 forward, +16 right, +32 up, +48 position. Moving the
+// buffer in r4: rows at +0 RIGHT, +16 UP, +32 FORWARD, +48 position. Moving the
 // position along the camera's own right axis is the eye offset.
+// (2026-10-28, OpenXR simulator, measured by eye: the rows were named forward/right/up
+// from 2026-09-18 to 2026-10-25; a head yaw then rolled the picture, a nod turned it and
+// a tilt nodded it, and the eye shift went UP, not sideways. kRowRight/kRowUp/kRowFwd
+// below are the corrected layout.)
 // Step 5 (2026-09-18): hold the world still for the second eye.
 //
 // The two eyes of a pair must show the SAME instant, or the pair is not a pair - and
@@ -739,44 +743,69 @@ REX_HOOK_RAW(sub_823F9B00) {
   // whether builds happen inside the packet window.
   const float sign = EyeSignForThisThread(base, true);
 
-  // DK_XR_HEAD=1 (vr_xr_head.cpp, 2026-10-25): the head turns the rows first (+0 forward, +16 right,
-  // +32 up), so the eye shift below follows the turned right row.
-  if (out != 0u && dkxr::HeadOn()) {
-    float rows[3][3];
-    for (uint32_t r = 0; r < 3u; ++r)
-      for (uint32_t i = 0; i < 3u; ++i) rows[r][i] = LoadGuestFloat(base, out + 16u * r + 4u * i);
-    dkxr::TurnCamera(rows[0], rows[1], rows[2], sign > 0.0f);
-    for (uint32_t r = 0; r < 3u; ++r)
-      for (uint32_t i = 0; i < 3u; ++i) StoreGuestFloat(base, out + 16u * r + 4u * i, rows[r][i]);
-  }
-
-  const StereoSettings& stereo = Stereo();
-  if (stereo.cam_eye == 0.0f || out == 0u) {
-    return;
-  }
-
-  // rows: +0 forward, +16 right, +32 up, +48 position; xyz of each in the first 3 floats
-  constexpr uint32_t kRight = 16u;
+  // The view buffer's rows, 16 bytes each, xyz in the first 3 floats. Measured 2026-10-28 on the
+  // OpenXR simulator (see the StereoSettings comment): +0 right, +16 screen-DOWN (minus up),
+  // +32 forward, +48 position.
+  constexpr uint32_t kRowRight = 0u;
+  constexpr uint32_t kRowUp = 16u;
+  constexpr uint32_t kRowFwd = 32u;
   constexpr uint32_t kPos = 48u;
-  float right[3], pos[3];
-  for (int i = 0; i < 3; ++i) {
-    right[i] = LoadGuestFloat(base, out + kRight + static_cast<uint32_t>(i) * 4u);
-    pos[i] = LoadGuestFloat(base, out + kPos + static_cast<uint32_t>(i) * 4u);
-  }
+  if (out == 0u) return;
 
-  for (int i = 0; i < 3; ++i) {
-    StoreGuestFloat(base, out + kPos + static_cast<uint32_t>(i) * 4u,
-                    pos[i] + sign * stereo.cam_eye * right[i]);
-  }
-
-  // Once, so the row layout can be checked against reality rather than assumed: a unit
-  // right vector and a plausible world position mean the guess is right.
+  // Once, all four rows, so the layout can be checked against reality rather than assumed.
+  // (The 2026-09-18 one-shot printed one unit row and called the layout confirmed; a unit
+  // vector proves nothing about which row it is.)
   static bool logged = false;
   if (!logged) {
     logged = true;
-    const float len = std::sqrt(right[0]*right[0] + right[1]*right[1] + right[2]*right[2]);
-    REXGPU_INFO("[VP] camera view: right=({:.4f} {:.4f} {:.4f}) |right|={:.4f} pos=({:.2f} {:.2f} {:.2f})",
-                right[0], right[1], right[2], len, pos[0], pos[1], pos[2]);
+    float m[4][3];
+    for (uint32_t r = 0; r < 4u; ++r)
+      for (uint32_t i = 0; i < 3u; ++i) m[r][i] = LoadGuestFloat(base, out + 16u * r + 4u * i);
+    REXGPU_INFO("[VP] camera view rows: +0 right=({:.4f} {:.4f} {:.4f}) +16 up=({:.4f} {:.4f} {:.4f}) "
+                "+32 fwd=({:.4f} {:.4f} {:.4f}) +48 pos=({:.2f} {:.2f} {:.2f})",
+                m[0][0], m[0][1], m[0][2], m[1][0], m[1][1], m[1][2], m[2][0], m[2][1], m[2][2],
+                m[3][0], m[3][1], m[3][2]);
+  }
+
+  // DK_XR_HEAD=1 (vr_xr_head.cpp, 2026-10-25): the head turns the rows first, so the eye shift
+  // below follows the turned right row.
+  // The +16 row points DOWN on the screen, not up (2026-10-28, simulator, second run: with it
+  // handed over as "up" a head turn panned the right way but a nod and a tilt both went the
+  // wrong way, which only a flipped up axis does; a tilt of 20 degrees measured as a 20 degree
+  // turn of the picture the wrong way). So TurnCamera gets minus that row and writes minus back.
+  if (dkxr::HeadOn()) {
+    float fwd[3], right[3], up[3];
+    for (uint32_t i = 0; i < 3u; ++i) {
+      right[i] = LoadGuestFloat(base, out + kRowRight + 4u * i);
+      up[i] = -LoadGuestFloat(base, out + kRowUp + 4u * i);
+      fwd[i] = LoadGuestFloat(base, out + kRowFwd + 4u * i);
+    }
+    dkxr::TurnCamera(fwd, right, up, sign > 0.0f);
+    for (uint32_t i = 0; i < 3u; ++i) {
+      StoreGuestFloat(base, out + kRowRight + 4u * i, right[i]);
+      StoreGuestFloat(base, out + kRowUp + 4u * i, -up[i]);
+      StoreGuestFloat(base, out + kRowFwd + 4u * i, fwd[i]);
+    }
+  }
+
+  const StereoSettings& stereo = Stereo();
+  if (stereo.cam_eye == 0.0f) {
+    return;
+  }
+
+  float right[3], pos[3];
+  for (int i = 0; i < 3; ++i) {
+    right[i] = LoadGuestFloat(base, out + kRowRight + static_cast<uint32_t>(i) * 4u);
+    pos[i] = LoadGuestFloat(base, out + kPos + static_cast<uint32_t>(i) * 4u);
+  }
+
+  // The first eye of a pair (sign +1, even serial) lands in the LEFT half of the picture, and the
+  // left eye sits on the camera's LEFT: minus the right row. (2026-10-28, simulator: with +e the
+  // near hand sat further right in the right half, which is the left eye's view; the halves were
+  // swapped. Same note as Condemned 2's "its sign is physical: left eye = -right axis".)
+  for (int i = 0; i < 3; ++i) {
+    StoreGuestFloat(base, out + kPos + static_cast<uint32_t>(i) * 4u,
+                    pos[i] - sign * stereo.cam_eye * right[i]);
   }
 }
 

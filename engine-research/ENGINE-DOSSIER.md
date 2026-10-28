@@ -1270,6 +1270,34 @@ without them the picture stays fixed to the face with the headset's own field of
 of the `[PD] OpenXR submission per eye` row; replacing P with the headset's per-eye projection is still open.
 **2026-10-25: patches 09 / 09b applied on the home PC (cleanly on top of 08c) and RUN in the real headset** with the game side `vr_xr_head.cpp` (the head turns the camera rows in `sub_823F9B00` before the eye shift; `dk_xr_eye_fov` exports 0.9336 x 0.5252): in VR, 42,300 headset frames, 0 draw errors `[verified-live 2026-10-25, n=1]`, but the head turn curves, the eyes are off sideways and up-down, and the controls lag (modding-notes 2026-10-25-first-headset-run).
 
+## 6d. ⭐⭐ The view buffer's rows, measured: right, DOWN, forward, position (2026-10-28, `/lm`, OpenXR simulator)
+
+**Supersedes** every "+0 forward, +16 right, +32 up" in §6 above (2026-09-18 to 2026-10-25). `sub_823F9B00`'s output
+buffer (r4) is **+0 right, +16 screen-DOWN (minus up), +32 forward, +48 position**, 16-byte rows, xyz in the first three
+floats `[verified-live 2026-10-28, simulator, n=1 run per head pose, three runs]`. Full note:
+`modding-notes/2026-10-28-the-camera-rows-were-named-wrong.md`.
+
+- **How:** the 2026-10-25 headset build run on the OpenXR simulator, driven to the opening car scene by the bridge; the
+  simulated head set to straight / yaw 30° / pitch 20° / roll 20°, one engine frame each through the bridge. With the old
+  names a yaw ROLLED the picture, a nod PANNED it and a tilt NODDED it (each rotation one axis off: that is the "pans in a
+  curve" of the first headset run). With rows renamed right/up/forward the yaw was right but the nod and the tilt went
+  the wrong way, which only a flipped up axis does (a mirror would flip two of three, and the turn is about that axis).
+  With minus the +16 row as up, all three go the right way (the tilt measured as a 20° turn of the picture, the right way).
+- **The eye shift follows:** `DK_CAM_EYE` along +16 had moved the eyes apart VERTICALLY, not sideways: that is the
+  2026-10-24 "two eyes look different ways" pictures `[hypothesis]`, consistent, not re-run at the same moment. Along +0
+  the halves are a sideways pair, and the first eye of a pair (sign +1, even serial, the LEFT half) must be shifted
+  MINUS e along right, or the left half is the right eye's view (it was) `[verified-live 2026-10-28]`.
+- **Why 2026-09-18 got it wrong:** the one-shot log printed one unit row and called the layout confirmed; a unit vector
+  proves the row is an axis, not which. That day's value (−0.03, 0.95, −0.32) for +16 reads as the DOWN vector of a camera
+  pitched at the hands in a Y-down world (or the up vector in a Y-up world: the sign is what the live test settled).
+  The free-camera reading in §6 ("+8880 forward, +8896 right", from `sub_823FABC0`'s inputs) is most likely the same
+  mistake with the input names; not re-checked.
+- **The simulator is the instrument for this class of fault:** a known head pose in, an engine frame out, no headset, no
+  Tefa; `staging/the-darkness-vr/xr-sim-2026-10-28/` (launch, shot, compare scripts).
+- Not established: whether the car scene's camera is genuinely on its side at the moment `into_level` lands (all three
+  runs' first pictures were rolled 90° with the head straight, and the first build's rows say the camera's down vector was
+  horizontal `[inferred 2026-10-28]`); a `DK_XR_HEAD=0` control would settle it.
+
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version
