@@ -17,6 +17,7 @@ set(DARKNESSRECOMP_SOURCES
     src/vr_devmenu_unlock.cpp
     src/vr_xr_head.cpp
     src/vr_skin_probe.cpp
+    src/vr_hand_ik.cpp
 )
 
 if(WIN32)
