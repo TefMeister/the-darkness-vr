@@ -1,8 +1,10 @@
-# The Darkness VR, headset run WITH motion-controlled hands (2026-10-28 build). Same as dk_vr_headset.ps1, plus:
-# DK_HANDS=1: each controller moves its hand (position, through the game's own hand IK);
-# DK_HANDS_ROT=1: the hands also turn with the controllers. The rotation is lined up once, at the first moment the
-# hands are used: whatever way the controllers are held then counts as the game's own hand pose. To line it up again
-# (hold both controllers the way the hands look in the game, then), a session sends ik.calib=1 through the bridge.
+# The Darkness VR, headset run WITH motion-controlled hands. Same as dk_vr_headset.ps1, plus:
+# DK_HANDS=1: each controller moves its hand (position, through the game's own hand IK), the PLAYER's only (2026-10-29);
+# DK_HANDS_ROT=1: the hands also turn with the controllers, by the pose in dk_hand_pose.txt (the hand poser).
+# THE HAND POSER (2026-10-29), all on the controllers: hold B and Y together for 1 second = pose mode (the hands show
+# the game's own angle, the game gets no controller input); hold a controller the way its game hand looks and pull
+# that trigger = lined up; that hand's stick turns it a little (grip held: the stick rolls it); B + Y for 1 second
+# again = pose mode off, saved. With no dk_hand_pose.txt yet the hands keep the game's own angle until lined up.
 $env:DK_SBS = "1"
 $env:DK_SBS_HOLD = "1"
 $env:DK_STEREO_PERIOD = "1"

@@ -23,6 +23,7 @@
 // hook in vr_viewport_probe.cpp, which waits on that file's move-only split first.
 
 #include "vr_bridge.h"
+#include "vr_hand_pose.h"
 
 #include <windows.h>
 
@@ -331,7 +332,7 @@ class BridgePadDriver final : public rex::input::InputDriver {
       out->gamepad.thumb_ry = s.ry;
       if (const XrButtonsFn xr = XrButtons()) {   // 2026-10-29: the motion controllers laid over
         uint32_t b = 0; float ax[6];
-        if (xr(&b, ax)) {
+        if (xr(&b, ax) && !dkpose::FeedPad(b, ax)) {   // the hand poser keeps the controllers while it is on
           out->gamepad.buttons = static_cast<uint16_t>(out->gamepad.buttons | RemapXr(b));
           const auto trig = [](float v) { return static_cast<uint8_t>(v <= 0 ? 0 : v >= 1 ? 255 : v * 255.0f + 0.5f); };
           const auto axis = [](float v) { return static_cast<int16_t>(v <= -1 ? -32768 : v >= 1 ? 32767 : v * 32767.0f); };
