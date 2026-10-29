@@ -37,6 +37,7 @@ extern "C" {
 #include <cstring>
 #include <mutex>
 
+#include "vr_hand_pose.h"
 #include "vr_xr_head.h"
 
 namespace {
@@ -53,6 +54,18 @@ constexpr uint32_t kRowRight = 0u, kRowDown = 16u, kRowFwd = 32u, kRowPos = 48u;
 constexpr uint32_t kPosValid[2] = {0x02u, 0x20u};    // DK_XR_HAND_L_POS, DK_XR_HAND_R_POS (SDK patch 10)
 constexpr float kUnitsPerMetre = 39.37f;             // 1 world unit ~ 1 inch [inferred-static]
 constexpr int kSeenMax = 8;
+// 2026-10-29 (Tefa: "when i move my hands then still the other characters hands move with mine, same in a cutscene"):
+// only the player's hands are fed. The player is the character whose shoulders are nearest the camera: bones 18 (arm
+// A) and 13 (arm B) from the skeleton instance's bone matrices (*(SI+36), 64 bytes a bone, position at +48; dossier 6e).
+// Nobody within kPlayerNear (the camera is not in anyone's head, a cutscene from outside) = nobody is fed.
+constexpr uint32_t kSiBones = 36u, kBoneBytes = 64u, kBonePos = 48u;
+constexpr uint32_t kShoulderBone[2] = {18u, 13u};
+constexpr float kPlayerNear = 30.f;                  // world units (~76 cm) from the camera to the shoulders' middle
+constexpr uint32_t kPickFresh = 64u;                 // an object not met in this many calls is left out of the pick
+// The player has TWO IK objects on one skeleton (the same distance to the hundredth); only one of them moves the
+// arms on screen [verified-live 2026-10-29, simulator: 8.56 vs 0.04 mean picture change], so every object as near as
+// the nearest, to within this, is fed.
+constexpr float kSameCharacter = 1.0f;
 constexpr uint32_t kReportEvery = 3000;              // hook calls between [IK] summary lines while on
 
 std::mutex g_mu;
@@ -64,11 +77,16 @@ float g_fwd = 24.f, g_right = 8.f, g_up = -6.f;   // ik.fwd / ik.right / ik.up (
 float g_scale = kUnitsPerMetre;   // ik.scale (src 1): world units per metre
 float g_time = 0.25f, g_const = 0.75f;            // what sub_821BF880 stores at +1876.. / +1884
 int32_t g_snap = 0;               // ik.snap
+int32_t g_pick = 1;               // ik.pick: 1 = only the character nearest the camera (the player), 0 = everyone
 uint32_t g_only = 0;              // ik.only
 uint32_t g_vtable = 0;            // ik.vtable
 uint32_t g_calls = 0, g_set = 0, g_no_hands = 0;  // ik.calls / ik.set / ik.no_hands
-uint32_t g_seen[kSeenMax], g_seen_vt[kSeenMax];
+uint32_t g_seen[kSeenMax], g_seen_vt[kSeenMax], g_seen_call[kSeenMax];
+float g_seen_dist[kSeenMax];
 int g_seen_n = 0;
+uint32_t g_player = 0;            // ik.player: the IK object picked as the player's, 0 = none
+float g_player_dist = 0.f;        // its shoulders' distance from the camera
+char g_dist_text[kSeenMax * 28 + 8] = "none yet";
 char g_seen_text[kSeenMax * 22 + 8] = "none yet";
 char g_last_text[400] = "none yet";              // ik.last: the newest controller points written
 
@@ -106,6 +124,9 @@ void RegisterVars() {
   bridge_var("ik.snap", BRIDGE_I32, &g_snap, 1, "1 = set the hand's blend to held, full weight (skip the blend-in)");
   bridge_var("ik.only", BRIDGE_U32, &g_only, 1, "feed only this IK object (guest address from ik.seen); 0 = all");
   bridge_var("ik.vtable", BRIDGE_U32, &g_vtable, 1, "feed only IK objects whose ClientData vtable is this; 0 = all");
+  bridge_var("ik.pick", BRIDGE_I32, &g_pick, 1, "1 = feed only the character nearest the camera (the player); 0 = all");
+  bridge_var("ik.player", BRIDGE_U32, &g_player, 0, "the IK object picked as the player's (0 = nobody near the camera)");
+  bridge_var_str("ik.dist", g_dist_text, sizeof(g_dist_text), 0, "each IK object met: address, shoulders to camera (units)");
   bridge_var("ik.calls", BRIDGE_U32, &g_calls, 0, "calls of the explicit-target hand IK (sub_821BF988)");
   bridge_var("ik.set", BRIDGE_U32, &g_set, 0, "calls where a target of ours was written");
   bridge_var("ik.no_hands", BRIDGE_U32, &g_no_hands, 0, "src 1: calls with no controller position to feed");
@@ -114,19 +135,77 @@ void RegisterVars() {
 }
 
 // Called with g_mu held.
-void NoteObject(uint8_t* base, uint32_t ik) {
+int NoteObject(uint8_t* base, uint32_t ik) {
   for (int i = 0; i < g_seen_n; ++i)
-    if (g_seen[i] == ik) return;
-  if (g_seen_n >= kSeenMax) return;
+    if (g_seen[i] == ik) return i;
+  int slot = g_seen_n;
+  if (g_seen_n >= kSeenMax) {   // full: the one met longest ago makes room (objects die at a level change)
+    slot = 0;
+    for (int i = 1; i < kSeenMax; ++i)
+      if (g_seen_call[i] < g_seen_call[slot]) slot = i;
+  } else {
+    ++g_seen_n;
+  }
   const uint32_t vt = REX_LOAD_U32(ik - kClientDataBack);
-  g_seen[g_seen_n] = ik;
-  g_seen_vt[g_seen_n] = vt;
-  ++g_seen_n;
+  g_seen[slot] = ik;
+  g_seen_vt[slot] = vt;
+  g_seen_call[slot] = g_calls;
+  g_seen_dist[slot] = 1e9f;
   int p = 0;
   for (int i = 0; i < g_seen_n && p < static_cast<int>(sizeof(g_seen_text)) - 22; ++i)
     p += std::snprintf(g_seen_text + p, sizeof(g_seen_text) - p, "%s%08X/%08X", i ? " " : "", g_seen[i], g_seen_vt[i]);
-  REXGPU_INFO("[IK] hand IK object #{} at 0x{:08X}, ClientData vtable 0x{:08X}, flags 0x{:08X}", g_seen_n, ik, vt,
+  REXGPU_INFO("[IK] hand IK object #{} at 0x{:08X}, ClientData vtable 0x{:08X}, flags 0x{:08X}", slot + 1, ik, vt,
               REX_LOAD_U32(ik + kFlags));
+  return slot;
+}
+
+// Called with g_mu held: how far this object's shoulders are from the camera, then who is nearest now.
+void UpdatePick(uint8_t* base, int slot, uint32_t si) {
+  float rows[16];
+  const uint32_t bones = si ? REX_LOAD_U32(si + kSiBones) : 0u;
+  float d = 1e9f;
+  if (bones != 0u && dkxr::LastView(rows)) {
+    float mid[3] = {0, 0, 0};
+    for (uint32_t b : kShoulderBone)
+      for (int i = 0; i < 3; ++i) mid[i] += 0.5f * GuestFloat(base, bones + kBoneBytes * b + kBonePos + 4u * i);
+    float s = 0;
+    for (int i = 0; i < 3; ++i) s += (mid[i] - rows[kRowPos / 4 + i]) * (mid[i] - rows[kRowPos / 4 + i]);
+    d = std::sqrt(s);
+  }
+  g_seen_dist[slot] = d;
+  g_seen_call[slot] = g_calls;
+  int best = -1;
+  for (int i = 0; i < g_seen_n; ++i)
+    if (g_calls - g_seen_call[i] <= kPickFresh && g_seen_dist[i] < kPlayerNear &&
+        (best < 0 || g_seen_dist[i] < g_seen_dist[best]))
+      best = i;
+  const uint32_t player = best < 0 ? 0u : g_seen[best];
+  // Logged when the player changes CHARACTER (not between the player's two tied objects) or goes.
+  if (player != 0u && (g_player == 0u || std::fabs(g_seen_dist[best] - g_player_dist) > kSameCharacter))
+    REXGPU_INFO("[IK] the player's hands: IK object 0x{:08X} (shoulders {:.1f} units from the camera)", player,
+                g_seen_dist[best]);
+  else if (player == 0u && g_player != 0u)
+    REXGPU_INFO("[IK] the player's hands: nobody near the camera, no hand is fed");
+  g_player = player;
+  if (best >= 0) g_player_dist = g_seen_dist[best];
+  if (g_calls % kPickFresh == 0) {
+    int p = 0;
+    for (int i = 0; i < g_seen_n && p < static_cast<int>(sizeof(g_dist_text)) - 28; ++i)
+      p += std::snprintf(g_dist_text + p, sizeof(g_dist_text) - p, "%s%08X:%.1f", i ? " " : "", g_seen[i],
+                         g_seen_dist[i] > 1e8f ? -1.f : g_seen_dist[i]);
+  }
+}
+
+// Called with g_mu held: is this object one we feed?
+bool Fed(uint8_t* base, uint32_t ik) {
+  if (g_only != 0u) return g_only == ik;
+  if (g_vtable != 0u && g_vtable != REX_LOAD_U32(ik - kClientDataBack)) return false;
+  if (g_pick != 1) return true;
+  if (g_player == 0u) return false;
+  for (int i = 0; i < g_seen_n; ++i)
+    if (g_seen[i] == ik)
+      return g_calls - g_seen_call[i] <= kPickFresh && g_seen_dist[i] <= g_player_dist + kSameCharacter;
+  return false;
 }
 
 void WriteChain(uint8_t* base, uint32_t ik, int chain, const float t[3], uint32_t& flags) {
@@ -210,10 +289,8 @@ REX_HOOK_RAW(sub_821BF988) {
   if (ik != 0u) {
     std::lock_guard<std::mutex> lock(g_mu);
     ++g_calls;
-    NoteObject(base, ik);
-    const bool picked = (g_only == 0u || g_only == ik) &&
-                        (g_vtable == 0u || g_vtable == REX_LOAD_U32(ik - kClientDataBack));
-    if (g_on == 1 && picked) Feed(base, ik);
+    UpdatePick(base, NoteObject(base, ik), ctx.r5.u32);
+    if (g_on == 1 && Fed(base, ik)) Feed(base, ik);
     if (g_on == 1 && g_calls % kReportEvery == 0)
       REXGPU_INFO("[IK] calls={} set={} no_hands={} src={} last: {}", g_calls, g_set, g_no_hands, g_src, g_last_text);
   }
@@ -227,10 +304,10 @@ REX_HOOK_RAW(sub_821BF988) {
 // left) of an object whose explicit-target flag is on, the rows are rewritten from the controller:
 //   C = the controller's axes in the game world: X right, Y up (out of the top), F pointing (OpenXR grip -Z), from the
 //       grip quaternion taken into the head's axes and laid along the head-turned camera rows;
-//   O = a fixed 3x3 per hand that maps the controller's axes to the hand bone's axes, CALIBRATED once: at the first
-//       solve after ik.rot is switched on (or ik.calib=1), O = H * C^T, with H the animation's rows at that moment.
-//       So whatever way the controller is held then counts as "the animation's hand pose" [the reader's route 2].
-//   rows = O * C from then on: turning the controller turns the hand by the same turn.
+//   O = a fixed 3x3 per hand that maps the controller's axes to the hand bone's axes, from the hand poser
+//       (vr_hand_pose.cpp, 2026-10-29: lined up on purpose and saved; it replaced the line-up at the first solve,
+//       which took whatever way the controllers were held then, from whichever character solved first);
+//   rows = O * C: turning the controller turns the hand by the same turn. Only the player's hands (Fed()).
 // ik.rot=1 (or DK_HANDS_ROT=1) switches it on; off by default. Position is untouched (the solver's own +48 row).
 // [compile-verified] at most until it has run.
 namespace {
@@ -240,8 +317,6 @@ constexpr uint32_t kSolverBack = 32u;   // r3 = IK+32
 
 int32_t g_rot = 0;                      // ik.rot
 int32_t g_calib = 0;                    // ik.calib: 1 = take a new calibration at the next solve of each hand
-bool g_have_o[2] = {false, false};      // per chain
-float g_o[2][3][3];
 uint32_t g_rot_set = 0;                 // ik.rot_set
 
 void RegisterRotVars() {
@@ -249,8 +324,9 @@ void RegisterRotVars() {
   if (done) return;
   done = true;
   if (const char* v = std::getenv("DK_HANDS_ROT")) g_rot = v[0] == '1' ? 1 : 0;
+  dkpose::Start();
   bridge_var("ik.rot", BRIDGE_I32, &g_rot, 1, "1 = the hands also take the controllers' rotation (src 1)");
-  bridge_var("ik.calib", BRIDGE_I32, &g_calib, 1, "1 = re-calibrate: the controllers' pose now = the animation's hand pose");
+  bridge_var("ik.calib", BRIDGE_I32, &g_calib, 1, "1 = line both hands up now (the poser's pose.lineup=3)");
   bridge_var("ik.rot_set", BRIDGE_U32, &g_rot_set, 0, "solves whose hand rotation was written from a controller");
 }
 
@@ -280,35 +356,22 @@ REX_HOOK_RAW(sub_821EE4E0) {
     const uint32_t ik = block - kSolverBack;
     if (chain <= 1u && (REX_LOAD_U32(ik + kFlags) & kOn[chain])) {
       std::lock_guard<std::mutex> lock(g_mu);
-      const bool picked = (g_only == 0u || g_only == ik) &&
-                          (g_vtable == 0u || g_vtable == REX_LOAD_U32(ik - kClientDataBack));
+      const bool picked = Fed(base, ik);
       const int hand = (static_cast<int>(chain) == (g_right_chain & 1)) ? 1 : 0;   // 1 right, 0 left
       dkxr::HandSample h;
       float rows[16];
       if (picked && dkxr::LastHands(&h) && dkxr::LastView(rows) && (h.flags & (hand ? 0x10u : 0x01u))) {
         float c[3][3];
         ControllerAxes(h, hand, rows, c);
-        if (g_calib == 1) { g_have_o[0] = g_have_o[1] = false; g_calib = 0; }
-        if (!g_have_o[chain]) {
-          float hm[3][3];
-          for (int k = 0; k < 3; ++k)
-            for (int i = 0; i < 3; ++i) hm[k][i] = GuestFloat(base, target + 16u * k + 4u * i);
-          for (int k = 0; k < 3; ++k)
-            for (int j = 0; j < 3; ++j) g_o[chain][k][j] = hm[k][0] * c[j][0] + hm[k][1] * c[j][1] + hm[k][2] * c[j][2];
-          g_have_o[chain] = true;
-          const float det = rows[0] * (-rows[5] * rows[10] + rows[6] * rows[9]) -
-                            rows[1] * (-rows[4] * rows[10] + rows[6] * rows[8]) +
-                            rows[2] * (-rows[4] * rows[9] + rows[5] * rows[8]);   // det[right; up; forward]
-          REXGPU_INFO("[IK] rotation calibrated, chain {} (hand {}): animation rows ({:.2f} {:.2f} {:.2f}) ({:.2f} {:.2f} "
-                      "{:.2f}) ({:.2f} {:.2f} {:.2f}); det[right,up,fwd]={:.3f}",
-                      chain, hand ? "right" : "left", hm[0][0], hm[0][1], hm[0][2], hm[1][0], hm[1][1], hm[1][2], hm[2][0],
-                      hm[2][1], hm[2][2], det);
-        }
+        if (g_calib == 1) { dkpose::RequestLineUp(3u); g_calib = 0; }
+        float hm[3][3], out[3][3];
         for (int k = 0; k < 3; ++k)
-          for (int i = 0; i < 3; ++i)
-            StoreGuestFloat(base, target + 16u * k + 4u * i,
-                            g_o[chain][k][0] * c[0][i] + g_o[chain][k][1] * c[1][i] + g_o[chain][k][2] * c[2][i]);
-        ++g_rot_set;
+          for (int i = 0; i < 3; ++i) hm[k][i] = GuestFloat(base, target + 16u * k + 4u * i);
+        if (dkpose::HandRows(hand, hm, c, out)) {
+          for (int k = 0; k < 3; ++k)
+            for (int i = 0; i < 3; ++i) StoreGuestFloat(base, target + 16u * k + 4u * i, out[k][i]);
+          ++g_rot_set;
+        }
       }
     }
   }
