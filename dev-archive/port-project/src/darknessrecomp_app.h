@@ -8,6 +8,8 @@
 
 #include <rex/rex_app.h>
 
+#include "vr_bridge.h"
+
 class DarknessrecompApp : public rex::ReXApp {
  public:
   using rex::ReXApp::ReXApp;
@@ -19,9 +21,16 @@ class DarknessrecompApp : public rex::ReXApp {
   }
 
   // Select the Xenos GPU backend. Without this there is no renderer at all.
+  // The input factory adds the MCP Game Bridge pad beside the SDK's own drivers (vr_bridge.cpp).
   void OnPreSetup(rex::RuntimeConfig& config) override {
     config.gpu_plugin = "xenos";
+    config.input_factory = REX_INPUT_BACKEND(DkCreateInputSystem);
   }
+
+  // MCP Game Bridge³: the game's log into the bridge, then the pipe once the runtime exists.
+  void OnPostInitLogging() override { DkBridgeLogging(); }
+  void OnPostSetup() override { DkBridgeStart(runtime()); }
+  void OnShutdown() override { DkBridgeStop(); }
 
   // Default the game data root to an "Assets" folder beside the executable, so the build
   // can be launched by double-clicking instead of needing --game_data_root on the command
@@ -40,14 +49,11 @@ class DarknessrecompApp : public rex::ReXApp {
   }
 
   // Override virtual hooks for customization:
-  // void OnPostInitLogging() override {}
   // void OnLoadXexImage(std::string& xex_image) override {}
   // void OnPostLoadXexImage() override {}
-  // void OnPostSetup() override {}
   // void OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) override {}
   // std::unique_ptr<rex::ui::ImGuiDialog> CreateAchievementsOverlay() override;
   // std::unique_ptr<rex::ui::AchievementNotificationDialog>
   // CreateAchievementNotificationDialog() override;
-  // void OnShutdown() override {}
 
 };

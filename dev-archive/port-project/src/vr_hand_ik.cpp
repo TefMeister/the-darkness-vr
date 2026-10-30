@@ -60,7 +60,10 @@ constexpr int kSeenMax = 8;
 // Nobody within kPlayerNear (the camera is not in anyone's head, a cutscene from outside) = nobody is fed.
 constexpr uint32_t kSiBones = 36u, kBoneBytes = 64u, kBonePos = 48u;
 constexpr uint32_t kShoulderBone[2] = {18u, 13u};
-constexpr float kPlayerNear = 30.f;                  // world units (~76 cm) from the camera to the shoulders' middle
+// 2026-10-30: 30 -> 80. In the headset the player's shoulders sat 45 units from the camera, so after a minute nobody
+// was picked and the hands stopped following [verified-live 2026-10-30, headset, n=1]; the nearest other character
+// was 445 units away.
+constexpr float kPlayerNear = 80.f;                  // world units (~2 m) from the camera to the shoulders' middle
 constexpr uint32_t kPickFresh = 64u;                 // an object not met in this many calls is left out of the pick
 // The player has TWO IK objects on one skeleton (the same distance to the hundredth); only one of them moves the
 // arms on screen [verified-live 2026-10-29, simulator: 8.56 vs 0.04 mean picture change], so every object as near as
