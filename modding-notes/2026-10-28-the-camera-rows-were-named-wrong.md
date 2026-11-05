@@ -74,7 +74,7 @@ headset needs, and the stereo pair is the right way round. Not yet seen in the r
 ## What is NOT established
 - Whether the picture at identity is the game's own cinematic camera (it was on its side in all three runs' first
   pictures; the first-build rows say the camera's down vector was horizontal, so the game itself had it on its side at
-  that moment `[inferred 2026-10-28]`) or something of ours: a `DK_XR_HEAD=0` control at the same moment would settle it.
+  that moment `[inferred-static 2026-10-28]`) or something of ours: a `DK_XR_HEAD=0` control at the same moment would settle it.
 - The right scale of `DK_CAM_EYE` (1.25 units gives ~36 px of hand disparity at 1280 wide): untouched today.
 - The lag: the SDK log says `sample_hits=0 sample_misses=8400`: the game exports no `dk_xr_pair_sample`, so the headset
   gets each picture with the pose of the moment it is SENT, not the pose it was DRAWN with. That is Condemned 2's

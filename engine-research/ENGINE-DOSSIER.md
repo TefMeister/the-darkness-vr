@@ -1296,7 +1296,7 @@ floats `[verified-live 2026-10-28, simulator, n=1 run per head pose, three runs]
   Tefa; `staging/the-darkness-vr/xr-sim-2026-10-28/` (launch, shot, compare scripts).
 - Not established: whether the car scene's camera is genuinely on its side at the moment `into_level` lands (all three
   runs' first pictures were rolled 90° with the head straight, and the first build's rows say the camera's down vector was
-  horizontal `[inferred 2026-10-28]`); a `DK_XR_HEAD=0` control would settle it.
+  horizontal `[inferred-static 2026-10-28]`); a `DK_XR_HEAD=0` control would settle it.
 
 ## 6e. Motion-controlled hands: what the program and the shader template say (2026-10-28, static, first look)
 

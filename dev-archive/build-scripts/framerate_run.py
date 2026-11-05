@@ -69,6 +69,7 @@ def main():
     mfr = load_measure_tool()
     pad = vg.VX360Gamepad()
     time.sleep(1.0)
+    os.environ.setdefault("DK_VP_LOG", "1")   # the [VP] PERSP lines are off by default since 2026-11-05
     proc = subprocess.Popen([args.exe], cwd=os.path.dirname(args.exe))
     t0 = time.time()
     print("launched pid %d at %s" % (proc.pid, time.strftime("%H:%M:%S")), flush=True)

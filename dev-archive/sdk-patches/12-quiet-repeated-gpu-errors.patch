@@ -1,0 +1,69 @@
+diff --git a/src/graphics/command_processor.cpp b/src/graphics/command_processor.cpp
+index a744375..72221f9 100644
+--- a/src/graphics/command_processor.cpp
++++ b/src/graphics/command_processor.cpp
+@@ -10,6 +10,7 @@
+  */
+ 
+ #include <algorithm>
++#include <atomic>
+ #include <cinttypes>
+ #include <cmath>
+ #include <cstring>
+@@ -1380,18 +1381,24 @@ bool CommandProcessor::ExecutePacketType3Draw(memory::RingBuffer* reader, uint32
+           xenos::IsMajorModeExplicit(vgt_draw_initiator.major_mode, vgt_draw_initiator.prim_type);
+       draw_succeeded = IssueDraw(vgt_draw_initiator.prim_type, vgt_draw_initiator.num_indices,
+                                  is_indexed ? &index_buffer_info : nullptr, major_mode_explicit);
+-      if (!draw_succeeded) {
++      // the-darkness-vr patch 12: the same draws fail every frame (~400 a second in The Darkness, 2026-11-04), and
++      // one line each flooded the log. The first few are kept in full, then one line per kQuietEvery.
++      static std::atomic<uint64_t> s_backend_failures{0};
++      constexpr uint64_t kQuietFirst = 20, kQuietEvery = 10000;
++      const uint64_t failures = draw_succeeded ? 0 : ++s_backend_failures;
++      if (!draw_succeeded && (failures <= kQuietFirst || failures % kQuietEvery == 0)) {
+         auto vgt_output_path_cntl = register_file_->Get<reg::VGT_OUTPUT_PATH_CNTL>();
+         auto vgt_hos_cntl = register_file_->Get<reg::VGT_HOS_CNTL>();
+         auto rb_modecontrol = register_file_->Get<reg::RB_MODECONTROL>();
+         REXGPU_ERROR(
+             "{}({}, {}, {}): Failed in backend "
+-            "(major_mode={}, explicit_major={}, path_select={}, tess_mode={}, edram_mode={})",
++            "(major_mode={}, explicit_major={}, path_select={}, tess_mode={}, edram_mode={}) "
++            "[seen {} times; the first {} logged, then one per {}]",
+             opcode_name, static_cast<uint32_t>(vgt_draw_initiator.num_indices),
+             uint32_t(vgt_draw_initiator.prim_type), uint32_t(vgt_draw_initiator.source_select),
+             uint32_t(vgt_draw_initiator.major_mode), uint32_t(major_mode_explicit),
+             uint32_t(vgt_output_path_cntl.path_select), uint32_t(vgt_hos_cntl.tess_mode),
+-            uint32_t(rb_modecontrol.edram_mode));
++            uint32_t(rb_modecontrol.edram_mode), failures, kQuietFirst, kQuietEvery);
+       }
+     }
+   }
+diff --git a/src/graphics/util/draw.cpp b/src/graphics/util/draw.cpp
+index 305380e..f5932fc 100644
+--- a/src/graphics/util/draw.cpp
++++ b/src/graphics/util/draw.cpp
+@@ -10,6 +10,7 @@
+  */
+ 
+ #include <algorithm>
++#include <atomic>
+ #include <cmath>
+ 
+ #include <rex/assert.h>
+@@ -884,7 +885,15 @@ bool GetResolveInfo(const RegisterFile& regs, const memory::Memory& memory,
+ 
+   assert_true(x0 < x1 && y0 < y1);
+   if (x0 >= x1 || y0 >= y1) {
+-    REXGPU_ERROR("Resolve region is empty");
++    // the-darkness-vr patch 12: The Darkness asks for ~400 empty resolves a second, and one line each flooded the
++    // log (93,016 in 4 minutes, 2026-11-04). The first few are kept in full, then one line per kQuietEvery.
++    static std::atomic<uint64_t> s_empty_resolves{0};
++    constexpr uint64_t kQuietFirst = 20, kQuietEvery = 10000;
++    const uint64_t n = ++s_empty_resolves;
++    if (n <= kQuietFirst || n % kQuietEvery == 0) {
++      REXGPU_ERROR("Resolve region is empty (seen {} times; the first {} logged, then one per {})", n, kQuietFirst,
++                   kQuietEvery);
++    }
+     return false;
+   }
+ 

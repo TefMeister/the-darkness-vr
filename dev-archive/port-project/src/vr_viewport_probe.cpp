@@ -404,6 +404,13 @@ bool EnvFlag(const char* name, bool fallback) {
   const char* e = std::getenv(name);
   return e != nullptr ? e[0] == '1' : fallback;
 }
+// The per-change projection lines ([VP] PERSP / ortho) were a third of a 1,200-lines-a-second log flood in VR
+// (2026-11-04) and pushed the useful lines out of the rotating log. Off unless DK_VP_LOG=1 (count_frames.py and
+// framerate_run.py count frames from them and set it themselves).
+bool PerspLog() {
+  static const bool v = EnvFlag("DK_VP_LOG", false);
+  return v;
+}
 bool SkipFillers() {
   static const bool v = EnvFlag("DK_SBS_SKIP_FILLERS", true);
   return v;
@@ -524,6 +531,10 @@ REX_HOOK_RAW(sub_82249580) {
         StoreGuestFloat(base, kProjection + static_cast<uint32_t>(12 + i) * 4u, p[12 + i]);
       }
     }
+  }
+
+  if (!PerspLog()) {
+    return;
   }
 
   if (g_have_last && std::memcmp(p, g_last, sizeof(p)) == 0) {

@@ -2,7 +2,7 @@
 
   python count_frames.py <logs folder> [--from HH:MM:SS] [--to HH:MM:SS]
 
-Our build logs one "[VP] PERSP" line each time the projection matrix changes, and in a 3D
+Our build (with DK_VP_LOG=1; off by default since 2026-11-05) logs one "[VP] PERSP" line each time the projection matrix changes, and in a 3D
 scene the game applies two different ones per frame in strict alternation (the world one
 and a second, narrower one) -- see ENGINE-DOSSIER section 6. So the number of times ONE
 given matrix appears in a second is the number of frames drawn in that second.
