@@ -17,6 +17,9 @@
 //   that hand's stick               turns the lined-up hand a little: left/right turns it, up/down tilts it; with
 //                                   that hand's grip held, left/right rolls it;
 //   hold B and Y for 1 s again      pose mode off, and the pose is saved to dk_hand_pose.txt beside the game.
+//   (2026-11-05) left alone           pose mode switches ITSELF off (and saves) after kIdleOffS with no trigger pull
+//                                   and no stick turn: on 2026-10-30 it was left on by accident and ate every button
+//                                   for 7 minutes, which looked like a broken build.
 // From the desk (bridge): pose.on, pose.lineup, pose.hand + pose.yaw/pitch/roll (degrees, applied once), pose.save.
 //
 // Sets: one pose per set, pose.set picks which (0 = empty hands). The other sets are for the guns, once the game
@@ -50,6 +53,8 @@ constexpr float kStickDead = 0.2f;
 constexpr float kNudgeDegPerS = 45.f;                  // a stick pushed all the way turns the hand this fast
 constexpr float kDegToRad = 3.14159265f / 180.f;
 constexpr float kMaxStepS = 0.1f;                      // a longer gap between solves turns no further than this
+constexpr int kIdleOffS = 60;                          // pose mode left untouched this long switches itself off
+constexpr int kStillOnLogS = 15;                       // while on, a log line this often says so (and how long is left)
 
 std::mutex g_pm;
 int32_t g_set = 0;                     // pose.set
@@ -181,6 +186,31 @@ bool FeedPad(uint32_t raw, const float ax[6]) {
     combo_done = true;
   }
   combo_was = combo;
+  // pose mode left on by accident: off by itself after kIdleOffS with nothing done in it
+  static std::chrono::steady_clock::time_point used_at, said_at;
+  static int32_t mode_was = 0;
+  if (g_mode && !mode_was) used_at = said_at = now;
+  mode_was = g_mode;
+  if (g_mode) {
+    bool used = false;
+    for (int h = 0; h < 2; ++h) {
+      if (ax[h] > kTriggerPulled) used = true;
+      if (std::fabs(ax[2 + 2 * h]) > kStickDead || std::fabs(ax[3 + 2 * h]) > kStickDead) used = true;
+    }
+    if (used || combo) used_at = now;
+    const auto idle_s = std::chrono::duration_cast<std::chrono::seconds>(now - used_at).count();
+    if (idle_s >= kIdleOffS) {
+      REXGPU_INFO("[POSE] pose mode switched itself off: nothing done in it for {} s (the pose is saved)", idle_s);
+      SetMode(0);
+      mode_was = 0;
+      return false;
+    }
+    if (std::chrono::duration_cast<std::chrono::seconds>(now - said_at).count() >= kStillOnLogS) {
+      said_at = now;
+      REXGPU_INFO("[POSE] pose mode is still ON (the game gets no controller buttons); it switches itself off in {} s",
+                  kIdleOffS - idle_s);
+    }
+  }
   if (g_mode) {
     for (int h = 0; h < 2; ++h) {
       const float t = ax[h];
