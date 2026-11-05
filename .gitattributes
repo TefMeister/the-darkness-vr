@@ -1,0 +1,2 @@
+# SDK patches must stay LF on every PC (git apply fails on CRLF; the build notes call this a trap)
+*.patch text eol=lf
