@@ -19,8 +19,8 @@
 // On by default; DK_BRIDGE=0 switches it off. It changes nothing the game sees until a command
 // arrives: the idle pad reads neutral, and neutral input never takes the "active device" slot.
 //
-// Not wired yet: bridge_frame_mark (frames and fps read 0). The once-per-frame point is the swap
-// hook in vr_viewport_probe.cpp, which waits on that file's move-only split first.
+// bridge_frame_mark is called once per shown frame from the swap hook (vr_probe_frame.inc, 2026-11-05),
+// so `frames` / `fps` count real frames.
 
 #include "vr_bridge.h"
 #include "vr_hand_pose.h"
