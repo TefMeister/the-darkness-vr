@@ -24,6 +24,13 @@
 //
 // Sets: one pose per set, pose.set picks which (0 = empty hands). The other sets are for the guns, once the game
 // tells us which gun is in the hand; until then only set 0 is used.
+// (2026-11-06, Tefa: "weapons sit wrong in Jackie's hands") the gun slots, picked by hand until the game tells us
+// which gun is held: kSets slots, 0 = empty hands, 1.. = one per gun (which gun goes in which slot is Tefa's choice).
+//   in pose mode, A                 the next slot (after the last, back to 0);
+//   in pose mode, X                 the slot before;
+// a slot with no pose of its own uses slot 0's (the empty hands) until it is lined up; the slot in use is saved in
+// dk_hand_pose.txt ("active N") so it is the same at the next launch. There is no sign in the headset yet of which
+// slot is on (the log and pose.text say it); a buzz per slot needs a haptic action in the SDK (a board row).
 // [compile-verified] at most until it has run.
 
 #include "generated/default/darknessrecomp_pch.h"
@@ -44,8 +51,8 @@ extern "C" {
 namespace {
 
 constexpr const char* kPoseFile = "dk_hand_pose.txt";   // beside the game (the launch scripts start it there)
-constexpr int kSets = 4;
-constexpr uint32_t kRawB = 0x2000, kRawY = 0x8000;     // the controllers' raw bits (SDK patch 11)
+constexpr int kSets = 9;                               // 0 = empty hands, 1-8 = the guns (2026-11-06: was 4)
+constexpr uint32_t kRawA = 0x1000, kRawB = 0x2000, kRawX = 0x4000, kRawY = 0x8000;  // raw bits (SDK patch 11)
 constexpr uint32_t kRawGrip[2] = {0x0100, 0x0200};     // left, right grip squeezed past half
 constexpr int kComboHoldMs = 1000;                     // B + Y held this long switches pose mode
 constexpr float kTriggerPulled = 0.8f, kTriggerLetGo = 0.3f;
@@ -92,6 +99,11 @@ void Load() {
     char hand = 0;
     float m[9];
     if (line[0] == '#') continue;
+    int active = -1;
+    if (std::sscanf(line, "active %d", &active) == 1) {
+      if (active >= 0 && active < kSets) g_set = active;
+      continue;
+    }
     if (std::sscanf(line, "%d %c %f %f %f %f %f %f %f %f %f", &set, &hand, &m[0], &m[1], &m[2], &m[3], &m[4], &m[5],
                     &m[6], &m[7], &m[8]) != 11)
       continue;
@@ -102,7 +114,7 @@ void Load() {
     ++n;
   }
   std::fclose(f);
-  REXGPU_INFO("[POSE] {} hand pose(s) loaded from {}", n, kPoseFile);
+  REXGPU_INFO("[POSE] {} hand pose(s) loaded from {}; slot {} in use", n, kPoseFile, g_set);
 }
 
 // Called with g_pm held.
@@ -113,6 +125,8 @@ void Save() {
     return;
   }
   std::fprintf(f, "# The Darkness VR hand pose, written by the hand poser. set hand(L/R) then the 3x3, row by row.\n");
+  std::fprintf(f, "# slot 0 = empty hands, 1-%d = the guns; 'active' = the slot in use at the next launch.\n", kSets - 1);
+  std::fprintf(f, "active %d\n", (g_set >= 0 && g_set < kSets) ? g_set : 0);
   int n = 0;
   for (int s = 0; s < kSets; ++s)
     for (int h = 0; h < 2; ++h) {
@@ -161,7 +175,7 @@ void Start() {
   Load();
   UpdateText();
   bridge_var("pose.on", BRIDGE_I32, &g_mode, 1, "1 = pose mode (the hands show the game's angle until lined up)");
-  bridge_var("pose.set", BRIDGE_I32, &g_set, 1, "which pose set is used: 0 = empty hands (1-3 kept for the guns)");
+  bridge_var("pose.set", BRIDGE_I32, &g_set, 1, "the pose slot in use: 0 = empty hands, 1-8 = the guns (A / X in pose mode)");
   bridge_var("pose.lineup", BRIDGE_I32, &g_lineup, 1, "line up at the next solve: 1 left, 2 right, 3 both");
   bridge_var("pose.hand", BRIDGE_I32, &g_nudge_hand, 1, "the hand pose.yaw/pitch/roll turn: 0 left, 1 right");
   bridge_var("pose.yaw", BRIDGE_F32, &g_nudge_deg[1], 1, "degrees to turn that hand about the controller's up, once");
@@ -211,6 +225,20 @@ bool FeedPad(uint32_t raw, const float ax[6]) {
                   kIdleOffS - idle_s);
     }
   }
+  // pose mode: A = the next slot, X = the slot before (on the press, not while held)
+  static bool a_was = false, x_was = false;
+  const bool a_now = (raw & kRawA) != 0, x_now = (raw & kRawX) != 0;
+  if (g_mode && ((a_now && !a_was) || (x_now && !x_was))) {
+    const int step = (a_now && !a_was) ? 1 : kSets - 1;
+    g_set = ((g_set < 0 || g_set >= kSets ? 0 : g_set) + step) % kSets;
+    g_lined[0] = g_lined[1] = false;   // the new slot shows the game's angle until lined up, like a fresh pose mode
+    used_at = now;
+    REXGPU_INFO("[POSE] slot {} ({}): saved pose left {} right {}", g_set, g_set == 0 ? "empty hands" : "a gun",
+                g_have[g_set][0] ? "yes" : "no", g_have[g_set][1] ? "yes" : "no");
+    UpdateText();
+  }
+  a_was = a_now;
+  x_was = x_now;
   if (g_mode) {
     for (int h = 0; h < 2; ++h) {
       const float t = ax[h];
@@ -256,8 +284,15 @@ bool HandRows(int hand, const float h[3][3], const float c[3][3], float out[3][3
                 HandName(hand), g_set, h[0][0], h[0][1], h[0][2], h[1][0], h[1][1], h[1][2], h[2][0], h[2][1], h[2][2]);
     UpdateText();
   }
-  if (!g_have[g_set][hand]) return false;
   if (g_mode && !g_lined[hand]) return false;   // pose mode: the game's own angle until this hand is lined up
+  if (!g_have[g_set][hand]) {
+    // a gun slot not lined up yet: the empty hands' pose (slot 0), left as it is (no turns are applied to it here)
+    if (g_set == 0 || !g_have[0][hand]) return false;
+    const float(*z)[3] = g_o[0][hand];
+    for (int k = 0; k < 3; ++k)
+      for (int i = 0; i < 3; ++i) out[k][i] = z[k][0] * c[0][i] + z[k][1] * c[1][i] + z[k][2] * c[2][i];
+    return true;
+  }
   if (g_mode)
     for (int a = 0; a < 3; ++a)
       if (g_rate[hand][a] != 0.f) Turn(o, a, g_rate[hand][a] * kDegToRad * dt);
