@@ -623,6 +623,13 @@ void DkBridgeStart(rex::Runtime* runtime) {
   bridge_var_fn("switches", GetSwitches, nullptr, nullptr, "every DK_ switch this run started with");
   bridge_var_fn("pad", GetPad, nullptr, nullptr, "the bridge's virtual pad right now");
   bridge_cmd("quit", CmdQuit, nullptr, 0, "close the game the way its window's close button does");
+  // 2026-11-06 (Tefa: "light is too bright"): the headset picture's brightness dial (SDK patch 13), turned live.
+  using DialFn = float* (*)();
+  HMODULE gpu = GetModuleHandleW(L"rexgpu-xenos.dll");
+  DialFn dial = gpu ? reinterpret_cast<DialFn>(reinterpret_cast<void*>(GetProcAddress(gpu, "rex_xr_brightness_dial"))) : nullptr;
+  if (float* d = dial ? dial() : nullptr) {
+    bridge_var("xr.gamma", BRIDGE_F32, d, 1, "headset brightness dial: 1.0 = as the game draws it, 1.1-1.3 = deeper shadows");
+  }
   if (bridge_start(kHostName, kHostVersion)) {
     g_shot_thread = std::thread(ShotLoop);
   }

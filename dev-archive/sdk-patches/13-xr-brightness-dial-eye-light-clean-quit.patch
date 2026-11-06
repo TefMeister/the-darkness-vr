@@ -1,0 +1,320 @@
+diff --git a/src/ui/rex_app.cpp b/src/ui/rex_app.cpp
+index b94fe9e..e42f94e 100644
+--- a/src/ui/rex_app.cpp
++++ b/src/ui/rex_app.cpp
+@@ -43,6 +43,10 @@
+ #include <imgui.h>
+ 
+ #include <algorithm>
++
++#if defined(_WIN32)
++#include <windows.h>  // the-darkness-vr patch 13: TerminateProcess
++#endif
+ #include <filesystem>
+ #include <string_view>
+ 
+@@ -508,6 +512,12 @@ void ReXApp::OnClosing(ui::UIEvent& e) {
+   // reclaims the rest.
+   REXLOG_INFO("Title terminated; hard-exiting process.");
+   rex::FlushLogging();
++#if defined(_WIN32)
++  // the-darkness-vr patch 13 (2026-11-06): std::_Exit still runs every DLL's unload code, and an
++  // OpenXR runtime left with an open session (Virtual Desktop's) crashed in its own clean-up there
++  // (0xC0000409, Control Flow Guard). TerminateProcess skips all DLL unloading: the same hard exit.
++  TerminateProcess(GetCurrentProcess(), 0);
++#endif
+   std::_Exit(0);
+ }
+ 
+diff --git a/src/graphics/d3d12/xr_blit.h b/src/graphics/d3d12/xr_blit.h
+index 2fa9393..5dbf482 100644
+--- a/src/graphics/d3d12/xr_blit.h
++++ b/src/graphics/d3d12/xr_blit.h
+@@ -25,6 +25,17 @@ class EyeBlit {
+             D3D12_RESOURCE_STATES src_state, ID3D12Resource* const dst[2], uint32_t width,
+             uint32_t height, const char** error);
+ 
++  // Patch 13: the brightness dial. Each stored value c becomes pow(c, gamma) before it is written,
++  // so 1.0 = unchanged, above 1 = darker shadows (whites stay white).
++  void SetGamma(float gamma) { gamma_ = gamma; }
++
++  // Patch 13: per-eye brightness. While on, every frame copies both eye pictures to the CPU and
++  // measures their mean brightness; a summary of kLightReportPairs frames is ready when this returns
++  // true (then `line` holds it).
++  void SetLightLog(bool on) { light_on_ = on; }
++  bool TakeLightReport(char* line, size_t size);
++  static constexpr uint32_t kLightReportPairs = 300;
++
+  private:
+   Microsoft::WRL::ComPtr<ID3D12Device> device_;
+   Microsoft::WRL::ComPtr<ID3D12RootSignature> root_;
+@@ -41,6 +52,24 @@ class EyeBlit {
+   uint32_t srv_step_ = 0, rtv_step_ = 0;
+   DXGI_FORMAT rtv_format_ = DXGI_FORMAT_UNKNOWN;
+   bool decode_srgb_ = false;
++  float gamma_ = 1.0f;
++
++  // Patch 13: per-eye brightness readback, one buffer per slot and eye.
++  void ReadLight(uint32_t slot);
++  bool light_on_ = false;
++  Microsoft::WRL::ComPtr<ID3D12Resource> light_buf_[kFramesInFlight][2];
++  D3D12_PLACED_SUBRESOURCE_FOOTPRINT light_fp_[2] = {};
++  uint32_t light_w_ = 0, light_h_ = 0;
++  DXGI_FORMAT light_fmt_ = DXGI_FORMAT_UNKNOWN;
++  bool light_pending_[kFramesInFlight] = {};
++  struct LightStats {
++    uint32_t frames = 0, gap_frames = 0, swaps = 0;
++    double sum_l = 0, sum_r = 0, sum_gap = 0, max_gap = 0;
++    int last_sign = 0;
++    double min_l = 1, max_l = 0;
++  } light_;
++  bool light_ready_ = false;
++  char light_line_[256] = {};
+ };
+ 
+ }  // namespace rex::graphics::d3d12::xr
+diff --git a/src/graphics/d3d12/xr_blit.cpp b/src/graphics/d3d12/xr_blit.cpp
+index 9991ce3..50f709e 100644
+--- a/src/graphics/d3d12/xr_blit.cpp
++++ b/src/graphics/d3d12/xr_blit.cpp
+@@ -7,6 +7,7 @@
+ 
+ #include <d3dcompiler.h>
+ 
++#include <cstdio>
+ #include <cstring>
+ #include <utility>
+ 
+@@ -17,7 +18,7 @@ namespace {
+ // One triangle that covers the screen; the picture is drawn 1:1 (the image is the eye's size).
+ // decode (b0.x) undoes sRGB when the target view re-encodes it, so the stored bytes stay the same.
+ constexpr char kShader[] = R"(
+-cbuffer Params : register(b0) { uint decode; };
++cbuffer Params : register(b0) { uint decode; float gamma; };
+ Texture2D<float4> eye : register(t0);
+ SamplerState samp : register(s0);
+ struct V { float4 pos : SV_Position; float2 uv : TEXCOORD0; };
+@@ -32,6 +33,7 @@ float3 srgb_to_linear(float3 c) {
+ }
+ float4 ps_main(V i) : SV_Target {
+   float3 c = eye.Sample(samp, i.uv).rgb;
++  if (gamma != 1.0) c = pow(saturate(c), gamma);  // patch 13: the brightness dial
+   if (decode != 0) c = srgb_to_linear(c);
+   return float4(c, 1);
+ }
+@@ -93,7 +95,7 @@ bool EyeBlit::Init(ID3D12Device* device, DXGI_FORMAT rtv_format, bool decode_srg
+   params[0].DescriptorTable.pDescriptorRanges = &range;
+   params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+   params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+-  params[1].Constants.Num32BitValues = 1;
++  params[1].Constants.Num32BitValues = 2;  // decode, gamma (patch 13)
+   params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+   D3D12_STATIC_SAMPLER_DESC sampler = {};
+   sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;  // 1:1, so point keeps every pixel exact
+@@ -174,6 +176,8 @@ bool EyeBlit::Draw(ID3D12CommandQueue* queue, ID3D12Resource* const src[2],
+     fence_->SetEventOnCompletion(slot_value_[slot], fence_event_);
+     WaitForSingleObject(fence_event_, 1000);
+   }
++  if (light_pending_[slot] && fence_->GetCompletedValue() >= slot_value_[slot]) ReadLight(slot);
++  light_pending_[slot] = false;
+   if (FAILED(alloc_[slot]->Reset()) || FAILED(list_->Reset(alloc_[slot].Get(), pso_.Get()))) {
+     *error = "command list reset failed";
+     return false;
+@@ -184,12 +188,62 @@ bool EyeBlit::Draw(ID3D12CommandQueue* queue, ID3D12Resource* const src[2],
+   uint32_t n = 0;
+   to_read[n++] = Transition(src[0], src_state, kRead);
+   if (src[1] != src[0]) to_read[n++] = Transition(src[1], src_state, kRead);
++  // Patch 13: copy both eye pictures for the per-eye brightness log (only from COPY_SOURCE, which is
++  // the state the pair rests in; any other state just skips the measurement).
++  if (light_on_ && src_state == D3D12_RESOURCE_STATE_COPY_SOURCE) {
++    const D3D12_RESOURCE_DESC d = src[0]->GetDesc();
++    const bool four_bytes = d.Format == DXGI_FORMAT_R10G10B10A2_UNORM ||
++                            d.Format == DXGI_FORMAT_R8G8B8A8_UNORM ||
++                            d.Format == DXGI_FORMAT_B8G8R8A8_UNORM;
++    if (four_bytes && (light_w_ != uint32_t(d.Width) || light_h_ != d.Height || light_fmt_ != d.Format)) {
++      UINT64 total = 0;
++      device_->GetCopyableFootprints(&d, 0, 1, 0, &light_fp_[0], nullptr, nullptr, &total);
++      light_fp_[1] = light_fp_[0];
++      D3D12_HEAP_PROPERTIES hp = {D3D12_HEAP_TYPE_READBACK};
++      D3D12_RESOURCE_DESC bd = {};
++      bd.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
++      bd.Width = total;
++      bd.Height = bd.DepthOrArraySize = bd.MipLevels = 1;
++      bd.SampleDesc.Count = 1;
++      bd.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
++      bool made = true;
++      for (auto& per_slot : light_buf_) {
++        for (auto& b : per_slot) {
++          b.Reset();
++          made = made && SUCCEEDED(device_->CreateCommittedResource(
++                             &hp, D3D12_HEAP_FLAG_NONE, &bd, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
++                             IID_PPV_ARGS(&b)));
++        }
++      }
++      for (bool& p : light_pending_) p = false;
++      light_w_ = made ? uint32_t(d.Width) : 0;
++      light_h_ = made ? d.Height : 0;
++      light_fmt_ = made ? d.Format : DXGI_FORMAT_UNKNOWN;
++      if (!made) light_on_ = false;
++    }
++    if (four_bytes && light_w_ == uint32_t(d.Width) && light_h_ == d.Height) {
++      for (int e = 0; e < 2; ++e) {
++        D3D12_TEXTURE_COPY_LOCATION from = {src[e], D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX};
++        D3D12_TEXTURE_COPY_LOCATION to = {light_buf_[slot][e].Get(),
++                                          D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT};
++        to.PlacedFootprint = light_fp_[e];
++        list_->CopyTextureRegion(&to, 0, 0, 0, &from, nullptr);
++      }
++      light_pending_[slot] = true;
++    }
++  }
+   if (src_state != kRead) list_->ResourceBarrier(n, to_read);
+ 
+   ID3D12DescriptorHeap* heaps[] = {srv_heap_.Get()};
+   list_->SetDescriptorHeaps(1, heaps);
+   list_->SetGraphicsRootSignature(root_.Get());
+   list_->SetGraphicsRoot32BitConstant(1, decode_srgb_ ? 1u : 0u, 0);
++  {
++    uint32_t g;
++    const float gamma = (gamma_ > 0.2f && gamma_ < 5.0f) ? gamma_ : 1.0f;  // a mistyped dial is ignored
++    std::memcpy(&g, &gamma, sizeof(g));
++    list_->SetGraphicsRoot32BitConstant(1, g, 1);
++  }
+   list_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+   const D3D12_VIEWPORT vp = {0.0f, 0.0f, float(width), float(height), 0.0f, 1.0f};
+   const D3D12_RECT sc = {0, 0, LONG(width), LONG(height)};
+@@ -238,4 +292,79 @@ bool EyeBlit::Draw(ID3D12CommandQueue* queue, ID3D12Resource* const src[2],
+   return true;
+ }
+ 
++// Patch 13: mean brightness of each eye's picture (the stored, gamma-encoded values, 0..1), every
++// 8th pixel each way, then the running numbers for the report. A gap between the eyes that keeps one
++// sign points at a per-eye fault; one that swaps sides points at lights the game animates per frame.
++void EyeBlit::ReadLight(uint32_t slot) {
++  double mean[2] = {};
++  for (int e = 0; e < 2; ++e) {
++    ID3D12Resource* b = light_buf_[slot][e].Get();
++    if (!b) return;
++    const D3D12_RANGE read = {0, SIZE_T(light_fp_[e].Footprint.RowPitch) * light_h_};
++    void* data = nullptr;
++    if (FAILED(b->Map(0, &read, &data)) || !data) return;
++    const uint8_t* base = static_cast<const uint8_t*>(data);
++    const bool ten = light_fmt_ == DXGI_FORMAT_R10G10B10A2_UNORM;
++    const bool bgr = light_fmt_ == DXGI_FORMAT_B8G8R8A8_UNORM;
++    double sum = 0;
++    uint32_t count = 0;
++    for (uint32_t y = 4; y < light_h_; y += 8) {
++      const uint32_t* row =
++          reinterpret_cast<const uint32_t*>(base + SIZE_T(y) * light_fp_[e].Footprint.RowPitch);
++      for (uint32_t x = 4; x < light_w_; x += 8) {
++        const uint32_t v = row[x];
++        float r, g, bl;
++        if (ten) {
++          r = float(v & 1023) / 1023.0f;
++          g = float((v >> 10) & 1023) / 1023.0f;
++          bl = float((v >> 20) & 1023) / 1023.0f;
++        } else {
++          r = float(v & 255) / 255.0f;
++          g = float((v >> 8) & 255) / 255.0f;
++          bl = float((v >> 16) & 255) / 255.0f;
++          if (bgr) std::swap(r, bl);
++        }
++        sum += 0.2126 * r + 0.7152 * g + 0.0722 * bl;
++        ++count;
++      }
++    }
++    const D3D12_RANGE none = {0, 0};
++    b->Unmap(0, &none);
++    mean[e] = count ? sum / count : 0.0;
++  }
++  LightStats& t = light_;
++  const double gap = mean[1] - mean[0];
++  const double mag = gap < 0 ? -gap : gap;
++  ++t.frames;
++  t.sum_l += mean[0];
++  t.sum_r += mean[1];
++  t.sum_gap += mag;
++  if (mag > t.max_gap) t.max_gap = mag;
++  if (mean[0] < t.min_l) t.min_l = mean[0];
++  if (mean[0] > t.max_l) t.max_l = mean[0];
++  constexpr double kGapCounts = 0.01;  // a 1 % brightness difference between the eyes
++  if (mag > kGapCounts) {
++    ++t.gap_frames;
++    const int sign = gap > 0 ? 1 : -1;
++    if (t.last_sign != 0 && sign != t.last_sign) ++t.swaps;
++    t.last_sign = sign;
++  }
++  if (t.frames >= kLightReportPairs) {
++    std::snprintf(light_line_, sizeof(light_line_),
++                  "[XR] eye light: %u pairs, mean L=%.3f R=%.3f, |R-L| mean=%.4f max=%.4f, "
++                  "over 1%%: %u pairs, side swaps %u, L range %.3f-%.3f, dial %.2f",
++                  t.frames, t.sum_l / t.frames, t.sum_r / t.frames, t.sum_gap / t.frames, t.max_gap,
++                  t.gap_frames, t.swaps, t.min_l, t.max_l, double(gamma_));
++    light_ready_ = true;
++    t = LightStats{};
++  }
++}
++
++bool EyeBlit::TakeLightReport(char* line, size_t size) {
++  if (!light_ready_) return false;
++  std::snprintf(line, size, "%s", light_line_);
++  light_ready_ = false;
++  return true;
++}
++
+ }  // namespace rex::graphics::d3d12::xr
+diff --git a/src/graphics/d3d12/xr_output.cpp b/src/graphics/d3d12/xr_output.cpp
+index 5e9ef6e..b6d0d15 100644
+--- a/src/graphics/d3d12/xr_output.cpp
++++ b/src/graphics/d3d12/xr_output.cpp
+@@ -155,6 +155,23 @@ XrFovf FovFromTangents(const float t[4]) {
+ 
+ }  // namespace
+ 
++// Patch 13 (2026-11-06, Tefa: "light is too bright"): the brightness dial, pow(c, dial) on every
++// stored value before the headset gets it. DK_XR_GAMMA sets it at launch (1.0 = unchanged); the
++// game's bridge can turn it live through rex_xr_brightness_dial(). DK_XR_EYE_LIGHT=0 stops the
++// per-eye brightness log.
++float g_xr_dial = [] {
++  const char* e = std::getenv("DK_XR_GAMMA");
++  const float v = e ? float(std::atof(e)) : 1.0f;
++  return (v > 0.2f && v < 5.0f) ? v : 1.0f;
++}();
++bool XrEyeLightWanted() {
++  static const bool on = [] {
++    const char* e = std::getenv("DK_XR_EYE_LIGHT");
++    return !(e && e[0] == '0');
++  }();
++  return on;
++}
++
+ XrOutput& XrOutput::Get() {
+   static XrOutput o;
+   return o;
+@@ -580,10 +597,14 @@ void XrOutput::SubmitPair(ID3D12Device* device, ID3D12CommandQueue* queue, ID3D1
+       if (ok) dst[e] = s.chains[e].images[index[e]].texture;
+     }
+     const char* err = "";
++    s.blit.SetGamma(g_xr_dial);
++    s.blit.SetLightLog(XrEyeLightWanted());
+     if (ok && !s.blit.Draw(queue, src, state, dst, width, height, &err)) {
+       ++s.blit_errors;
+       if (s.blit_errors <= 3) Log("[XR] draw failed: %s", err);
+     }
++    char light_line[256];
++    if (s.blit.TakeLightReport(light_line, sizeof(light_line))) Log("%s", light_line);
+     for (int e = 0; e < 2; ++e) {
+       XrSwapchainImageReleaseInfo ri = {XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+       if (acquired[e]) s.xrReleaseSwapchainImage(s.chains[e].handle, &ri);
+@@ -681,6 +702,11 @@ extern "C" __declspec(dllexport) int rex_xr_sample_head(uint32_t* id_out, float
+   return 1;
+ }
+ 
++// Patch 13: the brightness dial itself, so the game's bridge can show and turn it (xr.gamma).
++extern "C" __declspec(dllexport) float* rex_xr_brightness_dial() {
++  return &rex::graphics::d3d12::g_xr_dial;
++}
++
+ // Patch 09b: how far apart the headset's two eyes are, in metres (the wearer's IPD setting).
+ // 0 until a head sample.
+ extern "C" __declspec(dllexport) int rex_xr_eye_distance(float* metres) {
