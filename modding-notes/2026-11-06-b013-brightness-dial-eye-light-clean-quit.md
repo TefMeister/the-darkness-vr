@@ -45,3 +45,18 @@ three, so after b012's hands are confirmed, b013 can replace it.
 `dk_vr_headset_hands.ps1` in the b013 folder. (1) Play in a lit place, read the eye light lines.
 (2) Turn `xr.gamma` 1.0 -> 1.15 -> 1.3 while Tefa says which looks right. (3) Quit from the menu: no
 new `darknessrecomp.exe.*.dmp` in the CrashDumps folder.
+
+## b014: a switch for the game's auto exposure (same evening)
+Tefa then described the flicker more exactly: *"it was like the brightness dial flickered super light
+constantly"*, so the WHOLE picture pulses brighter, not single lamps `[reported 2026-11-06, headset]`.
+First suspect: the game's auto exposure (XREngine_Histogram), which measures the picture every frame
+while the frames alternate eyes `[hypothesis]`. Patch 12 (b011's log quieting) is ruled out: it only
+changes logging `[inferred-static 2026-11-06]`.
+`sub_825EC5C8` (the script command xr_pptoggledynamicexposure) only flips bit 0 of engine+656
+`[inferred-static 2026-11-06]`; which state means "on" is unknown. So b014 (b013 + this, exe
+b2a99ea9a7e7, folder `build-home-xr-b014`, builds repo `headset/v0.1.0-b014`) adds, in the
+post-process hook: `fx.exposure` (DK_VR_EXPOSURE at launch) -1 = leave it, 0 = force the bit clear,
+1 = force it set; `fx.exposure_seen` = the bit; a `[VP] auto exposure:` log line on each change.
+`[compile-verified 2026-11-06]`. Test: read `fx.exposure_seen`, set `fx.exposure` to the other value
+while Tefa watches: pulse gone = found; then check the picture is not stuck too dark or too light.
+Use b014 instead of b013 for the headset run.

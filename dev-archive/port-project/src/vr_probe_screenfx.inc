@@ -21,6 +21,30 @@ constexpr uint32_t kEnginePpMbFlags = 1192u;
 constexpr uint32_t kMbDisableBit = 0x40u;
 constexpr uint32_t kEngineMbMaxRadius = 1212u;
 
+// 2026-11-06 (Tefa: "it was like the brightness dial flickered super light constantly"): the game's AUTO
+// EXPOSURE is the first suspect. Its script command xr_pptoggledynamicexposure (sub_825EC5C8) flips bit 0 of
+// engine+656 [inferred-static 2026-11-06]; which state means "on" is not known yet, so the switch has three
+// settings and the game's own bit is shown. fx.exposure (DK_VR_EXPOSURE at launch): -1 = leave the game's
+// bit alone, 0 = force the bit clear, 1 = force it set. fx.exposure_seen: the bit as the game left it.
+constexpr uint32_t kEngineExposureFlags = 656u;
+constexpr uint32_t kExposureToggleBit = 0x1u;
+int32_t g_exposure_force = [] {
+  const char* e = std::getenv("DK_VR_EXPOSURE");
+  return e ? std::atoi(e) : -1;
+}();
+uint32_t g_exposure_seen = 0xFFFFFFFFu;  // 0xFFFFFFFF = the post-process has not run yet
+
+void ExposureVars() {
+  static bool done = false;
+  if (done) return;
+  done = true;
+  bridge_var("fx.exposure", BRIDGE_I32, &g_exposure_force, 1,
+             "game auto exposure bit (engine+656 bit 0): -1 = leave it, 0 = force clear, 1 = force set");
+  bridge_var("fx.exposure_seen", BRIDGE_U32, &g_exposure_seen, 0,
+             "engine+656 bit 0 as the game left it (before fx.exposure)");
+  REXGPU_INFO("[VP] auto exposure switch: fx.exposure={} (-1 = the game's own)", g_exposure_force);
+}
+
 bool ScreenFxOff() {
   static const bool off = [] {
     const char* e = std::getenv("DK_VR_SCREEN_FX_OFF");
@@ -34,6 +58,26 @@ bool ScreenFxOff() {
 
 REX_HOOK_RAW(sub_825E91D8) {
   const uint32_t engine = ctx.r3.u32;
+  ExposureVars();
+  if (engine != 0u) {
+    const uint32_t flags = REX_LOAD_U32(engine + kEngineExposureFlags);
+    const uint32_t seen = flags & kExposureToggleBit;
+    static int32_t logged_force = -2;
+    static uint32_t logged_seen = 0xFFFFFFFFu;
+    if (g_exposure_force != logged_force || seen != logged_seen) {
+      // When we force the bit, the game's own value is overwritten, so "seen" then reads ours unless the game
+      // writes it again; only changes are logged.
+      REXGPU_INFO("[VP] auto exposure: engine=0x{:08X} game bit={} force={}", engine, seen, g_exposure_force);
+      logged_force = g_exposure_force;
+      logged_seen = seen;
+    }
+    g_exposure_seen = seen;
+    if (g_exposure_force == 0) {
+      REX_STORE_U32(engine + kEngineExposureFlags, flags & ~kExposureToggleBit);
+    } else if (g_exposure_force == 1) {
+      REX_STORE_U32(engine + kEngineExposureFlags, flags | kExposureToggleBit);
+    }
+  }
   if (ScreenFxOff() && engine != 0u) {
     const uint32_t flare = REX_LOAD_U32(engine + kEngineFlareFlags);
     const uint32_t mb_flags = REX_LOAD_U32(engine + kEnginePpMbFlags);
