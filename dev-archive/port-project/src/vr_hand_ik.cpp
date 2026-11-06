@@ -66,9 +66,14 @@ constexpr uint32_t kShoulderBone[2] = {18u, 13u};
 constexpr float kPlayerNear = 80.f;                  // world units (~2 m) from the camera to the shoulders' middle
 constexpr uint32_t kPickFresh = 64u;                 // an object not met in this many calls is left out of the pick
 // The player has TWO IK objects on one skeleton (the same distance to the hundredth); only one of them moves the
-// arms on screen [verified-live 2026-10-29, simulator: 8.56 vs 0.04 mean picture change], so every object as near as
-// the nearest, to within this, is fed.
-constexpr float kSameCharacter = 1.0f;
+// arms on screen [verified-live 2026-10-29, simulator: 8.56 vs 0.04 mean picture change], so both are fed: every
+// object on the same skeleton instance as the nearest, and (fallback) every object as near as it to within this.
+// 2026-11-06: 1.0 -> 8.0. In the headset the two objects' distances, each measured on its own call while the head
+// moved, differed by 1-4 units, so the pick swapped between them ~60 times in 90 s and the hands and gun jumped
+// (Tefa: "guns and hands as well they teleport around every now and then randomly") [verified-live 2026-11-06,
+// headset, n=1]; feeding both (ik.pick=0 ik.vtable=0x82061FE0) stopped it ("hands are steady now"). Other
+// characters were 445+ units away.
+constexpr float kSameCharacter = 8.0f;
 constexpr uint32_t kReportEvery = 3000;              // hook calls between [IK] summary lines while on
 
 std::mutex g_mu;
@@ -84,10 +89,11 @@ int32_t g_pick = 1;               // ik.pick: 1 = only the character nearest the
 uint32_t g_only = 0;              // ik.only
 uint32_t g_vtable = 0;            // ik.vtable
 uint32_t g_calls = 0, g_set = 0, g_no_hands = 0;  // ik.calls / ik.set / ik.no_hands
-uint32_t g_seen[kSeenMax], g_seen_vt[kSeenMax], g_seen_call[kSeenMax];
+uint32_t g_seen[kSeenMax], g_seen_vt[kSeenMax], g_seen_call[kSeenMax], g_seen_si[kSeenMax];
 float g_seen_dist[kSeenMax];
 int g_seen_n = 0;
 uint32_t g_player = 0;            // ik.player: the IK object picked as the player's, 0 = none
+uint32_t g_player_si = 0;         // its skeleton instance: every IK object on it is the player's
 float g_player_dist = 0.f;        // its shoulders' distance from the camera
 char g_dist_text[kSeenMax * 28 + 8] = "none yet";
 char g_seen_text[kSeenMax * 22 + 8] = "none yet";
@@ -154,6 +160,7 @@ int NoteObject(uint8_t* base, uint32_t ik) {
   g_seen_vt[slot] = vt;
   g_seen_call[slot] = g_calls;
   g_seen_dist[slot] = 1e9f;
+  g_seen_si[slot] = 0u;
   int p = 0;
   for (int i = 0; i < g_seen_n && p < static_cast<int>(sizeof(g_seen_text)) - 22; ++i)
     p += std::snprintf(g_seen_text + p, sizeof(g_seen_text) - p, "%s%08X/%08X", i ? " " : "", g_seen[i], g_seen_vt[i]);
@@ -177,19 +184,24 @@ void UpdatePick(uint8_t* base, int slot, uint32_t si) {
   }
   g_seen_dist[slot] = d;
   g_seen_call[slot] = g_calls;
+  g_seen_si[slot] = si;
   int best = -1;
   for (int i = 0; i < g_seen_n; ++i)
     if (g_calls - g_seen_call[i] <= kPickFresh && g_seen_dist[i] < kPlayerNear &&
         (best < 0 || g_seen_dist[i] < g_seen_dist[best]))
       best = i;
   const uint32_t player = best < 0 ? 0u : g_seen[best];
+  const uint32_t player_si = best < 0 ? 0u : g_seen_si[best];
   // Logged when the player changes CHARACTER (not between the player's two tied objects) or goes.
-  if (player != 0u && (g_player == 0u || std::fabs(g_seen_dist[best] - g_player_dist) > kSameCharacter))
+  const bool same_character = player_si != 0u ? player_si == g_player_si
+                                              : std::fabs(g_seen_dist[best] - g_player_dist) <= kSameCharacter;
+  if (player != 0u && (g_player == 0u || !same_character))
     REXGPU_INFO("[IK] the player's hands: IK object 0x{:08X} (shoulders {:.1f} units from the camera)", player,
                 g_seen_dist[best]);
   else if (player == 0u && g_player != 0u)
     REXGPU_INFO("[IK] the player's hands: nobody near the camera, no hand is fed");
   g_player = player;
+  g_player_si = player_si;
   if (best >= 0) g_player_dist = g_seen_dist[best];
   if (g_calls % kPickFresh == 0) {
     int p = 0;
@@ -207,7 +219,8 @@ bool Fed(uint8_t* base, uint32_t ik) {
   if (g_player == 0u) return false;
   for (int i = 0; i < g_seen_n; ++i)
     if (g_seen[i] == ik)
-      return g_calls - g_seen_call[i] <= kPickFresh && g_seen_dist[i] <= g_player_dist + kSameCharacter;
+      return g_calls - g_seen_call[i] <= kPickFresh &&
+             ((g_player_si != 0u && g_seen_si[i] == g_player_si) || g_seen_dist[i] <= g_player_dist + kSameCharacter);
   return false;
 }
 
