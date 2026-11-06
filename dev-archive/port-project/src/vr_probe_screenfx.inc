@@ -49,7 +49,7 @@ bool ScreenFxOff() {
   static const bool off = [] {
     const char* e = std::getenv("DK_VR_SCREEN_FX_OFF");
     const bool on = e != nullptr && e[0] == '1';
-    REXGPU_INFO("[VP] screen effects off (motion blur, lens flares) = {}", on ? 1 : 0);
+    REXGPU_INFO("[VP] screen effects off (motion blur, lens flares, hurt screen) = {}", on ? 1 : 0);
     return on;
   }();
   return off;
@@ -98,4 +98,59 @@ REX_HOOK_RAW(sub_825E91D8) {
   }
 
   __imp__sub_825E91D8(ctx, base);
+}
+
+// ---- 2026-11-06: the HURT SCREEN off (part of DK_VR_SCREEN_FX_OFF; /pd, static, nothing run) ---------------
+//
+// sub_82125088 (r3 = a player object, its client data at +396) is the per-tick update that eases the hurt amount
+// at clientdata+1712 toward a target worked out from health, keeping last tick's value at +1716:
+//   stfs prev,1716(r31) ; cur += rate * (target - cur) ; stfs cur,1712(r31)           [inferred-static 2026-11-06]
+// The ONLY readers of +1712 in the whole program: the client screen pass sub_821570E8 (3 sites) and sub_821C5C00.
+// Each lerps +1716 -> +1712 by +40 and draws its hurt passes (the XREngine_*Hurt shaders, CC_Hurt) only when the
+// result is above 0.0001 (float at 0x8209DDDC)                                         [inferred-static 2026-11-06]
+// The other writers: the respawn reset sub_821A38C0 writes 0.0 (float at 0x8209DCBC) and sub_821A4820 copies it
+// from another client data. So 0.0 in both fields after every update means no hurt screen; the DamageBreath
+// sounds are separate and stay. That these passes are the red tint / blur Tefa sees: [hypothesis] until a run.
+// fx.hurt_off (live): -1 = follow DK_VR_SCREEN_FX_OFF, 0 = the game's own, 1 = off.
+// fx.hurt_seen: the amount the game set on the last update, before we zeroed it (above 0 = hurt, the hook runs).
+DECLARE_REX_FUNC(sub_82125088);
+
+namespace {
+constexpr uint32_t kObjClientData = 396u;
+constexpr uint32_t kCdHurtNow = 1712u;
+constexpr uint32_t kCdHurtPrev = 1716u;
+constexpr uint32_t kHurtLogLimit = 5u;
+int32_t g_hurt_off = -1;
+float g_hurt_seen = 0.0f;
+
+void HurtVars() {
+  static bool done = false;
+  if (done) return;
+  done = true;
+  bridge_var("fx.hurt_off", BRIDGE_I32, &g_hurt_off, 1,
+             "hurt screen (clientdata+1712): -1 = follow DK_VR_SCREEN_FX_OFF, 0 = the game's own, 1 = off");
+  bridge_var("fx.hurt_seen", BRIDGE_F32, &g_hurt_seen, 0,
+             "hurt amount the game set on the last update, before fx.hurt_off zeroed it (above 0 = hurt)");
+}
+}  // namespace
+
+REX_HOOK_RAW(sub_82125088) {
+  const uint32_t obj = ctx.r3.u32;  // r3 is not kept by the original, so read it first
+  __imp__sub_82125088(ctx, base);
+  HurtVars();
+  if (obj == 0u) return;
+  const uint32_t cd = REX_LOAD_U32(obj + kObjClientData);
+  if (cd == 0u) return;
+  const float now = LoadGuestFloat(base, cd + kCdHurtNow);
+  g_hurt_seen = now;
+  const bool off = g_hurt_off == 1 || (g_hurt_off == -1 && ScreenFxOff());
+  static uint32_t times_logged = 0;
+  if (now > 0.0001f && times_logged < kHurtLogLimit) {
+    ++times_logged;
+    REXGPU_INFO("[VP] hurt screen: clientdata=0x{:08X} amount={:.4f} off={}", cd, now, off ? 1 : 0);
+  }
+  if (off) {
+    StoreGuestFloat(base, cd + kCdHurtNow, 0.0f);
+    StoreGuestFloat(base, cd + kCdHurtPrev, 0.0f);
+  }
 }
