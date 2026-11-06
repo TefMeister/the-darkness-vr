@@ -60,3 +60,27 @@ post-process hook: `fx.exposure` (DK_VR_EXPOSURE at launch) -1 = leave it, 0 = f
 `[compile-verified 2026-11-06]`. Test: read `fx.exposure_seen`, set `fx.exposure` to the other value
 while Tefa watches: pulse gone = found; then check the picture is not stuck too dark or too light.
 Use b014 instead of b013 for the headset run.
+
+## ⭐ Tested on the pretend headset, 19:30-19:37: THE GAME'S AUTO EXPOSURE IS THE BRIGHTNESS FAULT
+b014 on the OpenXR Simulator (home PC, VR Bench driving START + A into the CONTINUE save, the
+corridor Tefa named), read through the bridge and b013's eye light lines `[measured 2026-11-06,
+simulator, n=2 flips each way]`:
+- The game leaves bit 0 of engine+656 at **1**. With it at 1 the picture's mean brightness is
+  **0.83** (walls blown to white, screenshot), and it pumped: L range 0.759-0.834 within one
+  300-pair window with the head still.
+- `fx.exposure=0`: mean **0.31**, range 0.312-0.312 (dead steady), the corridor dim and grimy as the
+  game is meant to look. Head turned 60 degrees: 0.242, still steady. Back to 1: 0.83 again; 0 again: 0.31.
+- The two eyes agree (|R-L| under 1 %, never swapping), so the per-eye lighting defect is NOT it.
+So bit 0 set = the game's auto exposure on, and in our port it overshoots badly and pumps: that is
+both Tefa's "too bright" (since 2026-10-30) and "the brightness flickers super light". Likely why
+`[hypothesis]`: the exposure is measured from the picture through GPU resolves, and our log counts
+~3,000 failed "Resolve region is empty" a second in play, so it measures garbage. The real fix would be
+making that measurement work; for now fixed exposure is the workaround.
+`DK_VR_EXPOSURE=0` is now in b014's three launch scripts (copies in `dev-archive/build-scripts/`).
+Not yet checked: outdoors or in very dark places, where fixed exposure may be too dark or too light
+(the dial `xr.gamma` and the game's own brightness option cover that), and the flat window.
+Log and both screenshots kept in `D:/the-darkness-build/logs-kept/2026-11-06-exposure-sim/`.
+Side finds: b012 writes "[IK] the player's hands: IK object ..." about 15 times a second (1,437 lines in
+~1.5 min): a new log flood to quiet. The log of a run goes to the folder's own `logs/`.
+`dk_sim_drive.py` now takes the build folder as its first argument (a hand edit of the path launched
+b012 instead of b014 once this evening).

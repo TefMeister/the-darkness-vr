@@ -19,6 +19,10 @@ $env:DK_XR_HEAD = "1"
 $env:DK_XR_HEAD_MIRROR = "0"
 $env:DK_HANDS = "1"
 $env:DK_HANDS_ROT = "1"
+# 2026-11-06 (b013): the headset brightness dial, 1.0 = as the game draws it, 1.1-1.3 = deeper shadows; turn it live with the bridge var xr.gamma
+$env:DK_XR_GAMMA = "1.0"
+# 2026-11-06 (b014): the game's auto exposure, -1 = the game's own, 0 / 1 = force engine+656 bit 0 clear / set; live with the bridge var fx.exposure
+$env:DK_VR_EXPOSURE = "0"   # 2026-11-06: the game's auto exposure off; with it on the picture blew out to 83 % white and pumped (simulator)
 Remove-Item Env:XR_RUNTIME_JSON -ErrorAction SilentlyContinue
 $p = Start-Process -FilePath (Join-Path $PSScriptRoot "darknessrecomp.exe") -WorkingDirectory $PSScriptRoot -PassThru
 "pid=$($p.Id)"

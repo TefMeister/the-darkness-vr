@@ -16,6 +16,7 @@ $env:DK_FREEZE = "0"
 $env:DK_VR_SCREEN_FX_OFF = "1"
 $env:DK_EYE_BY_PACKET = "1"
 $env:DK_XR = "1"
+$env:DK_VR_EXPOSURE = "0"   # 2026-11-06: the game's auto exposure off; with it on the picture blew out to 83 % white and pumped (simulator)
 $env:DK_XR_HEAD = "1"
 $env:DK_XR_HEAD_MIRROR = "0"
 $env:DK_HANDS = "1"
