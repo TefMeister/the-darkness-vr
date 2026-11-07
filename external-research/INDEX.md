@@ -20,5 +20,6 @@ write-up in `topics/`. Status tags:
 
 | Date | Topic | Status | Why it matters |
 | --- | --- | --- | --- |
+| 2026-11-04 | [DS3-VR (Dark Souls III): geo-11 stereo frames sent to OpenXR, with a floating HUD panel and an in-headset menu; not a drop-in for our D3D12 build, but four ideas worth copying](topics/2026-11-04-ds3-vr-geo11-openxr-pattern.md) | 👀 | Hand-off from the modding session (Tefa's Discord tip): the HUD panel, the tabbed menu, the frame cap and per-eye DLSS are direct board candidates |
 | 2026-10-26 | [Two public PC ports of The Darkness appeared in Sept/Oct 2026 (one with a native D3D11 renderer)](topics/2026-10-26-two-public-pc-ports-of-the-darkness.md) | 🆕 | portingpete's port draws through the engine's own D3D11 backend (route choice); Estacado (same ReXGlue SDK) offsets the scene projection per frame and documents its threading; both have FOV, motion-blur off and dev/unlock tools. |
 | 2026-09-17 | [Riddick: Assault on Dark Athena (same studio, PC release) enables a debug menu through an `.xrg` file; no ReXGlue project has done VR](topics/2026-09-17-starbreeze-dark-athena-xrg-debug-menu-and-rexglue-landscape.md) | 🆕 | The Darkness uses the same `.xrg` config format; and this project would be first in its ecosystem |

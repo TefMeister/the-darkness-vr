@@ -1,4 +1,6 @@
-# DS3-VR (scubasteve2365): the geo-11 + OpenXR pattern, looked at for the Darkness (2026-11-04, modding session)
+# DS3-VR: the geo-11 + OpenXR pattern, and what the Darkness can take from it
+
+Folded in by `/gr` on 2026-11-07 from the modding session's hand-off of 2026-11-04 (`inbox/2026-11-04-mod-ds3-vr-geo11-pattern.md`), kept as written.
 
 Tefa, 2026-11-04: *"a discord member told me to get it running in Geo 11 and send the github link to you as an example"*:
 https://github.com/scubasteve2365/DS3-VR
@@ -20,3 +22,9 @@ frame rate (our 20 fps row); the frame cap at the headset rate; "both eyes from 
 Helifax's geo-11 fix pages are where the stereo maths for a D3D11 game would be read, if a D3D11 game of ours ever needs it.
 
 Starred and followed scubasteve2365 (github-thanks.md).
+
+## Next step for this project
+
+Nothing to install. Board rows the modding side may want: the HUD on a floating, sizeable panel; tabs in an in-headset menu; a frame cap at the headset's refresh rate; per-eye DLAA/DLSS once the frame-rate row is reached.
+
+Sources: https://github.com/scubasteve2365/DS3-VR (README, read 2026-11-04); Helifax's geo-11 fix (named in that README).

@@ -17,3 +17,6 @@ are not, or you are a rights holder who wants something corrected or removed, op
 
 - **portingpete**, The Darkness Recomp (README, RENDERING.md) — https://github.com/portingpete/The-Darkness-Recomp
 - **invinceble55-wq**, Estacado (README, CHANGELOG, docs) — https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp
+
+- **scubasteve2365**: DS3-VR (https://github.com/scubasteve2365/DS3-VR), the geo-11 + OpenXR pattern (2026-11-04).
+- **Helifax**: the geo-11 Direct3D 11 stereo fix, named by DS3-VR as its stereo source (2026-11-04).
