@@ -20,3 +20,9 @@ are not, or you are a rights holder who wants something corrected or removed, op
 
 - **scubasteve2365**: DS3-VR (https://github.com/scubasteve2365/DS3-VR), the geo-11 + OpenXR pattern (2026-11-04).
 - **Helifax**: the geo-11 Direct3D 11 stereo fix, named by DS3-VR as its stereo source (2026-11-04).
+
+## Sources (2026-11-07)
+
+- **ReXGlue** SDK developers, v0.10.1 release notes (contributors **pruefsumme**, **Graine25**, **catuhana**, **mrcmunir**) — https://github.com/rexglue/rexglue-sdk/releases/tag/v0.10.1
+- **portingpete**, The Darkness Recomp (v0.1.8 and commits to 2026-10-30) — https://github.com/portingpete/The-Darkness-Recomp
+- **invinceble55-wq**, Estacado (commits to 2026-11-06) — https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp

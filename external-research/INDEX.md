@@ -1,6 +1,8 @@
 # Research index
 
-**Last `/gr` pass: 2026-10-26 (estate sweep) — CHECK-IN.** Inbox empty. Found two public PC ports we did not know: portingpete's (draws through the engine's own D3D11 backend, F5 dev tools) and Estacado (same ReXGlue SDK, offsets the scene projection per frame, threading docs); one topic, pointer sent to the dossier.
+**Last `/gr` pass: 2026-11-07 (estate sweep) — CHECK-IN.** Inbox drained earlier today (the DS3-VR topic). rexglue-sdk v0.10.1 (2026-11-06) is the stable cut of the three nightlies already noted on 10-04 (#449 vector pack, #425 input, #450 atomics and fences, #417 project names), nothing else; the launch-path fault in `xam_info.cpp` (board row of 10-15) is unchanged upstream (the same lines at v0.10.1, read online) `[inferred-static]`.portingpete's port: v0.1.8 (10-27: Steam Deck, 4:3 output, media packs) and a cheaper draw capture (#144, 10-30); Estacado: no release since 0.9.8, only a sponsor link. No VR work on either. Nothing new for us.
+
+_Previous: **Last `/gr` pass: 2026-10-26 (estate sweep) — CHECK-IN.** Inbox empty. Found two public PC ports we did not know: portingpete's (draws through the engine's own D3D11 backend, F5 dev tools) and Estacado (same ReXGlue SDK, offsets the scene projection per frame, threading docs); one topic, pointer sent to the dossier._
 
 _Previous: **Last `/gr` pass: 2026-10-04 (estate sweep) — CHECK-IN.** Inbox empty. Three rexglue-sdk nightlies since (2026-09-30 to 10-02) change generated atomics and memory fences, which bears on the world-pause question; pointer with a rebuild A/B sent to the dossier._
 
