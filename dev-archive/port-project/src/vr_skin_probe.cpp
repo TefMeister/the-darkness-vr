@@ -20,6 +20,8 @@
 
 #include <rex/hook.h>
 
+#include "vr_wide_view.h"
+
 extern "C" {
 #include "bridge/bridge.h"
 }
@@ -163,6 +165,7 @@ void Perturb(uint8_t* base, uint32_t shadow) {
 DECLARE_REX_FUNC(sub_82249488);
 
 REX_HOOK_RAW(sub_82249488) {
+  dkview::FlatAtCommit(base, kRenderContext);   // b018: the HUD shrunk inside the wide view (vr_wide_view.cpp)
   {
     const uint32_t shadow = REX_LOAD_U32(kRenderContext + kShadowPtrOffset);
     if (shadow != 0u) Perturb(base, shadow);

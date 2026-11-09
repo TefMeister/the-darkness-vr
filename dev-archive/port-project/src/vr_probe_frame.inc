@@ -170,6 +170,7 @@ REX_HOOK_RAW(sub_82867620) {
 DECLARE_REX_FUNC(sub_823F9B00);
 
 REX_HOOK_RAW(sub_823F9B00) {
+  dkview::NoteCamera();   // b018: in a level (vr_wide_view.cpp)
   const uint32_t out = ctx.r4.u32;
   const uint32_t caller = static_cast<uint32_t>(ctx.lr);
 

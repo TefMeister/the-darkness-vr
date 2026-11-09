@@ -122,6 +122,7 @@
 #include <rex/hook.h>
 
 #include "vr_xr_head.h"
+#include "vr_wide_view.h"
 
 extern "C" {
 #include "bridge/bridge.h"   // bridge_frame_mark(), once per shown frame (vr_probe_frame.inc)
@@ -500,6 +501,7 @@ extern "C" __declspec(dllexport) int dk_sbs_swap_eye(uint64_t swap_index, uint32
 REX_HOOK_RAW(sub_82249580) {
   // The original, unchanged and first. Everything below is observation.
   __imp__sub_82249580(ctx, base);
+  dkview::Flat(base, kProjection);   // b018: the HUD and menus shrunk inside the wide view (vr_wide_view.cpp)
 
   float p[kMatrixFloats];
   for (int i = 0; i < kMatrixFloats; ++i) {

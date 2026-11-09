@@ -30,6 +30,7 @@
 #include <windows.h>
 
 #include "vr_xr_head.h"
+#include "vr_wide_view.h"
 
 namespace {
 
@@ -197,6 +198,10 @@ extern "C" __declspec(dllexport) int dk_xr_pair_sample(uint32_t pair, uint32_t* 
 // Asked by SDK patch 09: the player view's tangents (left, right, up, down), all positive.
 extern "C" __declspec(dllexport) int dk_xr_eye_fov(float t[4]) {
   const Settings& s = Get();
+  {  // b018: a widened view reports the tangents it was really built with
+    float wx, wy;
+    if (s.fov && dkview::Tangents(&wx, &wy)) { t[0] = wx; t[1] = wx; t[2] = wy; t[3] = wy; return 1; }
+  }
   if (!s.fov || s.tan_x <= 0.0f || s.tan_y <= 0.0f) return 0;
   t[0] = s.tan_x; t[1] = s.tan_x; t[2] = s.tan_y; t[3] = s.tan_y;
   return 1;

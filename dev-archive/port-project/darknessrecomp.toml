@@ -13,3 +13,11 @@ render_target_path_d3d12 = "rov"
 resolution_scale = 1
 native_2x_msaa = false
 vsync = false
+
+# ===== Camera-constant trace (temporary, 2026-09-16) =====
+input_background_events = true
+# gpu_dump_draw_constants = "E:/the-darkness/screens/camtrace/draws.bin"   # OFF - diagnostic, writes ~150 MB per run
+
+# 2026-11-10 (b018): the full headset view spreads the 1280 x 720 picture over 108 x 109 degrees; drawn 2 x wider and 3 x taller (2560 x 2160) it stays sharp
+draw_resolution_scale_x = 2
+draw_resolution_scale_y = 3
