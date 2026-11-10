@@ -1439,6 +1439,9 @@ what `rov` and `rtv` add (`render_target_cache.cpp`, `dxbc_translator_om.cpp`), 
   was stale (old compiler's precompiled headers) until 2026-11-10 evening: both build scripts now clear a tree's
   precompiled headers themselves when the compiler has changed (`home_stale_pch.bat`), so either tree builds
   `[verified-live 2026-11-10, n=1]`.
+- **Ending a run on the OpenXR Simulator:** the process has two windows there and the simulator's preview comes
+  first; a close message to it leaves the game running. The game's own window closes in under a second, in a level
+  too. `build-scripts/dk_close.py` asks the right one and waits until no copy is left `[verified-live 2026-11-10, n=3]`.
 
 ## 7. Not yet looked at
 
