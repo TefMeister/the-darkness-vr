@@ -46,6 +46,8 @@ extern "C" {
 #include <cstring>
 #include <mutex>
 
+#include <windows.h>
+
 #include "vr_hand_pose.h"
 
 namespace {
@@ -65,6 +67,16 @@ constexpr int kStillOnLogS = 15;                       // while on, a log line t
 
 std::mutex g_pm;
 int32_t g_set = 0;                     // pose.set
+// WHICH GUN IS HELD (2026-11-10): the player's ClientData + 0x1BE8 is 0 with empty hands and a number once guns are out
+// (6 with the two pistols) [measured 2026-11-10, simulator, n=1: the right trigger drew them, the word went 0 -> 6 and
+// the two clip counts beside it 0 -> 12 / 12]. With pose.auto = 1 the slot follows it by itself: 0 = slot 0 (empty
+// hands); a number met for the first time takes the slot in use if that is a gun slot nobody owns yet, else the next
+// free gun slot, and is remembered in the pose file ("gun <slot> <number>"). Whether every gun has its own number is
+// NOT known yet (this save holds one weapon): if two guns share one, they share a slot, as before.
+int32_t g_auto = 1;                    // pose.auto
+uint32_t g_held = 0xFFFFFFFFu;         // pose.held: the number read last (all ones = none read yet)
+int g_prefer = 0;                      // the gun slot that was in use when the file was saved: the first gun met takes it
+uint32_t g_gun_of[9] = {};             // slot -> the held number it belongs to (0 = nobody's)
 int32_t g_mode = 0;                    // pose.on
 int32_t g_mode_seen = 0;               // the mode last acted on (pose.on can also be set from the desk)
 int32_t g_lineup = 0;                  // pose.lineup: bit 0 left, bit 1 right, taken at the next solve
@@ -101,7 +113,13 @@ void Load() {
     if (line[0] == '#') continue;
     int active = -1;
     if (std::sscanf(line, "active %d", &active) == 1) {
-      if (active >= 0 && active < kSets) g_set = active;
+      if (active >= 0 && active < kSets) { g_set = active; g_prefer = active; }
+      continue;
+    }
+    int gslot = -1;
+    unsigned gval = 0;
+    if (std::sscanf(line, "gun %d %u", &gslot, &gval) == 2) {
+      if (gslot >= 1 && gslot < kSets) g_gun_of[gslot] = gval;
       continue;
     }
     if (std::sscanf(line, "%d %c %f %f %f %f %f %f %f %f %f", &set, &hand, &m[0], &m[1], &m[2], &m[3], &m[4], &m[5],
@@ -127,6 +145,8 @@ void Save() {
   std::fprintf(f, "# The Darkness VR hand pose, written by the hand poser. set hand(L/R) then the 3x3, row by row.\n");
   std::fprintf(f, "# slot 0 = empty hands, 1-%d = the guns; 'active' = the slot in use at the next launch.\n", kSets - 1);
   std::fprintf(f, "active %d\n", (g_set >= 0 && g_set < kSets) ? g_set : 0);
+  for (int gs = 1; gs < kSets; ++gs)
+    if (g_gun_of[gs] != 0u) std::fprintf(f, "gun %d %u\n", gs, g_gun_of[gs]);
   int n = 0;
   for (int s = 0; s < kSets; ++s)
     for (int h = 0; h < 2; ++h) {
@@ -175,7 +195,9 @@ void Start() {
   Load();
   UpdateText();
   bridge_var("pose.on", BRIDGE_I32, &g_mode, 1, "1 = pose mode (the hands show the game's angle until lined up)");
-  bridge_var("pose.set", BRIDGE_I32, &g_set, 1, "the pose slot in use: 0 = empty hands, 1-8 = the guns (A / X in pose mode)");
+    bridge_var("pose.auto", BRIDGE_I32, &g_auto, 1, "1 = the slot follows the held gun by itself (0 = empty hands)");
+  bridge_var("pose.held", BRIDGE_U32, &g_held, 0, "the held-gun number read from the game (0 = empty hands)");
+bridge_var("pose.set", BRIDGE_I32, &g_set, 1, "the pose slot in use: 0 = empty hands, 1-8 = the guns (A / X in pose mode)");
   bridge_var("pose.lineup", BRIDGE_I32, &g_lineup, 1, "line up at the next solve: 1 left, 2 right, 3 both");
   bridge_var("pose.hand", BRIDGE_I32, &g_nudge_hand, 1, "the hand pose.yaw/pitch/roll turn: 0 left, 1 right");
   bridge_var("pose.yaw", BRIDGE_F32, &g_nudge_deg[1], 1, "degrees to turn that hand about the controller's up, once");
@@ -256,6 +278,38 @@ bool FeedPad(uint32_t raw, const float ax[6]) {
     trig_was[0] = trig_was[1] = false;
   }
   return g_mode != 0 || combo;
+}
+
+void NoteHeld(uint32_t value) {
+  // steady for half a second before it counts: while a level loads the word runs through other numbers (7, then 6,
+  // 26 ms apart, seen 2026-11-10), and those took gun slots
+  static uint32_t pending = 0xFFFFFFFFu;
+  static ULONGLONG pending_since = 0;
+  const ULONGLONG now = GetTickCount64();
+  if (value != pending) { pending = value; pending_since = now; return; }
+  if (value == g_held || now - pending_since < 500u) return;
+  g_held = value;
+  if (g_auto != 1 || g_mode != 0) return;   // not while posing: Tefa picks the slot there
+  int want = 0;
+  if (value != 0u) {
+    for (int gs = 1; gs < kSets && want == 0; ++gs)
+      if (g_gun_of[gs] == value) want = gs;
+    if (want == 0) {
+      if (g_prefer >= 1 && g_prefer < kSets && g_gun_of[g_prefer] == 0u) want = g_prefer;   // the slot posed by hand so far
+      if (want == 0 && g_set >= 1 && g_set < kSets && g_gun_of[g_set] == 0u) want = g_set;
+      for (int gs = 1; gs < kSets && want == 0; ++gs)
+        if (g_gun_of[gs] == 0u) want = gs;
+      if (want == 0) want = 1;
+      g_gun_of[want] = value;
+      REXGPU_INFO("[POSE] a held-gun number met for the first time: {} takes slot {}", value, want);
+      Save();
+    }
+  }
+  if (want != g_set) {
+    REXGPU_INFO("[POSE] held {} -> slot {} ({})", value, want, want == 0 ? "empty hands" : "a gun");
+    g_set = want;
+    UpdateText();
+  }
 }
 
 void RequestLineUp(uint32_t hands) {

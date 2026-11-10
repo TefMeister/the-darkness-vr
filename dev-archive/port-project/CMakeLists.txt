@@ -22,6 +22,7 @@ set(DARKNESSRECOMP_SOURCES
     src/vr_hand_ik.cpp
     src/vr_hand_pose.cpp
     src/vr_wide_view.cpp
+    src/vr_mem_probe.cpp
 )
 
 if(WIN32)

@@ -49,6 +49,7 @@ constexpr uint32_t kOn[2] = {0x00100000u, 0x00200000u}, kFresh[2] = {0x00400000u
 constexpr uint32_t kState[2] = {1448u, 1450u};       // per-hand blend state byte: 0 off, 1 in, 2 out, 3 held
 constexpr uint32_t kWeight[2] = {1452u, 1456u};      // per-hand blend weight
 constexpr uint8_t kStateHeld = 3;
+constexpr uint32_t kHeldGun = 0x1BE8u;              // ClientData + this: 0 = empty hands, a number = guns out (vr_hand_pose.cpp)
 constexpr uint32_t kClientDataBack = 4384u;          // IK object = ClientData + 4384; ClientData+0 = its vtable
 constexpr uint32_t kRowRight = 0u, kRowDown = 16u, kRowFwd = 32u, kRowPos = 48u;   // dossier 6d
 constexpr uint32_t kPosValid[2] = {0x02u, 0x20u};    // DK_XR_HAND_L_POS, DK_XR_HAND_R_POS (SDK patch 10)
@@ -379,6 +380,7 @@ REX_HOOK_RAW(sub_821EE4E0) {
       if (picked && dkxr::LastHands(&h) && dkxr::LastView(rows) && (h.flags & (hand ? 0x10u : 0x01u))) {
         float c[3][3];
         ControllerAxes(h, hand, rows, c);
+        if (ik == g_player) dkpose::NoteHeld(REX_LOAD_U32(ik - kClientDataBack + kHeldGun));   // 2026-11-10: the slot follows the gun (the player's own data only)
         if (g_calib == 1) { dkpose::RequestLineUp(3u); g_calib = 0; }
         float hm[3][3], out[3][3];
         for (int k = 0; k < 3; ++k)

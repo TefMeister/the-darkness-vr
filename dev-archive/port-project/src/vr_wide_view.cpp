@@ -173,10 +173,13 @@ void Flat(uint8_t* base, uint32_t projection) {
 }
 }  // namespace dkview
 
+void DkMemProbeInit(uint8_t* base);   // vr_mem_probe.cpp
+
 DECLARE_REX_FUNC(sub_8275EEF8);
 
 REX_HOOK_RAW(sub_8275EEF8) {
   Vars();
+  DkMemProbeInit(base);
   const uint32_t vp = ctx.r3.u32;
   const bool by_fov = REX_LOAD_U8(vp + 256) == 0;
   bool ours = false;

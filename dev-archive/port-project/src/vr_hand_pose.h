@@ -17,6 +17,9 @@ bool FeedPad(uint32_t raw_buttons, const float axes[6]);
 // leave the animation's own rows (no pose saved for this hand yet, or the poser is waiting for its line-up).
 bool HandRows(int hand, const float h[3][3], const float c[3][3], float out[3][3]);
 
+// The held-gun number read from the game this solve (0 = empty hands): the pose slot follows it (pose.auto).
+void NoteHeld(uint32_t value);
+
 // Line a hand up at its next solve: bit 0 left, bit 1 right (ik.calib=1 asks for both).
 void RequestLineUp(uint32_t hands);
 
