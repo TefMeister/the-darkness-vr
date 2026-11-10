@@ -98,8 +98,7 @@ off and on with the same depth is no change) `[inferred-static 2026-11-10]`.
   with it, the toml with `render_target_path_d3d12 = "rtv"`, the b024 start scripts. b024 stays beside it untouched.
   The Desktop icon starts the highest number, so it starts b025. Stamped with `deployed.sh record`.
 - **Back to the old method**: `render_target_path_d3d12 = "rov"` in b025's toml; or start b024.
-- ⛔ **Not in the builds store**: Tefa's instruction this session (the dev PC is cleaning that repo's history). The
-  build folder is kept; save it after the dev PC's all-clear.
+- **Builds store**: saved as `headset/v0.1.0-b025` at 22:1x, after the dev PC's all-clear and the move of the home PC's builds copy onto the cleaned history (b024's save checked: still there).
 
 ### NOT established for b025
 
