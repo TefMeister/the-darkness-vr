@@ -12,7 +12,7 @@ surface. Every one of them reads like these:
     vertices (640 0) (1280 0) (1280 360) -> rect y 0..360; window offset 0 -512 -> y -512..-152; scissor y 0..208; msaa 2
 
 Window offsets 0 / -256 / -512 with scissors 256 / 256 / 208 high: **the game draws its 1280 x 720 picture in three
-horizontal strips** (256 + 256 + 208 = 720), the Xbox 360's "predicated tiling": with 2x anti-aliasing the picture does
+horizontal strips** (256 + 256 + 208 = 720), the Xbox 360's "predicated tiling": with anti-aliasing (the register's `msaa 2` is the THIRD setting, 4 samples: 0 = none, 1 = 2, 2 = 4) the picture does
 not fit the console's 10 MB of video memory in one go. The game's graphics library replays the whole frame's commands
 once per strip; a copy whose rectangle lies in another strip comes out empty in this one. So:
 
@@ -43,3 +43,14 @@ host does not need the game's anti-aliasing: b018 already draws 2 x 3 larger.
 each carried a full copy. Tonight's five (b018-b022) are now links (junctions) to `game-files`, checked file-for-file
 first (27 GB back). A settings file put in `game-files` is only seen by builds whose `Assets` is the link; b016 and
 b017 still have their own copies. New build folders: make `Assets` a junction (`mklink /J`), never a copy.
+
+## Later the same night
+
+- `msaa 2` in the report is the register's enum, not a count: 4 samples a pixel (matching `R_ANTIALIAS`'s default of 4).
+  At 4 samples even 1280 x 720 without depth would not fit; hence three strips.
+- The saved options (`_profile`) hold no anti-aliasing entry on this version (only gamma, brightness, black level,
+  cable profile and the sound volumes) `[measured]`: it is not a player setting here.
+- The other two readers of the option's name (`sub_823ACC08`, `sub_820E3D98`) only set its defaults (4, and 1). The
+  function that prints "ContinueTiling" (`sub_8259EE38`) is a 6,000-line statistics dump, not the tiling code.
+  `[inferred-static]` So the lead list is down to: the console command `r_antialias(%d)` (text at 0x82053F60, used
+  from `sub_820E5730`) and whoever registers and runs it; and the render-target creation itself.
