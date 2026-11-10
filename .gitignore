@@ -1,1 +1,5 @@
 __pycache__/
+
+# the analysis tools' caches (rebuilt from the generated source)
+dev-archive/tools/callgraph.json
+dev-archive/tools/funcidx.json
