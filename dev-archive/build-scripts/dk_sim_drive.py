@@ -1,5 +1,7 @@
 """drive the Darkness VR build on the pretend headset through VR Bench: START (menu held), then A every 4.5 s into the car
-scene, then idle so the collector and the simulator can measure. Run from anywhere."""
+scene, then idle so the collector and the simulator can measure. Run from anywhere.
+End the run with dk_close.py (beside this file): it asks the GAME's own window to close, not the simulator's preview
+window (which comes first and only closes itself), and waits until no copy of the game is left. 2026-11-11."""
 import os, subprocess, sys, time
 VB = os.path.expanduser("~/github-backups/_lanes-next-wt/plugins/lanes/tools/vrbench")
 sys.path.insert(0, VB)
