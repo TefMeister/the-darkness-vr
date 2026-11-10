@@ -1436,7 +1436,9 @@ what `rov` and `rtv` add (`render_target_cache.cpp`, `dxbc_translator_om.cpp`), 
 - **Dead weight found and removed:** patch 13's per-eye brightness log copied both eye pictures off the card every
   pair: 73 -> 81-83 game frames a second with it off (now the default; `DK_XR_EYE_LIGHT=1` turns it on).
 - **The graphics library is built in the game's build tree** (`--target rexgpu-xenos`); `home_build_sdk.bat`'s own tree
-  is stale (old compiler's precompiled headers).
+  was stale (old compiler's precompiled headers) until 2026-11-10 evening: both build scripts now clear a tree's
+  precompiled headers themselves when the compiler has changed (`home_stale_pch.bat`), so either tree builds
+  `[verified-live 2026-11-10, n=1]`.
 
 ## 7. Not yet looked at
 

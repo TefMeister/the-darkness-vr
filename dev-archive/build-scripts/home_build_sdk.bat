@@ -18,6 +18,8 @@ echo ### CONFIGURE
 cmake --preset win-amd64 -DCMAKE_C_COMPILER_TARGET=x86_64-pc-windows-msvc -DCMAKE_CXX_COMPILER_TARGET=x86_64-pc-windows-msvc > "%LOGDIR%\sdk-cfg.txt" 2>&1
 if errorlevel 1 ( echo CONFIGURE FAILED & exit /b 1 )
 :configured
+rem 2026-11-10: a compiler update leaves stale precompiled headers that fail every file; cleared here when it changed.
+call "%~dp0home_stale_pch.bat" out\build\win-amd64
 echo ### BUILD Release
 cmake --build out\build\win-amd64 --config Release > "%LOGDIR%\sdk-build.txt" 2>&1
 echo build errorlevel: %errorlevel%

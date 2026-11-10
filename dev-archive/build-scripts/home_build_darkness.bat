@@ -20,6 +20,8 @@ cmake --preset win-amd64-release -DREXSDK_DIR=%SDK% -DCMAKE_C_COMPILER_TARGET=x8
 if errorlevel 1 ( echo CONFIGURE FAILED & exit /b 1 )
 echo CONFIGURE OK
 :built_cfg
+rem 2026-11-10: a compiler update leaves stale precompiled headers that fail every file; cleared here when it changed.
+call "%~dp0home_stale_pch.bat" out\build\win-amd64-release
 echo ### CODEGEN
 cmake --build out\build\win-amd64-release --target darknessrecomp_codegen > "%LOGDIR%\game-codegen.txt" 2>&1
 echo codegen errorlevel: %errorlevel%
