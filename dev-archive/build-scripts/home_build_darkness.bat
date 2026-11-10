@@ -23,6 +23,8 @@ echo CONFIGURE OK
 echo ### CODEGEN
 cmake --build out\build\win-amd64-release --target darknessrecomp_codegen > "%LOGDIR%\game-codegen.txt" 2>&1
 echo codegen errorlevel: %errorlevel%
+rem 2026-11-10: the game's atomic steps without the port-wide lock (the generator rewrites the header, so after every codegen)
+python "%~dp0patch_msr_lock.py" generated\default\darknessrecomp_pch.h
 echo ### BUILD
 cmake --build out\build\win-amd64-release > "%LOGDIR%\game-build.txt" 2>&1
 echo build errorlevel: %errorlevel%
