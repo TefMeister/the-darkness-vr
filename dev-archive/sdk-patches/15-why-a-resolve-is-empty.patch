@@ -1,0 +1,60 @@
+diff --git a/src/graphics/util/draw.cpp b/src/graphics/util/draw.cpp
+index 305380e..44c3bf3 100644
+--- a/src/graphics/util/draw.cpp
++++ b/src/graphics/util/draw.cpp
+@@ -10,6 +10,7 @@
+  */
+ 
+ #include <algorithm>
++#include <atomic>
+ #include <cmath>
+ 
+ #include <rex/assert.h>
+@@ -816,6 +817,8 @@ bool GetResolveInfo(const RegisterFile& regs, const memory::Memory& memory,
+   x1 = (x1 + 127) >> 8;
+   y1 = (y1 + 127) >> 8;
+ 
++  // the-darkness-vr patch 15 (2026-11-10): the rectangle as the vertices gave it, kept for the empty-resolve report
++  const int32_t dk_vx0 = x0, dk_vy0 = y0, dk_vx1 = x1, dk_vy1 = y1;
+   auto pa_sc_window_offset = regs.Get<reg::PA_SC_WINDOW_OFFSET>();
+ 
+   // Apply the window offset to the vertices.
+@@ -834,6 +837,7 @@ bool GetResolveInfo(const RegisterFile& regs, const memory::Memory& memory,
+   GetScissor(regs, scissor, false);
+   int32_t scissor_right = int32_t(scissor.offset[0] + scissor.extent[0]);
+   int32_t scissor_bottom = int32_t(scissor.offset[1] + scissor.extent[1]);
++  const int32_t dk_wx0 = x0, dk_wy0 = y0, dk_wx1 = x1, dk_wy1 = y1;   // patch 15: after the window offset, before the scissor
+   x0 = std::clamp(x0, int32_t(scissor.offset[0]), scissor_right);
+   y0 = std::clamp(y0, int32_t(scissor.offset[1]), scissor_bottom);
+   x1 = std::clamp(x1, int32_t(scissor.offset[0]), scissor_right);
+@@ -884,7 +888,29 @@ bool GetResolveInfo(const RegisterFile& regs, const memory::Memory& memory,
+ 
+   assert_true(x0 < x1 && y0 < y1);
+   if (x0 >= x1 || y0 >= y1) {
+-    REXGPU_ERROR("Resolve region is empty");
++    // the-darkness-vr patch 12: The Darkness asks for ~400 empty resolves a second, and one line each flooded the
++    // log (93,016 in 4 minutes, 2026-11-04). The first few are kept in full, then one line per kQuietEvery.
++    static std::atomic<uint64_t> s_empty_resolves{0};
++    constexpr uint64_t kQuietFirst = 20, kQuietEvery = 10000;
++    const uint64_t n = ++s_empty_resolves;
++    if (n <= kQuietFirst || n % kQuietEvery == 0) {
++      REXGPU_ERROR("Resolve region is empty (seen {} times; the first {} logged, then one per {})", n, kQuietFirst,
++                   kQuietEvery);
++      // patch 15: WHY it is empty, for the first few and then with each kept line
++      REXGPU_ERROR(
++          "  empty resolve #{}: vertices ({:.2f} {:.2f}) ({:.2f} {:.2f}) ({:.2f} {:.2f}) half-pixel {:.1f} -> rect x {}..{} y {}..{}; "
++          "window offset {} {} (on {}) -> x {}..{} y {}..{}; scissor x {}..{} y {}..{}; surface pitch {} msaa {}; "
++          "copy command {} dest pitch/height reg {:08X} dest base {:08X}",
++          n, xenos::GpuSwap(vertices_guest[0], fetch.endian), xenos::GpuSwap(vertices_guest[1], fetch.endian),
++          xenos::GpuSwap(vertices_guest[2], fetch.endian), xenos::GpuSwap(vertices_guest[3], fetch.endian),
++          xenos::GpuSwap(vertices_guest[4], fetch.endian), xenos::GpuSwap(vertices_guest[5], fetch.endian),
++          half_pixel_offset, dk_vx0, dk_vx1, dk_vy0, dk_vy1, int32_t(pa_sc_window_offset.window_x_offset),
++          int32_t(pa_sc_window_offset.window_y_offset),
++          uint32_t(regs.Get<reg::PA_SU_SC_MODE_CNTL>().vtx_window_offset_enable), dk_wx0, dk_wx1, dk_wy0, dk_wy1,
++          int32_t(scissor.offset[0]), scissor_right, int32_t(scissor.offset[1]), scissor_bottom,
++          uint32_t(rb_surface_info.surface_pitch), uint32_t(rb_surface_info.msaa_samples),
++          uint32_t(rb_copy_control.copy_command), regs[XE_GPU_REG_RB_COPY_DEST_PITCH], regs[XE_GPU_REG_RB_COPY_DEST_BASE]);
++    }
+     return false;
+   }
+ 
