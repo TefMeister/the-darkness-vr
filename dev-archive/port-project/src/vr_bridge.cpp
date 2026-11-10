@@ -23,6 +23,8 @@
 // so `frames` / `fps` count real frames.
 
 #include "vr_bridge.h"
+#include "vr_wide_view.h"
+#include "vr_xr_head.h"
 #include "vr_hand_pose.h"
 
 #include <windows.h>
@@ -272,6 +274,37 @@ XrButtonsFn XrButtons() {
   }();
   return fn;
 }
+// THE HEADSET'S CONTROL RULES (2026-11-10, b020). Tefa 2026-11-07: "the darkness needs HMD direction movement" and
+// "game also needs the decoupled pitch, right now i can look up and down with RS". Both are done on the sticks, in a
+// level only (menus keep the sticks as they are):
+//   ctl.no_pitch  = 1: the right stick's up / down is not handed to the game (the head looks up and down; the stick
+//                      still turns left / right).
+//   ctl.head_walk = 1: the left stick is turned by the head's own yaw before the game gets it, so "forward" on the
+//                      stick walks where the head looks. The game moves relative to ITS camera yaw, which the head's
+//                      turn is not part of (DK_XR_HEAD turns the drawn camera only), so the stick is given the
+//                      difference: x' = x cos(yaw) + y sin(yaw), y' = -x sin(yaw) + y cos(yaw), yaw = the head's
+//                      turn to the right in the headset's own space.
+int32_t g_no_pitch = [] { const char* e = std::getenv("DK_VR_NO_PITCH"); return e ? std::atoi(e) : 1; }();
+int32_t g_head_walk = [] { const char* e = std::getenv("DK_VR_HEAD_WALK"); return e ? std::atoi(e) : 1; }();
+float g_head_yaw_deg = 0.0f;   // ctl.head_yaw: the head's turn the left stick was last given
+void CtlVars() {
+  static bool done = false;
+  if (done) return;
+  done = true;
+  bridge_var("ctl.no_pitch", BRIDGE_I32, &g_no_pitch, 1, "1 = in a level the right stick's up / down is not given to the game");
+  bridge_var("ctl.head_walk", BRIDGE_I32, &g_head_walk, 1, "1 = in a level the left stick walks where the head looks");
+  bridge_var("ctl.head_yaw", BRIDGE_F32, &g_head_yaw_deg, 0, "the head's turn (degrees to the right) the left stick was last turned by");
+}
+bool HeadYaw(float* yaw) {
+  dkxr::HandSample h;
+  if (!dkxr::LastHands(&h)) return false;
+  const float x = h.head_q[0], y = h.head_q[1], z = h.head_q[2], w = h.head_q[3];
+  // the head's forward = q * (0, 0, -1)
+  const float fx = -(2.0f * (x * z + w * y)), fz = -(1.0f - 2.0f * (x * x + y * y));
+  if (fx == 0.0f && fz == 0.0f) return false;
+  *yaw = std::atan2(fx, -fz);
+  return true;
+}
 constexpr float kXrStickDead = 0.15f;   // a stick this far from the middle takes over from the virtual pad's
 // 2026-10-29, first wear (Tefa): "quest A - A, Quest B - X, Quest X - B and Quest Y - Y on a gamepad"; "long press of the
 // menu button should be the start button, click the select button". The SDK hands the Quest buttons over as they are
@@ -338,8 +371,22 @@ class BridgePadDriver final : public rex::input::InputDriver {
           const auto axis = [](float v) { return static_cast<int16_t>(v <= -1 ? -32768 : v >= 1 ? 32767 : v * 32767.0f); };
           if (trig(ax[0]) > out->gamepad.left_trigger) out->gamepad.left_trigger = trig(ax[0]);
           if (trig(ax[1]) > out->gamepad.right_trigger) out->gamepad.right_trigger = trig(ax[1]);
-          if (std::fabs(ax[2]) > kXrStickDead || std::fabs(ax[3]) > kXrStickDead) { out->gamepad.thumb_lx = axis(ax[2]); out->gamepad.thumb_ly = axis(ax[3]); }
-          if (std::fabs(ax[4]) > kXrStickDead || std::fabs(ax[5]) > kXrStickDead) { out->gamepad.thumb_rx = axis(ax[4]); out->gamepad.thumb_ry = axis(ax[5]); }
+          CtlVars();
+          const bool in_level = dkview::InLevelNow();
+          if (std::fabs(ax[2]) > kXrStickDead || std::fabs(ax[3]) > kXrStickDead) {
+            float lx = ax[2], ly = ax[3], yaw = 0.0f;
+            if (in_level && g_head_walk == 1 && HeadYaw(&yaw)) {
+              const float c = std::cos(yaw), sn = std::sin(yaw);
+              const float nx = lx * c + ly * sn, ny = -lx * sn + ly * c;
+              lx = nx; ly = ny;
+              g_head_yaw_deg = yaw * 57.29578f;
+            }
+            out->gamepad.thumb_lx = axis(lx); out->gamepad.thumb_ly = axis(ly);
+          }
+          if (std::fabs(ax[4]) > kXrStickDead || std::fabs(ax[5]) > kXrStickDead) {
+            out->gamepad.thumb_rx = axis(ax[4]);
+            out->gamepad.thumb_ry = (in_level && g_no_pitch == 1) ? int16_t(0) : axis(ax[5]);
+          }
         }
       }
     }

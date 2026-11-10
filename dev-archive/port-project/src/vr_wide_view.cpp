@@ -122,6 +122,7 @@ void Vars() {
 
 namespace dkview {
 void Flat(uint8_t* base, uint32_t projection);
+bool InLevelNow() { return InLevel(); }
 void NoteCamera() { g_cam_ms.store(NowMs(), std::memory_order_relaxed); }
 bool Tangents(float* tx, float* ty) {
   if (g_level_only != 0 && !InLevel()) return false;
