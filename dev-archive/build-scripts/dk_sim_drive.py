@@ -22,12 +22,16 @@ def press(name, hold):
 # build cannot launch the installed one by mistake (it did once, after a hand edit of the path missed). Second: idle s.
 folder = sys.argv[1] if len(sys.argv) > 1 else r"C:\NonSteam\the-darkness\build-home-xr"
 idle = float(sys.argv[2]) if len(sys.argv) > 2 else IDLE_DEFAULT_S
-script = os.path.join(folder, "dk_vr_sim_hands.ps1")
-if not os.path.isfile(script):
-    sys.exit("no dk_vr_sim_hands.ps1 in " + folder)
-p = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script],
-                   capture_output=True, text=True)
-print(time.strftime("%H:%M:%S"), "launched", script, p.stdout.strip(), flush=True)
+# 2026-11-10: DK_DRIVE_NO_LAUNCH=1 = presses only; something else (Nsight's GPU trace) starts the game at the same moment.
+if os.environ.get("DK_DRIVE_NO_LAUNCH") == "1":
+    print(time.strftime("%H:%M:%S"), "not launching; presses only", flush=True)
+else:
+    script = os.path.join(folder, "dk_vr_sim_hands.ps1")
+    if not os.path.isfile(script):
+        sys.exit("no dk_vr_sim_hands.ps1 in " + folder)
+    p = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script],
+                       capture_output=True, text=True)
+    print(time.strftime("%H:%M:%S"), "launched", script, p.stdout.strip(), flush=True)
 time.sleep(TITLE_WAIT_S)
 press("menu", START_HOLD_S)   # START = the menu button held
 for k in range(A_PRESSES):

@@ -1,0 +1,10 @@
+2026-11-10 21:21	baseline-rov-2x3	-	72.7	36.3	99.0	closed
+2026-11-10 21:23	rov-2x3-aniso-game	anisotropic_override=-1	73.1	36.6	99.0	closed
+2026-11-10 21:25	rtv-2x3	anisotropic_override= render_target_path_d3d12="rtv"	59.0	29.5	99.0	closed
+2026-11-10 21:28	rtv-2x3-srgb-psdepth	render_target_path_d3d12="rtv" gamma_render_target_as_unorm16=false depth_float24_convert_in_pixel_shader=true	60.1	30.1	99.0	closed
+2026-11-10 21:38	rov-2x3-eye-light-off	render_target_path_d3d12="rov" DK_XR_EYE_LIGHT=0	81.4	40.7	99.0	closed
+2026-11-10 21:41	rov-2x3-baseline-again	render_target_path_d3d12="rov"	73.0	36.5	99.0	closed
+2026-11-10 21:50	b025-rov-plain-clear	render_target_path_d3d12="rov"	78.6	39.3	99.0	closed
+2026-11-10 21:53	b025-rtv-plain-clear	render_target_path_d3d12="rtv"	113.8	56.8	97.5	closed
+2026-11-10 21:55	b025-rtv-shot	render_target_path_d3d12="rtv"	113.8	56.9	97.7	closed
+2026-11-10 21:57	b025-rov-shot	render_target_path_d3d12="rov"	79.0	39.5	99.0	closed

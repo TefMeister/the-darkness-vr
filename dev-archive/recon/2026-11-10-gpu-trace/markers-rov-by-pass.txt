@@ -1,0 +1,26 @@
+top-level ranges 213  3D Mcycles 52.5  copy Mcycles 14.5  compute Mcycles 6.0
+    n  %time  %comp  %copy     Mpix  draws   MpsThr  name
+   42   42.8    0.9    7.7    139.0   2268     97.8  pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+   66   27.9    0.3    1.1    110.0   2358     82.1  pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+    1   10.9    0.0   10.3     13.0      4     12.5  DK swap: headset blit
+ 1119   10.1    0.3    4.7     14.3    460     11.2    (inside a pass) memupload 
+   28    8.3    0.2    1.4     26.1    418     24.5  pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT_AS_16_16_16_16@720 | colour writes on
+   30    4.7    0.0    0.2     29.5      9     29.3  pitch 640 msaa 4x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+    8    3.3    3.8    0.9     11.8     13     11.6  pitch 1280 msaa 1x | depth off | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+    2    1.3    0.0    0.0      2.7      0      2.7  pitch 640 msaa 4x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+    6    0.5    0.0    0.0      0.0    124      0.0  pitch 1280 msaa 1x | depth off | no colour | DEPTH-ONLY
+    8    0.1    3.6    0.0      0.1      0      0.1    (inside a pass) texload FROM-RESOLVE (scaled) 1280x720 fmt 26 base
+    2    0.1    0.5    0.0      0.0      0      0.0  DK texload FROM-RESOLVE (scaled) 1280x720 fmt 7 base
+    2    0.1    0.0    0.0      0.0      0      0.0  pitch 1280 msaa 1x | depth off | c0 k_2_10_10_10_FLOAT_AS_16_16_16_16@720 | colour writes on
+    6    0.1    0.1    0.0      0.1      0      0.1    (inside a pass) texload FROM-RESOLVE (scaled) 324x18 fmt 26 base
+    6    0.1    0.0    0.0      0.0      0      0.0  DK resolve COPY | src colour base 720 pitch 16 tiles msaa 1x fmt 3 | 160x96 at +0,+0 | dest fmt 26
+    2    0.1    0.4    0.0      0.0     23      0.0  DK resolve COPY | src colour base 720 pitch 16 tiles msaa 1x fmt 12 | 1280x720 at +0,+0 | dest fmt 26
+    2    0.0    0.0    0.0      0.1    197      0.0    (inside a pass) texload guest texture 512x512 fmt 18 mips
+    2    0.0    0.7    0.0      0.0     23      0.0  DK resolve COPY CLEAR-COLOUR CLEAR-DEPTH | src colour base 720 pitch 16 tiles msaa 1x fmt 12 | 1280x720 at +0,+0 | dest fmt 7
+    6    0.0    0.0    0.0      0.0      0      0.0  DK resolve COPY | src colour base 720 pitch 16 tiles msaa 1x fmt 3 | 328x24 at +0,+0 | dest fmt 26
+    2    0.0    0.5    0.0      0.0      0      0.0  DK resolve COPY CLEAR-COLOUR | src colour base 720 pitch 16 tiles msaa 1x fmt 3 | 1280x720 at +0,+0 | dest fmt 6
+    2    0.0    0.2    0.0      0.0      0      0.0  DK resolve COPY | src depth base 0 pitch 16 tiles msaa 1x fmt 1 | 1280x720 at +0,+0 | dest fmt 23
+    1    0.0    0.6    0.0      0.0      0      0.0  DK swap: side-by-side copies 2560x2160 eye 1
+    1    0.0    0.5    0.0      0.0      0      0.0  DK swap: side-by-side copies 2560x2160 eye 0
+    2    0.0    0.0    0.0      0.0      0      0.0  DK memupload 1 ranges 4 KB
+    2    0.0    0.2    0.0      0.0      0      0.0  DK swap: gamma 2560x2160

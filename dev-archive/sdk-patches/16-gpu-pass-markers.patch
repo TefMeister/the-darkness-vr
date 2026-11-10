@@ -1,0 +1,357 @@
+--- a/include/rex/graphics/d3d12/command_processor.h
++++ b/include/rex/graphics/d3d12/command_processor.h
+@@ -365,11 +365,34 @@
+   }
+   void LogDeviceRemovalDiagnostics(ID3D12Device* device, HRESULT reason);
+ 
++  // DK_GPU_MARKERS (Darkness VR, 2026-11-10): the marker calls are public so the render target
++  // cache, the texture cache and the shared memory can name their own passes.
++ public:
+   void UpdateDebugMarkersEnabled();
+   void PushDebugMarker(const char* format, ...);
+   void PopDebugMarker();
+   void InsertDebugMarker(const char* format, ...);
+   bool debug_markers_enabled() const { return debug_markers_enabled_; }
++  // Ends the marker range that was begun just before it was made, on every way out of the scope.
++  // Begin the range with: if (debug_markers_enabled()) PushDebugMarker(...); then make one of these.
++  class DkMarkerRange {
++   public:
++    explicit DkMarkerRange(D3D12CommandProcessor& command_processor)
++        : command_processor_(command_processor) {}
++    ~DkMarkerRange() { command_processor_.PopDebugMarker(); }
++    DkMarkerRange(const DkMarkerRange&) = delete;
++    DkMarkerRange& operator=(const DkMarkerRange&) = delete;
++
++   private:
++    D3D12CommandProcessor& command_processor_;
++  };
++  // The range named after the guest's render-target layout. A draw opens it, or closes it and
++  // opens the next when the layout changed; a resolve, the swap and the end of a submission close it.
++  void DkPassMarkerUpdate(reg::RB_DEPTHCONTROL normalized_depth_control,
++                          uint32_t normalized_color_mask);
++  void DkPassMarkerClose();
++
++ private:
+ 
+   // Need to await submission completion before calling.
+   void ClearCommandAllocatorCache();
+@@ -494,6 +517,9 @@
+   DeferredCommandList deferred_command_list_;
+ 
+   bool debug_markers_enabled_ = false;
++  bool dk_pass_open_ = false;
++  uint32_t dk_pass_index_ = 0;  // counts layout ranges within a frame; the swap sets it back to 0
++  uint32_t dk_pass_key_[6] = {};
+ 
+   // Viewport info caching - avoids redundant GetHostViewportInfo recalculation
+   // when viewport-affecting register state hasn't changed between draws.
+--- a/src/graphics/d3d12/command_processor.cpp
++++ b/src/graphics/d3d12/command_processor.cpp
+@@ -81,6 +81,15 @@
+ 
+ void D3D12CommandProcessor::UpdateDebugMarkersEnabled() {
+   debug_markers_enabled_ = IsGpuDebugMarkersEnabled();
++  // DK_GPU_MARKERS=1 (Darkness VR, 2026-11-10): the same markers without touching the toml, read
++  // once here. Off: every marker call returns at its first line and no label is built.
++  if (!debug_markers_enabled_) {
++    const char* dk_gpu_markers = std::getenv("DK_GPU_MARKERS");
++    debug_markers_enabled_ = dk_gpu_markers != nullptr && dk_gpu_markers[0] == '1';
++    if (debug_markers_enabled_) {
++      REXGPU_INFO("GPU pass markers on (DK_GPU_MARKERS=1)");
++    }
++  }
+ }
+ 
+ void D3D12CommandProcessor::PushDebugMarker(const char* format, ...) {
+@@ -102,6 +111,71 @@
+   deferred_command_list_.EndDebugMarker();
+ }
+ 
++void D3D12CommandProcessor::DkPassMarkerClose() {
++  if (!dk_pass_open_) {
++    return;
++  }
++  dk_pass_open_ = false;
++  PopDebugMarker();
++}
++
++void D3D12CommandProcessor::DkPassMarkerUpdate(reg::RB_DEPTHCONTROL normalized_depth_control,
++                                               uint32_t normalized_color_mask) {
++  if (!debug_markers_enabled_) {
++    return;
++  }
++  const RegisterFile& regs = *register_file_;
++  auto rb_surface_info = regs.Get<reg::RB_SURFACE_INFO>();
++  auto rb_depth_info = regs.Get<reg::RB_DEPTH_INFO>();
++  bool depth_used = normalized_depth_control.z_enable || normalized_depth_control.stencil_enable;
++  uint32_t key[6];
++  key[0] = uint32_t(rb_surface_info.surface_pitch) | (uint32_t(rb_surface_info.msaa_samples) << 16);
++  key[1] = depth_used ? (UINT32_C(0x80000000) | uint32_t(rb_depth_info.depth_base) |
++                         (uint32_t(rb_depth_info.depth_format) << 16))
++                      : 0;
++  char colors[160];
++  int colors_length = 0;
++  colors[0] = 0;
++  for (uint32_t i = 0; i < xenos::kMaxColorRenderTargets; ++i) {
++    key[2 + i] = 0;
++    if (!(normalized_color_mask & (UINT32_C(0b1111) << (4 * i)))) {
++      continue;
++    }
++    auto color_info = regs.Get<reg::RB_COLOR_INFO>(reg::RB_COLOR_INFO::rt_register_indices[i]);
++    key[2 + i] = UINT32_C(0x80000000) | uint32_t(color_info.color_base) |
++                 (uint32_t(color_info.color_format) << 16);
++    if (colors_length < int(sizeof(colors)) - 1) {
++      int written = std::snprintf(colors + colors_length, sizeof(colors) - size_t(colors_length),
++                                  " c%u %s@%u", i,
++                                  xenos::GetColorRenderTargetFormatName(color_info.color_format),
++                                  uint32_t(color_info.color_base));
++      if (written > 0) {
++        colors_length = std::min(colors_length + written, int(sizeof(colors)) - 1);
++      }
++    }
++  }
++  if (dk_pass_open_ && !std::memcmp(key, dk_pass_key_, sizeof(key))) {
++    return;
++  }
++  DkPassMarkerClose();
++  std::memcpy(dk_pass_key_, key, sizeof(key));
++  char depth[48];
++  if (depth_used) {
++    std::snprintf(depth, sizeof(depth), "%s@%u",
++                  xenos::GetDepthRenderTargetFormatName(rb_depth_info.depth_format),
++                  uint32_t(rb_depth_info.depth_base));
++  } else {
++    std::snprintf(depth, sizeof(depth), "off");
++  }
++  // "@N" is the surface's EDRAM base in tiles; the pitch is in guest pixels.
++  PushDebugMarker("DK pass %u | pitch %u msaa %ux | depth %s |%s | %s", dk_pass_index_++,
++                  uint32_t(rb_surface_info.surface_pitch),
++                  UINT32_C(1) << uint32_t(rb_surface_info.msaa_samples), depth,
++                  colors_length ? colors : " no colour",
++                  normalized_color_mask ? "colour writes on" : "DEPTH-ONLY");
++  dk_pass_open_ = true;
++}
++
+ void D3D12CommandProcessor::InsertDebugMarker(const char* format, ...) {
+   if (!debug_markers_enabled_) {
+     return;
+@@ -1940,6 +2014,10 @@
+     return;
+   }
+ 
++  // DK_GPU_MARKERS: the last layout range of the frame ends here.
++  DkPassMarkerClose();
++  dk_pass_index_ = 0;
++
+   // Obtain the actual swap source texture size (resolution-scaled if it's a
+   // resolve destination, or not otherwise).
+   D3D12_SHADER_RESOURCE_VIEW_DESC swap_texture_srv_desc;
+@@ -2183,6 +2261,10 @@
+                               D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+         gamma_ramp_buffer_state_ = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+ 
++        if (debug_markers_enabled_) {
++          PushDebugMarker("DK swap: gamma %ux%u%s", guest_output_width, guest_output_height,
++                          use_fxaa ? " (+FXAA luma)" : "");
++        }
+         deferred_command_list_.D3DSetComputeRootSignature(apply_gamma_root_signature_.Get());
+         ApplyGammaConstants apply_gamma_constants;
+         apply_gamma_constants.size[0] = guest_output_width;
+@@ -2209,6 +2291,7 @@
+         uint32_t group_count_x = (guest_output_width + 15) / 16;
+         uint32_t group_count_y = (guest_output_height + 7) / 8;
+         deferred_command_list_.D3DDispatch(group_count_x, group_count_y, 1);
++        PopDebugMarker();  // DK swap: gamma
+ 
+         // Apply FXAA.
+         if (use_fxaa) {
+@@ -2287,7 +2370,12 @@
+ 
+         xr_ready_ = false;
+         if (sbs_enabled) {
++          if (debug_markers_enabled_) {
++            PushDebugMarker("DK swap: side-by-side copies %ux%u eye %d", guest_output_width,
++                            guest_output_height, sbs_swap_eye_);
++          }
+           ComposeSideBySidePair(guest_output_resource, guest_output_width, guest_output_height);
++          PopDebugMarker();  // DK swap: side-by-side copies
+         }
+ 
+         // Need to submit all the commands before giving the image back to the
+@@ -2677,6 +2765,13 @@
+     return false;
+   }
+ 
++  // DK_GPU_MARKERS: a new range whenever the guest's render-target layout changes. After Update, so
++  // the transfers and barriers a layout change causes are inside the range of the NEW layout; the
++  // texture loads and memory uploads this draw causes nest inside it too.
++  if (debug_markers_enabled_ && is_rasterization_done) {
++    DkPassMarkerUpdate(normalized_depth_control, normalized_color_mask);
++  }
++
+   // Create the pipeline (for this, need the actually used render target formats
+   // from the render target cache), translating the shaders - doing this now to
+   // obtain the used textures.
+@@ -3185,6 +3280,7 @@
+   if (!BeginSubmission(true)) {
+     return false;
+   }
++  DkPassMarkerClose();  // DK_GPU_MARKERS: a resolve is a range of its own, beside the layout ranges
+   ReadbackResolveMode readback_mode = GetReadbackResolveMode(REXCVAR_GET(d3d12_readback_resolve));
+   if (readback_mode == ReadbackResolveMode::kDisabled) {
+     uint32_t written_address, written_length;
+@@ -3716,6 +3812,8 @@
+       active_occlusion_query_ = {};
+     }
+ 
++    DkPassMarkerClose();  // DK_GPU_MARKERS: ranges must not cross a command list
++
+     pipeline_cache_->EndSubmission();
+ 
+     // Submit barriers now because resources with the queued barriers may be
+--- a/src/graphics/d3d12/deferred_command_list.cpp
++++ b/src/graphics/d3d12/deferred_command_list.cpp
+@@ -257,7 +257,17 @@
+         auto& args = *reinterpret_cast<const DebugMarkerHeader*>(stream);
+         const char* label_name = reinterpret_cast<const char*>(
+             reinterpret_cast<const uint8_t*>(stream) + sizeof(DebugMarkerHeader));
+-        command_list->BeginEvent(1, label_name, static_cast<UINT>(args.label_length + 1));
++        // DK_GPU_MARKERS: metadata 0 = a null-terminated UTF-16 string (the plain PIX form, no
++        // pix3.h). Labels are ASCII and at most 255 characters (the command processor's buffer).
++        wchar_t label_wide[256];
++        UINT label_wide_length = 0;
++        for (; label_wide_length < 255 && label_wide_length < args.label_length;
++             ++label_wide_length) {
++          label_wide[label_wide_length] =
++              wchar_t(static_cast<unsigned char>(label_name[label_wide_length]));
++        }
++        label_wide[label_wide_length] = 0;
++        command_list->BeginEvent(0, label_wide, (label_wide_length + 1) * UINT(sizeof(wchar_t)));
+       } break;
+       case Command::kEndDebugMarker: {
+         command_list->EndEvent();
+@@ -266,7 +276,15 @@
+         auto& args = *reinterpret_cast<const DebugMarkerHeader*>(stream);
+         const char* label_name = reinterpret_cast<const char*>(
+             reinterpret_cast<const uint8_t*>(stream) + sizeof(DebugMarkerHeader));
+-        command_list->SetMarker(1, label_name, static_cast<UINT>(args.label_length + 1));
++        wchar_t label_wide[256];
++        UINT label_wide_length = 0;
++        for (; label_wide_length < 255 && label_wide_length < args.label_length;
++             ++label_wide_length) {
++          label_wide[label_wide_length] =
++              wchar_t(static_cast<unsigned char>(label_name[label_wide_length]));
++        }
++        label_wide[label_wide_length] = 0;
++        command_list->SetMarker(0, label_wide, (label_wide_length + 1) * UINT(sizeof(wchar_t)));
+       } break;
+       default:
+         assert_unhandled_case(header.command);
+--- a/src/graphics/d3d12/render_target_cache.cpp
++++ b/src/graphics/d3d12/render_target_cache.cpp
+@@ -1180,6 +1180,31 @@
+     return true;
+   }
+ 
++  // DK_GPU_MARKERS: one range per resolve (copy to a texture and / or clear), ended on every return.
++  // Sizes and offsets are guest pixels, before the draw resolution scale.
++  if (command_processor_.debug_markers_enabled()) {
++    bool dk_source_is_depth =
++        resolve_info.rb_copy_control.copy_src_select >= xenos::kMaxColorRenderTargets;
++    const draw_util::ResolveEdramInfo& dk_source =
++        dk_source_is_depth ? resolve_info.depth_edram_info : resolve_info.color_edram_info;
++    command_processor_.PushDebugMarker(
++        "DK resolve %s%s%s| src %s base %u pitch %u tiles msaa %ux fmt %u | %ux%u at +%u,+%u | "
++        "dest fmt %u at 0x%08X len %u",
++        resolve_info.copy_dest_extent_length ? "COPY " : "",
++        resolve_info.IsClearingColor() ? "CLEAR-COLOUR " : "",
++        resolve_info.IsClearingDepth() ? "CLEAR-DEPTH " : "",
++        dk_source_is_depth ? "depth" : "colour", uint32_t(dk_source.base_tiles),
++        uint32_t(dk_source.pitch_tiles), UINT32_C(1) << uint32_t(dk_source.msaa_samples),
++        uint32_t(dk_source.format), uint32_t(resolve_info.coordinate_info.width_div_8) << 3,
++        uint32_t(resolve_info.height_div_8) << 3,
++        uint32_t(resolve_info.coordinate_info.edram_offset_x_div_8) << 3,
++        uint32_t(resolve_info.coordinate_info.edram_offset_y_div_8) << 3,
++        uint32_t(resolve_info.copy_dest_info.copy_dest_format),
++        uint32_t(resolve_info.copy_dest_extent_start),
++        uint32_t(resolve_info.copy_dest_extent_length));
++  }
++  D3D12CommandProcessor::DkMarkerRange dk_marker_range(command_processor_);
++
+   DeferredCommandList& command_list = command_processor_.GetDeferredCommandList();
+ 
+   // Copying.
+--- a/src/graphics/d3d12/shared_memory.cpp
++++ b/src/graphics/d3d12/shared_memory.cpp
+@@ -309,6 +309,17 @@
+   CommitUAVWritesAndTransitionBuffer(D3D12_RESOURCE_STATE_COPY_DEST);
+   command_processor_.SubmitBarriers();
+   auto& command_list = command_processor_.GetDeferredCommandList();
++  // DK_GPU_MARKERS: one range per batch of guest memory copied up to the card.
++  if (command_processor_.debug_markers_enabled()) {
++    uint32_t dk_upload_pages = 0;
++    for (const auto& dk_upload_range : upload_page_ranges) {
++      dk_upload_pages += dk_upload_range.second;
++    }
++    command_processor_.PushDebugMarker("DK memupload %u ranges %u KB",
++                                       uint32_t(upload_page_ranges.size()),
++                                       uint32_t((dk_upload_pages << page_size_log2()) >> 10));
++  }
++  D3D12CommandProcessor::DkMarkerRange dk_marker_range(command_processor_);
+   for (auto upload_range : upload_page_ranges) {
+     uint32_t upload_range_start = upload_range.first;
+     uint32_t upload_range_length = upload_range.second;
+--- a/src/graphics/d3d12/texture_cache.cpp
++++ b/src/graphics/d3d12/texture_cache.cpp
+@@ -1571,6 +1571,15 @@
+     return false;
+   }
+   bool texture_resolution_scaled = texture_key.scaled_resolve;
++  // DK_GPU_MARKERS: one range per texture load (the compute passes and the copy into the texture).
++  if (command_processor_.debug_markers_enabled()) {
++    command_processor_.PushDebugMarker(
++        "DK texload %s %ux%u fmt %u%s%s",
++        texture_resolution_scaled ? "FROM-RESOLVE (scaled)" : "guest texture",
++        uint32_t(texture_key.GetWidth()), uint32_t(texture_key.GetHeight()),
++        uint32_t(texture_key.format), load_base ? " base" : "", load_mips ? " mips" : "");
++  }
++  D3D12CommandProcessor::DkMarkerRange dk_marker_range(command_processor_);
+   ID3D12PipelineState* pipeline = texture_resolution_scaled
+                                       ? load_pipelines_scaled_[load_shader].Get()
+                                       : load_pipelines_[load_shader].Get();
+--- a/src/graphics/d3d12/xr_blit.cpp
++++ b/src/graphics/d3d12/xr_blit.cpp
+@@ -8,6 +8,7 @@
+ #include <d3dcompiler.h>
+ 
+ #include <cstdio>
++#include <cstdlib>
+ #include <cstring>
+ #include <utility>
+ 
+@@ -183,6 +184,17 @@
+     return false;
+   }
+ 
++  // DK_GPU_MARKERS=1 (2026-11-10): name this list's work (the copy and draw into the headset's
++  // eye images) for a GPU trace. This list is our own, so the marker is written straight to it.
++  static const bool dk_gpu_markers = [] {
++    const char* e = std::getenv("DK_GPU_MARKERS");
++    return e != nullptr && e[0] == '1';
++  }();
++  if (dk_gpu_markers) {
++    static const wchar_t kDkMarkerName[] = L"DK swap: headset blit";
++    list_->BeginEvent(0, kDkMarkerName, UINT(sizeof(kDkMarkerName)));
++  }
++
+   const D3D12_RESOURCE_STATES kRead = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+   D3D12_RESOURCE_BARRIER to_read[2];
+   uint32_t n = 0;
+@@ -280,6 +292,7 @@
+     }
+     list_->ResourceBarrier(n, to_read);
+   }
++  if (dk_gpu_markers) list_->EndEvent();
+   if (FAILED(list_->Close())) {
+     *error = "command list close failed";
+     return false;

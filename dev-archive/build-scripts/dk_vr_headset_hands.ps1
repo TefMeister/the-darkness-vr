@@ -24,6 +24,7 @@ $env:DK_VR_HEAD_WALK = "1"
 $env:DK_XR_FLAT_WORLD = "1"
 $env:DK_XR_FLAT_SCALE = "0.75"
 $env:DK_VR_NO_AA = "1"   # 2026-11-10 (b023): the console's anti-aliasing off, so every frame is drawn once instead of in three strips; 0 = as before
+$env:DK_XR_EYE_LIGHT = "0"   # 2026-11-10: the per-eye brightness log off; it copied both eye pictures off the card every pair (alley 73 -> 81 game frames a second, simulator); 1 = on for a brightness check
 $env:DK_XR_HEAD = "1"
 $env:DK_XR_HEAD_MIRROR = "0"
 $env:DK_HANDS = "1"

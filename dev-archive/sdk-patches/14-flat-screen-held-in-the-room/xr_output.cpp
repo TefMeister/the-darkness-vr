@@ -175,7 +175,7 @@ float g_xr_dial = [] {
 bool XrEyeLightWanted() {
   static const bool on = [] {
     const char* e = std::getenv("DK_XR_EYE_LIGHT");
-    return !(e && e[0] == '0');
+    return e && e[0] == '1';  // 2026-11-10: off unless asked; it copies both eye pictures off the card every pair
   }();
   return on;
 }

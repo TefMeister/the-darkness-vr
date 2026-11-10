@@ -1,0 +1,70 @@
+top-level ranges 213  3D Mcycles 65.1  copy Mcycles 14.3  compute Mcycles 7.2
+  0.7%    13.8Mpx    66 dr  DK pass 0 | pitch 1280 msaa 1x | depth off | no colour | DEPTH-ONLY
+  0.5%    51.4Mpx    10 dr  DK pass 1 | pitch 640 msaa 4x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  6.2%    17.3Mpx   979 dr  DK pass 2 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  2.1%    31.5Mpx    20 dr  DK pass 10 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.4%   118.4Mpx    78 dr  DK pass 13 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.7Mpx     0 dr  DK pass 14 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.6%    11.2Mpx    52 dr  DK pass 17 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.6%    37.0Mpx    34 dr  DK pass 19 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.1%    91.9Mpx    80 dr  DK pass 20 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.5Mpx     4 dr  DK pass 21 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.4%   119.5Mpx    78 dr  DK pass 24 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.5Mpx     3 dr  DK pass 25 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.6%    12.0Mpx    36 dr  DK pass 28 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.7%    11.4Mpx    98 dr  DK pass 31 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.5%    50.6Mpx     9 dr  DK pass 32 | pitch 640 msaa 4x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.6%    28.5Mpx    22 dr  DK pass 33 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  2.0%    30.9Mpx    70 dr  DK pass 34 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.5%    10.2Mpx    38 dr  DK pass 36 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.9%    14.6Mpx   105 dr  DK pass 37 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.7%    13.0Mpx   103 dr  DK pass 40 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.4%    22.7Mpx    23 dr  DK pass 42 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.2%    91.9Mpx    49 dr  DK pass 43 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.7Mpx    14 dr  DK pass 44 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.5%    10.3Mpx    34 dr  DK pass 47 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.5%    38.5Mpx    14 dr  DK pass 49 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.7%    30.7Mpx    35 dr  DK pass 50 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.4%    37.0Mpx    23 dr  DK pass 52 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.4%    25.7Mpx    22 dr  DK pass 53 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.5%    50.4Mpx    10 dr  DK pass 54 | pitch 640 msaa 4x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.3%    95.3Mpx    29 dr  DK pass 56 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.4Mpx     3 dr  DK pass 57 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.5%    34.8Mpx    80 dr  DK pass 60 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.1%     2.2Mpx   183 dr  DK pass 73 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT_AS_16_16_16_16@720 | colour writes on
+  0.4%     0.1Mpx     1 dr  DK pass 84 | pitch 1280 msaa 1x | depth off | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  8.2%    11.1Mpx     2 dr  DK swap: headset blit
+  0.7%    13.8Mpx   108 dr  DK pass 0 | pitch 1280 msaa 1x | depth off | no colour | DEPTH-ONLY
+  0.8%    52.3Mpx    23 dr  DK pass 1 | pitch 640 msaa 4x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  6.6%    17.2Mpx   979 dr  DK pass 2 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  2.1%    31.6Mpx    20 dr  DK pass 10 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.4%   118.5Mpx    77 dr  DK pass 13 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.7Mpx     0 dr  DK pass 14 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.6%    11.3Mpx    51 dr  DK pass 17 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.6%    37.1Mpx    33 dr  DK pass 19 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.1%    92.0Mpx    80 dr  DK pass 20 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.6Mpx     0 dr  DK pass 21 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.4%   119.5Mpx    78 dr  DK pass 24 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.6Mpx     4 dr  DK pass 25 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.6%    12.0Mpx    37 dr  DK pass 28 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.7%    11.2Mpx    98 dr  DK pass 31 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.5%    50.9Mpx     9 dr  DK pass 32 | pitch 640 msaa 4x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.5%    27.0Mpx    22 dr  DK pass 33 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.9%    30.7Mpx    72 dr  DK pass 34 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.4%    10.4Mpx    35 dr  DK pass 36 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.9%    14.6Mpx    97 dr  DK pass 37 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.7%    13.0Mpx   103 dr  DK pass 40 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.4%    22.7Mpx    24 dr  DK pass 42 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.2%    91.9Mpx    52 dr  DK pass 43 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.9Mpx     8 dr  DK pass 44 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.5%     9.9Mpx    34 dr  DK pass 47 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.5%    38.4Mpx    20 dr  DK pass 49 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.7%    30.5Mpx    26 dr  DK pass 50 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.5%    37.1Mpx    19 dr  DK pass 52 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.4%    25.7Mpx    26 dr  DK pass 53 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  0.5%    50.1Mpx     9 dr  DK pass 54 | pitch 640 msaa 4x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  1.3%    95.3Mpx    36 dr  DK pass 56 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.7%    35.6Mpx     3 dr  DK pass 57 | pitch 1280 msaa 1x | depth kD24FS8@0 | no colour | DEPTH-ONLY
+  0.5%    34.6Mpx    80 dr  DK pass 60 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT@720 | colour writes on
+  1.1%     1.9Mpx   184 dr  DK pass 73 | pitch 1280 msaa 1x | depth kD24FS8@0 | c0 k_2_10_10_10_FLOAT_AS_16_16_16_16@720 | colour writes on
+  0.5%     0.1Mpx     1 dr  DK pass 84 | pitch 1280 msaa 1x | depth off | c0 k_2_10_10_10_FLOAT@720 | colour writes on

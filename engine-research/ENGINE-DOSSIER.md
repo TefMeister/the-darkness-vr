@@ -1412,6 +1412,32 @@ Tefa's ask: hands (and later arms, body) that follow the motion controllers. Fir
     `[measured 2026-10-28, n=4]`. `DK_HANDS=1` / `DK_HANDS_ROT=1` switch it all on at launch; `dk_vr_headset_hands.ps1`.
   - **Next:** the real controllers in the headset (calibrate with `ik.calib=1` while Tefa holds them like the game's
     hands); `ik.only`/`ik.vtable` to feed only the player; `ik.snap`; which way round each turn goes, by eye.
+## 6f. One frame on the graphics card, by pass (2026-11-10, `/lm`, Nsight GPU trace, simulator)
+
+Full account: `modding-notes/2026-11-10h-where-the-cards-time-goes.md`. Reader files folded in here: the static read of
+what `rov` and `rtv` add (`render_target_cache.cpp`, `dxbc_translator_om.cpp`), the marker patch, the shadow and pre-pass names.
+
+- **How to see a frame:** sdk-patch 16 + `DK_GPU_MARKERS=1` + Nsight GPU Trace with `auto_export`, then
+  `build-scripts/gputrace_passes.py`. The GPU counters must be allowed in the NVIDIA Control Panel (done on the home PC).
+- **One eye, alley, 2 x 3, `rov`** `[measured 2026-11-10, n=1]`: 2,731 draws, 430 k triangles, ~155 M pixels rasterised
+  (28 layers), no hardware depth. Depth-only passes 43 % of card time, lit colour passes 36 %, ~560 small memory uploads
+  an eye ~10 %, the 640 x 4-sample clears 5 %, resolves and our swap steps under 5 %.
+- **About 2-3 microseconds of card time per draw on either path** (the 979-draw pre-pass: ~3 ms `rov`, ~2 ms `rtv`
+  with no pixel shader) `[hypothesis on measured]`: the size-independent ~7 ms.
+- **`rtv` loses to `rov` (59-60 against 73) because of ownership transfers**: whole-surface redraws whenever the game
+  re-views the same EDRAM (seen as 3,100 M pixels a pair against 250 M) `[measured n=1; cause inferred-static]`. On this
+  card a depth transfer is 9 passes (no shader-set stencil reference). No setting removes them.
+- **The engine** `[inferred-static 2026-11-10, names in default.bin]`: depth pre-pass (`sv_wlod_range_model_*prez`),
+  deferred G-buffer (`XRShader_DeferredMRT`), stencil shadow volumes per light (`xr_stencilshadows`, `SV*` chunks) and
+  shadow maps (`XRShadowMapManager`); the console culled with Hi-Stencil (`Render_SetHiStencil`), the port has none.
+- **b025: `sub_828621D0` (the console library's fast clear; it clears the aligned middle as a 4-sample surface of half the pitch) hooked to always clear plainly (`vr_plain_clear.cpp`, `DK_VR_PLAIN_CLEAR`), and `rtv`: alley 112-114 game frames a second against 79 for `rov` in the same exe** `[measured 2026-11-10, simulator, n=3]`; the picture the same in one still `[verified-live, n=1]`. That clear was the only costly re-view: FLOAT and FLOAT_AS_16_16_16_16 at one base share a host surface, colour writes off/on is no change `[inferred-static]`.
+- **Settings with no effect** `[measured n=1 each]`: `anisotropic_override = -1`; under `rtv`
+  `gamma_render_target_as_unorm16 = false` + `depth_float24_convert_in_pixel_shader = true`.
+- **Dead weight found and removed:** patch 13's per-eye brightness log copied both eye pictures off the card every
+  pair: 73 -> 81-83 game frames a second with it off (now the default; `DK_XR_EYE_LIGHT=1` turns it on).
+- **The graphics library is built in the game's build tree** (`--target rexgpu-xenos`); `home_build_sdk.bat`'s own tree
+  is stale (old compiler's precompiled headers).
+
 ## 7. Not yet looked at
 
 Renderer, camera maths, input, the `.xcr`/`.xrg`/`.xtc`/`.xac` formats, and whether the PS3 version
