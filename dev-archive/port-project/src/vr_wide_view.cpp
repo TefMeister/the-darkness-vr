@@ -45,6 +45,9 @@ float g_zx = EnvF("DK_VIEW_ZX"), g_zy = EnvF("DK_VIEW_ZY");
 // DK_VIEW_AUTO=1 (view.auto): fit the view to the headset by itself, from the tangents the SDK reports
 // (rex_xr_headset_tangents: both eyes together). fov = 2 atan(tan_y * aspect), zx = tan_y * (w/h) / tan_x.
 int32_t g_auto = int32_t(EnvF("DK_VIEW_AUTO"));
+// view.flat_world (DK_XR_FLAT_WORLD, default 1): out of a level the picture (menus, films) is a screen held in the room,
+// smaller, instead of a picture stuck to the face (SDK patch 14 asks dk_xr_flat())
+int32_t g_flat_world = std::getenv("DK_XR_FLAT_WORLD") ? int32_t(EnvF("DK_XR_FLAT_WORLD")) : 1;
 int32_t g_level_only = std::getenv("DK_VIEW_LEVEL_ONLY") ? int32_t(EnvF("DK_VIEW_LEVEL_ONLY")) : 1;
 float g_margin = EnvF("DK_VIEW_MARGIN") > 0.0f ? EnvF("DK_VIEW_MARGIN") : 1.0f;
 float g_head_tx = 0.0f, g_head_ty = 0.0f;
@@ -106,6 +109,7 @@ void Vars() {
   bridge_var("view.aspect", BRIDGE_F32, &g_aspect, 1, "the world view's aspect (0 = the game's own)");
   bridge_var("view.zx", BRIDGE_F32, &g_zx, 1, "sideways zoom of the world view (viewport+224; 0 = leave, 1 = none): trims the width");
   bridge_var("view.zy", BRIDGE_F32, &g_zy, 1, "up-down zoom of the world view (viewport+228; 0 = leave)");
+  bridge_var("view.flat_world", BRIDGE_I32, &g_flat_world, 1, "1 = out of a level the picture is a screen held in the room (menus, films)");
   bridge_var("view.level_only", BRIDGE_I32, &g_level_only, 1, "1 = widen only in a level (menus and films keep the game's own view)");
   bridge_var("view.auto", BRIDGE_I32, &g_auto, 1, "1 = fit fov and zoom to the headset's own view by itself");
   bridge_var("view.flat_x", BRIDGE_F32, &g_flat_x, 1, "half-width (tangent) the HUD / menus / films are shrunk to in the wide view (0 = leave)");
@@ -240,4 +244,10 @@ REX_HOOK_RAW(sub_8275EEF8) {
                 int(w), int(h), LoadF(base, vp + 260), LoadF(base, vp + 264), tx, ty, ours ? "widened" : "the game's own",
                 LoadF(base, vp + 224), LoadF(base, vp + 228), LoadF(base, vp + 276), LoadF(base, vp + 288));
   }
+}
+
+// Asked by SDK patch 14 at every frame handed to the headset: 1 = this picture is a flat one (a menu, a film).
+extern "C" __declspec(dllexport) int dk_xr_flat() {
+  if (g_flat_world != 1) return 0;
+  return InLevel() ? 0 : 1;
 }
