@@ -25,6 +25,7 @@ $env:DK_VR_HEAD_WALK = "1"
 $env:DK_XR_FLAT_WORLD = "1"
 $env:DK_XR_FLAT_SCALE = "0.75"
 $env:DK_VR_EXPOSURE = "0"   # 2026-11-06: the game's auto exposure off; with it on the picture blew out to 83 % white and pumped (simulator)
+$env:DK_VR_NO_AA = "1"   # 2026-11-10 (b023): the console's anti-aliasing off, so every frame is drawn once instead of in three strips; 0 = as before
 $env:DK_XR_HEAD = "1"
 $env:DK_XR_HEAD_MIRROR = "0"
 $env:DK_HANDS = "1"

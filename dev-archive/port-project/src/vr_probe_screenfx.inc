@@ -154,3 +154,40 @@ REX_HOOK_RAW(sub_82125088) {
     StoreGuestFloat(base, cd + kCdHurtPrev, 0.0f);
   }
 }
+
+// ---- 2026-11-10: ONE PASS A FRAME: the console's anti-aliasing off (DK_VR_NO_AA; on unless set to 0) ----------
+//
+// The 360 renderer draws the 1280 x 720 picture in three strips ("predicated tiling") because 4-sample anti-aliasing
+// does not fit the console's video memory in one go; the port replays the frame once per strip, twice over with one
+// eye per frame (note 2026-11-10e). The strips and the surfaces are laid out by ONE function, sub_8223D8E8, from the
+// sample setting it is handed in r9 (0 none, 1 two samples = height doubled, 2 four = both doubled; it keeps it as
+// the first field of the layout it returns). It has five callers (sub_8223E268 the device set-up, sub_8223EB80,
+// sub_8223F340, sub_8223FA80, sub_82254960), each with its own idea of the setting      [inferred-static 2026-11-10]
+// TRIED FIRST, NOT ENOUGH: the renderer's own number (+3936, what r_antialias sets) forced to "none" before the
+// device set-up: the set-up then asked for none, the picture still came in three strips of 4 samples
+// [verified-live 2026-11-10, simulator, n=1]: another caller lays out the level's surfaces.
+// So the setting is forced to 0 at the layout function itself, whoever calls.
+DECLARE_REX_FUNC(sub_8223D8E8);
+
+namespace {
+constexpr uint32_t kSamplesNone = 0u;
+constexpr uint32_t kNoAaLogLimit = 12u;
+}  // namespace
+
+REX_HOOK_RAW(sub_8223D8E8) {
+  static int on = -1;
+  if (on < 0) {
+    const char* e = std::getenv("DK_VR_NO_AA");
+    on = (e != nullptr && e[0] == '0') ? 0 : 1;
+  }
+  if (on == 1) {
+    static uint32_t times_logged = 0;
+    if (times_logged < kNoAaLogLimit) {
+      ++times_logged;
+      REXGPU_INFO("[VP] anti-aliasing: a surface layout asked for sample setting {} ({} x {}), given {} (none: one pass a frame)",
+                  ctx.r9.u32, ctx.r5.u32, ctx.r6.u32, kSamplesNone);
+    }
+    ctx.r9.u64 = kSamplesNone;
+  }
+  __imp__sub_8223D8E8(ctx, base);
+}

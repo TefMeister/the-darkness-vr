@@ -23,6 +23,7 @@ $env:DK_VR_HEAD_WALK = "1"
 # 2026-11-10 (b021): menus and films are a screen held in the room, smaller (0.75 of its old size); DK_XR_FLAT_WORLD 0 = stuck to the face as before
 $env:DK_XR_FLAT_WORLD = "1"
 $env:DK_XR_FLAT_SCALE = "0.75"
+$env:DK_VR_NO_AA = "1"   # 2026-11-10 (b023): the console's anti-aliasing off, so every frame is drawn once instead of in three strips; 0 = as before
 $env:DK_XR_HEAD = "1"
 $env:DK_XR_HEAD_MIRROR = "0"
 $env:DK_HANDS = "1"

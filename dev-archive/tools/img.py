@@ -5,7 +5,9 @@ so guest A -> file offset A - 0x82000000.  Verified by the PE section table.
 """
 import struct, sys, re
 
-IMG = r"C:\Users\Tefa\AppData\Local\Temp\claude\D--Program-Files--x86--Steam-steamapps-common\5cc76241-ec9a-4a00-b537-308d0510b993\scratchpad\darkness_image.bin"
+import os
+# the decrypted image: DK_IMG, else the home PC build folder copy (xex_unpack.py makes one anywhere)
+IMG = os.environ.get("DK_IMG") or "D:/the-darkness-build/unpacked/default.bin"
 BASE = 0x82000000
 _data = None
 

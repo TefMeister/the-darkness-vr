@@ -3,7 +3,9 @@
 Also: which function encloses a given file:line.  Static text work only."""
 import os, re, sys, json, bisect
 
-GEN = r"E:\the-darkness\src\DarknessRecomp\generated\default"
+# the dev PC folder, else the home PC folder (2026-11-10); DK_GEN overrides both
+_GENS = ("E:/the-darkness/src/DarknessRecomp/generated/default", "D:/the-darkness-build/src/DarknessRecomp/generated/default")
+GEN = os.environ.get("DK_GEN") or next((p for p in _GENS if os.path.isdir(p)), _GENS[0])
 CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "funcidx.json")
 
 DEF = re.compile(r'^(?:DEFINE_REX_FUNC|PPC_FUNC_IMPL|PPC_FUNC)\(\s*(?:__imp__)?([A-Za-z_][A-Za-z0-9_]*)\s*\)')
