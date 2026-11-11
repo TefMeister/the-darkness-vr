@@ -81,3 +81,29 @@ So 7 of 7 maps with the 00001010 set load and 4 of 4 without it stop. The jump a
 Normal play reaches those maps with a later state number, so this is a limit of the jump, not of the game copy
 `[inferred from the above]`. Not established: how the state number is set (the save, or an argument to
 `campaignmap`), which is what the jump needs to reach the later maps.
+
+## Evening: the jump reaches the later levels (the story state is a game key)
+
+The developer menu's own jump lines in `Content/Gui/CubeWnd.xcr` set a game key first:
+`setgamekey("DEFAULTSPAWNFLAGS","ny1+layer2"); cachecommand("cg_blackloading(); campaignmap (\"ny1_grinder\")"); ...`
+`[measured 2026-11-11, the file's text]`. The names come from a table in the game program (pointers at 0x82A3EF40:
+easy, medium, hard, commentary, ny1, ny2, ny3, global4-8, layer1-8, custom1-10, resettable, once; a second table
+gives ow1 / ow2 the places of ny1 / ny2). Read as bit numbers in that order, the load sets' numbers are the state:
+ny1 = 0x10, ny2 = 0x20, ny3 = 0x40, layer1 = 0x1000, layer2 = 0x2000, layer3 = 0x4000, layer4 = 0x8000, so
+`NY1_Grinder_00002010_Load.XDF` is "ny1+layer2", exactly the menu's own pairing for that map
+`[inferred-static 2026-11-11, one pairing in the menu agrees]`.
+
+`dk_place.py` now reads which states a map has a load set for, takes the lowest (or `--state ny3+layer1`), and passes
+the menu's own line through `DK_DEVMENU_MAIN_CMD`; no rebuild. Tested `[verified-live 2026-11-11, simulator, n=1 each]`:
+`NY2_Church` (ny2+layer1) live, 90 eye pairs a second (the cap), a stone doorway in both eyes; `NY1_Orphanage`
+(ny2+layer1) live, 76 pairs; `NY3_Mansion` (ny3+layer1) live, 55 pairs, a beach in daylight. No "dirty disc" call in
+any of the three. All three had stopped (or would have: the mansion has only ny3 sets) without the key.
+
+Seen and not explained:
+- The mansion's beach is very bright (the grab's mean is 202 of 255, the sky and sand near white). The game's auto
+  exposure is off in the VR scripts (`DK_VR_EXPOSURE=0`), and the board already warned that a fixed exposure may be
+  wrong outdoors `[hypothesis]`. Compare with `DK_VR_EXPOSURE=1` there before anyone wears a daylight level.
+- All four grabs of the orphanage were black while the level ran. The preview is black half the time anyway, so
+  this is weak; the eye-light log would settle it.
+- "layer" most likely means the story's passes through the same place (night one, later visits) `[hypothesis]`.
+

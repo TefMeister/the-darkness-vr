@@ -1,11 +1,12 @@
 """dk_place.py -- look at ANOTHER level in a TEST copy of the VR build on the pretend headset (2026-11-11).
 
-Starts the test copy with the developer-menu level jump (DK_DEVMENU=1, DK_DEVMENU_MAP=<map>), drives the title and the
+Starts the test copy with the developer-menu level jump (DK_DEVMENU=1 and the menu's own jump line with the story
+state the map has a load set for, see STATE_BITS), drives the title and the
 save notice with VR Bench, presses the game's X on the main menu (the doorway), waits for the level, saves pictures of
 the game's window at the given moments, reads the game's frames a second from its log, and closes the game by its own
 window (dk_close.py).
 
-  python dk_place.py <test build folder> <map> <rtv|rov> <picture prefix> [--at 15,30] [--press a@20]
+  python dk_place.py <test build folder> <map> <rtv|rov> <picture prefix> [--at 15,30] [--press a@20] [--state ny2+layer1]
 
 The picture prefix is a path outside every repo (the pictures are game content). --at: seconds after the level is live.
 --press: a button of the right hand at a moment after the level is live (to get past a film), e.g. a@50.
@@ -29,7 +30,15 @@ DOORWAY_TRIES = 5        # presses of the doorway button before giving up
 DOORWAY_BUTTON = "b"     # the Quest's B is the game's X (the b009 map)
 LEVEL_WAIT_S = 90        # how long a level may take to load
 WIDE_LINE = re.compile(r"^\[(.{23})\].*\[VIEW\] a perspective view built.*(\d+)x\d+ fov.*\(widened\)")
-RATE_WINDOW_S = 20.0     # the frame rate is read over the last seconds before the close
+RATE_WINDOW_S = 20.0
+STATE_DIGITS = 8         # <map>_00002020_Load.XDF
+# The story state (the game key DEFAULTSPAWNFLAGS) as bits, read from the game's flag table: easy, medium, hard,
+# commentary are bits 0-3, ny1-ny3 bits 4-6 (ow1 / ow2 are other names for ny1 / ny2), layer1-layer4 bits 12-15.
+STATE_BITS = ((0x10, "ny1"), (0x20, "ny2"), (0x40, "ny3"),
+              (0x1000, "layer1"), (0x2000, "layer2"), (0x4000, "layer3"), (0x8000, "layer4"))
+# Word for word the developer menu's own jump line (CubeWnd.xcr), with the state and the map swapped in.
+JUMP_LINE = ("setgamekey(\"DEFAULTSPAWNFLAGS\",\"%s\"); cachecommand(\"cg_blackloading(); campaignmap('%s')\"); "
+             "cg_rootmenu(\"begin_loadtransform\")")
 
 
 def press(name, hold=TAP_HOLD_S, hand=None):
@@ -38,6 +47,20 @@ def press(name, hold=TAP_HOLD_S, hand=None):
     time.sleep(hold)
     I.write(I.Input().mode(poses="pass", buttons="set").hand(hand, **{name: False}))
     print(time.strftime("%H:%M:%S"), "pressed", name, flush=True)
+
+
+def state_names(number):
+    """'00002020' -> 'ny2+layer2': the load set's number is the story state as bits (the flag table at 0x82A3EF40)."""
+    bits = int(number, 16)
+    names = [n for bit, n in STATE_BITS if bits & bit]
+    return "+".join(names) if names and not bits & ~sum(b for b, _ in STATE_BITS) else None
+
+
+def states_of(folder, map_name):
+    """The story states this map has a packed load set for, lowest number first."""
+    found = glob.glob(os.path.join(folder, "Assets", "Content", "Xdf", map_name + "_0000*_Load.XDF"))
+    numbers = sorted(os.path.basename(f)[len(map_name) + 1:][:STATE_DIGITS] for f in found)
+    return [n for n in (state_names(x) for x in numbers) if n]
 
 
 def log_has(folder, since, text):
@@ -57,6 +80,7 @@ def main():
     ap.add_argument("prefix")
     ap.add_argument("--at", default="15,30")
     ap.add_argument("--press", default="")
+    ap.add_argument("--state", default="", help="the story state, e.g. ny2+layer1; default: the map's lowest load set")
     a = ap.parse_args()
     if "test" not in os.path.basename(os.path.normpath(a.folder)).lower():
         sys.exit("refused: the folder name has no 'test' in it")
@@ -69,7 +93,12 @@ def main():
     moments.sort(key=lambda m: m[1])
 
     T.set_toml(os.path.join(a.folder, "darknessrecomp.toml"), [("render_target_path_d3d12", '"%s"' % a.path)])
-    env = dict(os.environ, DK_DEVMENU="1", DK_DEVMENU_MAP=a.map)
+    have = states_of(a.folder, a.map)
+    state = a.state or (have[0] if have else "")
+    if not state:
+        sys.exit("refused: no load set found for %s (look in Content/Xdf), and no --state given" % a.map)
+    print("story state:", state, "| this map has:", ", ".join(have) or "none found", flush=True)
+    env = dict(os.environ, DK_DEVMENU="1", DK_DEVMENU_MAIN_CMD=JUMP_LINE % (state, a.map))
     exe = os.path.join(a.folder, "darknessrecomp.exe")
     subprocess.run([sys.executable, T.VRBENCH, "start", exe], capture_output=True, text=True)
     began = dt.datetime.now()
@@ -121,7 +150,7 @@ def main():
     subprocess.run([sys.executable, T.VRBENCH, "stop"], capture_output=True, text=True)
     fmt = lambda x: "none" if x is None else "%.1f" % x
     line = "\t".join([dt.datetime.now().strftime("%Y-%m-%d %H:%M"), "place-%s-%s" % (a.map, a.path),
-                      "DK_DEVMENU_MAP=%s" % a.map, fmt(frames), fmt(pairs), "-", "closed" if closed else "STILL RUNNING"])
+                      "state=%s" % state, fmt(frames), fmt(pairs), "-", "closed" if closed else "STILL RUNNING"])
     with open(T.RESULTS, "a", encoding="utf-8") as f:
         f.write(line + "\n")
     print(line)
