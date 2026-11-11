@@ -23,6 +23,8 @@ import vb_input as I, vb_settings as S
 TITLE_WAIT_S = 56        # KNOWN.md: the title is up by then
 START_HOLD_S = 1.2       # the menu button held = START
 STEP_S = 4.5             # between menu presses
+TAP_HOLD_S = 0.2         # how long a tapped button is held (KNOWN.md: 150 ms registers on every menu)
+POLL_S = 1.0             # between looks at the log
 DOORWAY_TRIES = 5        # presses of the doorway button before giving up
 DOORWAY_BUTTON = "b"     # the Quest's B is the game's X (the b009 map)
 LEVEL_WAIT_S = 90        # how long a level may take to load
@@ -30,7 +32,7 @@ WIDE_LINE = re.compile(r"^\[(.{23})\].*\[VIEW\] a perspective view built.*(\d+)x
 RATE_WINDOW_S = 20.0     # the frame rate is read over the last seconds before the close
 
 
-def press(name, hold=0.2, hand=None):
+def press(name, hold=TAP_HOLD_S, hand=None):
     hand = S.HAND_RIGHT if hand is None else hand
     I.write(I.Input().mode(poses="pass", buttons="set").hand(hand, **{name: True}))
     time.sleep(hold)
@@ -82,7 +84,7 @@ def main():
     for k in range(DOORWAY_TRIES):
         time.sleep(STEP_S)
         press(DOORWAY_BUTTON)
-        time.sleep(1.0)
+        time.sleep(POLL_S)
         if log_has(a.folder, began, "[DEVMENU] cheat"):
             jumped = True
             break
@@ -95,7 +97,7 @@ def main():
     if jumped:
         mark = dt.datetime.now()
         for _ in range(LEVEL_WAIT_S):
-            time.sleep(1.0)
+            time.sleep(POLL_S)
             if T.readings(a.folder, WIDE_LINE, mark):
                 live = True
                 break
