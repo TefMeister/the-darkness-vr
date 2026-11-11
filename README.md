@@ -19,11 +19,13 @@ port: we built our own, with the open ReXGlue toolkit and files from a disc we o
 
 ## Status
 
-**Our own PC build plays in real-time 3D, and the two-eye picture is being built.**
+**Our own PC build plays in 3D with a picture for each eye, on a pretend headset; the real headset is next.**
 
 Our build first reached live gameplay on 2026-09-16 and made its first left/right stereo pair on
-2026-09-18. Since 2026-10-12 each picture knows which eye it is for, and both eyes can show the same
-moment (seen in one test so far). Confirming that pair and taking it into the headset comes next.
+2026-09-18. Since then the full headset view, walking with the head and the menu as a screen in the room
+were built, and on 2026-11-10 a trace of the graphics card showed where each frame's time went: the
+heaviest scene tried so far now runs at about 114 game frames a second, against 73 that afternoon. All of
+it is seen on a headset simulator so far; wearing it comes next.
 
 Like the community ports, it ships no game content: every user supplies the files from their own copy.
 
