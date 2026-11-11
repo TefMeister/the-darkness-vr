@@ -1456,3 +1456,11 @@ visibility checks, and has F5 dev tools (mission select, all Darkness abilities,
 and the HUD separated, and documents the guest threading and the runtime wait graph. Estacado's projection-jitter point
 is an independent second location to compare with our set-view hook `[hypothesis]`. Topic file:
 `external-research/topics/2026-10-26-two-public-pc-ports-of-the-darkness.md`.
+
+## 6g. Other levels, the level jump, and the velocity pass (2026-11-11, `/lm`, simulator)
+
+- **Level jump, unattended:** `DK_DEVMENU=1` + `DK_DEVMENU_MAP=<map>`, the pad's X on the main menu `[verified-live 2026-11-11, n=30]`. Load: `NY1_Chinatown`, `NY1_Pier19`, `NY1_Cemetery`, `OW1_Cannon`, `NY1_Tunnel`. Tool: `dev-archive/build-scripts/dk_place.py`.
+- **Three maps stop on the "dirty disc" call:** `NY1_Orphanage`, `NY2_Turkish`, `NY2_Church` fail to open `content\textures\alltextures.000.xtc` `[verified-live 2026-11-11, n=2 each]`; the copy holds only `AllTextures.00N.xtc.xt0` / `.xt1`. Missing from the disc copy, or written by the game on first use: not established.
+- **`rtv` against `rov` in four more places** (b025's exe): the stills agree (mean difference 0.3-1.2 of 255) and `rtv` is 37-68 % faster: Chinatown 115 / 75, Pier 19 149 / 109, Cemetery 180 (capped) / 111, the otherworld 153 / 91 game frames a second `[measured 2026-11-11, simulator]`. Not seen under `rtv`: powers, water, enemies, decals, the pause menu.
+- **The simulator's preview window is black in about half of all grabs** while the picture sent to the headset is steady (the eye-light log read 0.118 for 3,600 pairs running) `[verified-live 2026-11-11, n=1]`. Never read a black grab as a black picture.
+- **The velocity ("MotionMap") pass** (from `/gr`, 2026-11-11, the other port's `RENDERING.md` `[reported]`): emitter `sub_82276148`, tag pointer 0x8206764C = "XRShader_MotionMap", callers `sub_825CF178` and `sub_825BD270`, empty-list exit = the epilogue only `[inferred-static 2026-11-11]`. It IS drawn with motion blur off: about 1,200 batches a second, one list entry each, in standing scenes. Skipping it (`vr_no_velocity.cpp`, `DK_VR_NO_VELOCITY=1`, off by default) changed neither the picture nor the frame rate there (116.2 / 115.7, 151.2 / 149.1) `[measured 2026-11-11, n=1 each]`. A busy scene is not measured.

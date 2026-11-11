@@ -23,6 +23,7 @@ set(DARKNESSRECOMP_SOURCES
     src/vr_hand_pose.cpp
     src/vr_wide_view.cpp
     src/vr_plain_clear.cpp
+    src/vr_no_velocity.cpp
     src/vr_mem_probe.cpp
 )
 
