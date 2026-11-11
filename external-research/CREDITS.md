@@ -26,3 +26,11 @@ are not, or you are a rights holder who wants something corrected or removed, op
 - **ReXGlue** SDK developers, v0.10.1 release notes (contributors **pruefsumme**, **Graine25**, **catuhana**, **mrcmunir**) — https://github.com/rexglue/rexglue-sdk/releases/tag/v0.10.1
 - **portingpete**, The Darkness Recomp (v0.1.8 and commits to 2026-10-30) — https://github.com/portingpete/The-Darkness-Recomp
 - **invinceble55-wq**, Estacado (commits to 2026-11-06) — https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp
+
+## Sources (2026-11-11)
+
+- **portingpete**, The Darkness Recomp (v0.1.9 release notes, PRs #153 and #155, RENDERING.md) — https://github.com/portingpete/The-Darkness-Recomp
+- **ReXGlue** SDK developers: nightlies of 2026-11-09 and 11-10, the v0.10.0 and development sources — https://github.com/rexglue/rexglue-sdk
+- **datamothra** (rexglue-sdk PRs #535 and #536: uploads ahead of the render pass), **mkalkhoven-po** (#548 and #549: hot pages), **crabinacrabic** (#520: the ROV research fork) — https://github.com/rexglue/rexglue-sdk/pulls
+- **Xenia canary** developers, including **goldislead** and **has207** (95545f8e) — https://github.com/xenia-canary/xenia-canary
+- **invinceble55-wq**, Estacado (checked, no change) — https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp
