@@ -69,3 +69,15 @@ and no build was made from it. Open: count the list entries in a busy scene (ene
 - `rtv` with powers, water, enemies, decals, the pause menu.
 - Where the three maps' texture file should come from.
 - Whether skipping the velocity pass pays anywhere.
+
+## Later the same day: the three maps lack a load set, not a disc file
+
+The disc copy is byte-perfect, so no retail disc has `AllTextures.000.xtc`. Every map that loaded by the jump has a
+`<map>_00001010_Load.XDF`; none of the three that stopped has one. Prediction from that, then tested
+`[verified-live 2026-11-11, simulator, n=1 each]`: `NY1_Grinder` (has 00001010) loaded, 63 eye pairs a second;
+`NY2_CityHall` (only 00001020 / 00001040 / 00002020) stopped on the same failed open and the same "dirty disc" call.
+So 7 of 7 maps with the 00001010 set load and 4 of 4 without it stop. The jump arrives with the start-of-story state
+00001010; a map with no packed set for that state falls back to the loose texture file only a developer's disc had.
+Normal play reaches those maps with a later state number, so this is a limit of the jump, not of the game copy
+`[inferred from the above]`. Not established: how the state number is set (the save, or an argument to
+`campaignmap`), which is what the jump needs to reach the later maps.
