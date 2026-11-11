@@ -107,3 +107,23 @@ Seen and not explained:
   this is weak; the eye-light log would settle it.
 - "layer" most likely means the story's passes through the same place (night one, later visits) `[hypothesis]`.
 
+## Night: the mansion's brightness with the auto exposure off and on; the orphanage is not black
+
+The game's own per-eye brightness log (`DK_XR_EYE_LIGHT=1`, test copy, `rtv`), nine readings of 300 pairs a run, the
+last four of each once the beach is up `[measured 2026-11-11, simulator, n=1 run each]`:
+
+| `NY3_Mansion`, the beach | mean brightness (0-1) | pure white in the grabs |
+| --- | --- | --- |
+| auto exposure OFF (`DK_VR_EXPOSURE=0`, what the VR scripts set) | 0.83, 0.82, 0.79, 0.77 | 0 % in 3 lit grabs |
+| auto exposure ON (`=1`, the game's own) | 0.89, 0.88, 0.86, 0.86 | 0-18 % in 5 lit grabs |
+
+The log confirms the switch each time (`auto exposure: ... game bit=1 force=0` / `force=1`). So the beach is a
+bright scene either way; the fixed exposure is not what makes it bright, and with it OFF the picture is a little
+darker and nothing is clipped, while ON clips up to a fifth of one grab. The earlier single grab (mean 202 of 255)
+was this same bright scene. Neither run pumps: within 300 pairs the range is 0.01-0.04 once the view is up (wider
+ranges are the fade-in). OFF stays the setting. Whether 0.8 is how bright that beach should look, only the eye can
+say; the dial `xr.gamma` is there if Tefa finds it too bright when the story gets there.
+
+`NY1_Orphanage` (ny2+layer1), same log: 0.305 for all nine readings, range 0.304-0.306: a normal, steady picture.
+The four black grabs earlier were the preview window again.
+
