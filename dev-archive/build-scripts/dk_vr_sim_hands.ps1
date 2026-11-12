@@ -31,6 +31,15 @@ $env:DK_XR_HEAD = "1"
 $env:DK_XR_HEAD_MIRROR = "0"
 $env:DK_HANDS = "1"
 $env:DK_HANDS_ROT = "1"
+# 2026-11-12 (Tefa: "we do need to build a quit button into the main menu"): on the MAIN MENU the game's X (the Quest's B)
+# opens the game's own question "Are you sure you want to quit?" NO / YES; YES ends the game cleanly. (The page is in the
+# game's menu data; the console menu never linked to it.) The pause menu's X does nothing. A test that sets its own
+# DK_DEVMENU_MAIN_CMD (a level jump) keeps it.
+if (-not $env:DK_DEVMENU_MAIN_CMD) {
+    $env:DK_DEVMENU = "1"
+    $env:DK_DEVMENU_MAIN_CMD = "cg_submenu('quit_ask')"
+    $env:DK_DEVMENU_GAME_CMD = "noop()"
+}
 $env:XR_RUNTIME_JSON = "D:/claude video game stuff/tools/OpenXR-Simulator/openxr_simulator.json"   # the pretend headset (2026-11-04); the headset scripts remove this
 $p = Start-Process -FilePath (Join-Path $PSScriptRoot "darknessrecomp.exe") -WorkingDirectory $PSScriptRoot -PassThru
 "pid=$($p.Id)"
