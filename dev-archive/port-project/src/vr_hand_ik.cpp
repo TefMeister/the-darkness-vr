@@ -54,7 +54,13 @@ constexpr uint32_t kClientDataBack = 4384u;          // IK object = ClientData +
 constexpr uint32_t kRowRight = 0u, kRowDown = 16u, kRowFwd = 32u, kRowPos = 48u;   // dossier 6d
 constexpr uint32_t kPosValid[2] = {0x02u, 0x20u};    // DK_XR_HAND_L_POS, DK_XR_HAND_R_POS (SDK patch 10)
 constexpr float kUnitsPerMetre = 39.37f;             // 1 world unit ~ 1 inch [inferred-static]
-constexpr int kSeenMax = 8;
+constexpr int kSeenMax = 32;   // 2026-11-12: 8 -> 32 (a street scene has more hand IK objects than 8: 16,020 "new object" lines in one 10 min wear)
+// 2026-11-12 (Tefa, b025 worn: "when i get close to npc's, their hands copy mine, but crossed"): the pick's fallback fed
+// every object whose shoulders were within kSameCharacter of the player's distance from the camera, so a person standing
+// within ~1.3 m got the controller targets too (crossed: they face the player). The two kinds of character have their
+// own ClientData vtables [measured, that wear's log: 2,313 objects 0x82061FE0 = the player's two, 13,707 objects
+// 0x82064FD0 = everyone else; a third, 0x820647C0, 16 times]. Now only the player's kind is picked and fed.
+constexpr uint32_t kPlayerVtable = 0x82061FE0u;
 // 2026-10-29 (Tefa: "when i move my hands then still the other characters hands move with mine, same in a cutscene"):
 // only the player's hands are fed. The player is the character whose shoulders are nearest the camera: bones 18 (arm
 // A) and 13 (arm B) from the skeleton instance's bone matrices (*(SI+36), 64 bytes a bone, position at +48; dossier 6e).
@@ -95,6 +101,7 @@ float g_seen_dist[kSeenMax];
 int g_seen_n = 0;
 uint32_t g_player = 0;            // ik.player: the IK object picked as the player's, 0 = none
 uint32_t g_player_si = 0;         // its skeleton instance: every IK object on it is the player's
+uint32_t g_player_vt = 0;         // its ClientData vtable: only objects of this kind are fed (2026-11-12)
 float g_player_dist = 0.f;        // its shoulders' distance from the camera
 char g_dist_text[kSeenMax * 28 + 8] = "none yet";
 char g_seen_text[kSeenMax * 22 + 8] = "none yet";
@@ -187,22 +194,29 @@ void UpdatePick(uint8_t* base, int slot, uint32_t si) {
   g_seen_call[slot] = g_calls;
   g_seen_si[slot] = si;
   int best = -1;
+  // Only the player's kind is ever picked. (A first version fell back to "anyone" when none of it was near: in the opening
+  // car ride, with the camera 53-70 units from Jackie, it then picked a passenger 15 units away [verified-live
+  // 2026-11-12, simulator]. The player is this kind in New York and in the otherworld alike [measured, logs of 11-11].)
   for (int i = 0; i < g_seen_n; ++i)
-    if (g_calls - g_seen_call[i] <= kPickFresh && g_seen_dist[i] < kPlayerNear &&
+    if (g_calls - g_seen_call[i] <= kPickFresh && g_seen_dist[i] < kPlayerNear && g_seen_vt[i] == kPlayerVtable &&
         (best < 0 || g_seen_dist[i] < g_seen_dist[best]))
       best = i;
   const uint32_t player = best < 0 ? 0u : g_seen[best];
   const uint32_t player_si = best < 0 ? 0u : g_seen_si[best];
   // Logged when the player changes CHARACTER (not between the player's two tied objects) or goes.
-  const bool same_character = player_si != 0u ? player_si == g_player_si
-                                              : std::fabs(g_seen_dist[best] - g_player_dist) <= kSameCharacter;
+  // (2026-11-12: by kind and nearness; the skeleton-instance test called the player's two objects two characters and
+  // wrote 36,000 lines in one wear)
+  const uint32_t player_vt = best < 0 ? 0u : g_seen_vt[best];
+  const bool same_character = best >= 0 && player_vt == g_player_vt &&
+                              std::fabs(g_seen_dist[best] - g_player_dist) <= kSameCharacter;
   if (player != 0u && (g_player == 0u || !same_character))
-    REXGPU_INFO("[IK] the player's hands: IK object 0x{:08X} (shoulders {:.1f} units from the camera)", player,
-                g_seen_dist[best]);
+    REXGPU_INFO("[IK] the player's hands: IK object 0x{:08X}, kind 0x{:08X} (shoulders {:.1f} units from the camera)", player,
+                player_vt, g_seen_dist[best]);
   else if (player == 0u && g_player != 0u)
     REXGPU_INFO("[IK] the player's hands: nobody near the camera, no hand is fed");
   g_player = player;
   g_player_si = player_si;
+  g_player_vt = player_vt;
   if (best >= 0) g_player_dist = g_seen_dist[best];
   if (g_calls % kPickFresh == 0) {
     int p = 0;
@@ -220,7 +234,7 @@ bool Fed(uint8_t* base, uint32_t ik) {
   if (g_player == 0u) return false;
   for (int i = 0; i < g_seen_n; ++i)
     if (g_seen[i] == ik)
-      return g_calls - g_seen_call[i] <= kPickFresh &&
+      return g_calls - g_seen_call[i] <= kPickFresh && g_seen_vt[i] == g_player_vt &&
              ((g_player_si != 0u && g_seen_si[i] == g_player_si) || g_seen_dist[i] <= g_player_dist + kSameCharacter);
   return false;
 }
