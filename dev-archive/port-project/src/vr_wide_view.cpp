@@ -59,7 +59,8 @@ uint32_t g_flat_count = 0, g_flat_commit = 0;
 // so the view is widened only while one ran in the last half second; otherwise each viewport gets its own numbers back.
 std::atomic<uint64_t> g_cam_ms{0};
 uint64_t NowMs() { return GetTickCount64(); }
-bool InLevel() { const uint64_t c = g_cam_ms.load(std::memory_order_relaxed); return c != 0 && NowMs() - c < 500u; }
+std::atomic<bool> g_paused{false};   // the journal / pause screen is up (NoteCommand below)
+bool InLevel() { if (g_paused.load(std::memory_order_relaxed)) return false; const uint64_t c = g_cam_ms.load(std::memory_order_relaxed); return c != 0 && NowMs() - c < 500u; }
 struct Orig { uint32_t vp = 0; float fov = 0.0f, zx = 1.0f, zy = 1.0f, said_tx = 0.0f, said_ty = 0.0f; int said = 0; };
 Orig g_orig[16];
 Orig* OrigFor(uint32_t vp) {
@@ -125,6 +126,17 @@ void Vars() {
 }  // namespace
 
 namespace dkview {
+// 2026-11-12 (Tefa: the journal on the left menu button "is following my head and i need it to just float in front of me
+// ... like the start logos and stuff"): in a level the journal / pause screen opens with the console command pause(1)
+// and closes with pause(0) [verified-live 2026-11-12, simulator: 'pause(1)' at the press, 'cg_cubeseqforce('backtogame')'
+// then 'pause(0)' at the second]. While paused the picture counts as "not a level": a flat screen held in the room.
+void NoteCommand(const char* text) {
+  if (std::strncmp(text, "pause(1)", 8) == 0) {
+    if (!g_paused.exchange(true)) REXGPU_INFO("[VIEW] paused (the journal / pause screen): the picture is a screen in the room");
+  } else if (std::strncmp(text, "pause(0)", 8) == 0) {
+    if (g_paused.exchange(false)) REXGPU_INFO("[VIEW] un-paused: the level's own view again");
+  }
+}
 void Flat(uint8_t* base, uint32_t projection);
 bool InLevelNow() { return InLevel(); }
 void NoteCamera() { g_cam_ms.store(NowMs(), std::memory_order_relaxed); }

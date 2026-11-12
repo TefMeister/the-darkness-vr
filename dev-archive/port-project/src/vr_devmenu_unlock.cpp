@@ -31,6 +31,7 @@
 #include <rex/hook.h>
 
 #include <cstdlib>
+#include <windows.h>
 #include <cstring>
 #include <string>
 
@@ -191,4 +192,37 @@ REX_HOOK_RAW(sub_8236F300) {
                 front_end, text.substr(0, kMaxLoggedChars),
                 (replace != nullptr ? *replace : text).substr(0, kMaxLoggedChars), ran);
   }
+}
+
+// 2026-11-12: every command text the game hands to its console, written down (DK_CMD_LOG=1; at most kCmdLogLines), to
+// learn what opens and closes the journal / pause screen in a level (the screen must hang in the room, not on the face).
+// vr_wide_view.cpp is told of every text (dkview::NoteCommand) whatever the switch says.
+namespace dkview { void NoteCommand(const char* text); }
+namespace {
+constexpr int kCmdLogLines = 400;
+}
+REX_HOOK_RAW(sub_8277B388) {
+  static const bool log_on = [] { const char* v = std::getenv("DK_CMD_LOG"); return v != nullptr && v[0] == '1'; }();
+  const std::string text = ReadCStr(base, ctx.r3.u32);
+  dkview::NoteCommand(text.c_str());
+  // a text that repeats every frame (pausetimer() does while a menu is up) is written when it STARTS and when it has
+  // been quiet for a second and comes back, not every time
+  static int lines = 0;
+  static std::string last_text;
+  static uint64_t last_ms = 0, run_start_ms = 0;
+  static int run = 0;
+  if (log_on && lines < kCmdLogLines) {
+    const uint64_t now = GetTickCount64();
+    if (text != last_text || now - last_ms > 1000u) {
+      if (run > 1) REXLOG_INFO("[CMD]    ... '{}' ran {} times over {} ms", last_text.substr(0, 60), run, last_ms - run_start_ms);
+      ++lines;
+      REXLOG_INFO("[CMD] #{} '{}'", lines, text.substr(0, kMaxLoggedChars));
+      last_text = text;
+      run = 0;
+      run_start_ms = now;
+    }
+    ++run;
+    last_ms = now;
+  }
+  __imp__sub_8277B388(ctx, base);
 }
