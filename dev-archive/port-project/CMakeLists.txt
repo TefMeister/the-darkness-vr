@@ -25,6 +25,7 @@ set(DARKNESSRECOMP_SOURCES
     src/vr_plain_clear.cpp
     src/vr_no_velocity.cpp
     src/vr_mem_probe.cpp
+    src/vr_menu_quit.cpp
 )
 
 if(WIN32)

@@ -31,6 +31,8 @@ $env:DK_XR_HEAD = "1"
 $env:DK_XR_HEAD_MIRROR = "0"
 $env:DK_HANDS = "1"
 $env:DK_HANDS_ROT = "1"
+# 2026-11-12 (b028): the main menu's MULTIPLAYER line is QUIT (the game's own quit question; vr_menu_quit.cpp). 0 = off.
+$env:DK_MENU_QUIT = "1"
 # 2026-11-12 (Tefa: "we do need to build a quit button into the main menu"): on the MAIN MENU the game's X (the Quest's B)
 # opens the game's own question "Are you sure you want to quit?" NO / YES; YES ends the game cleanly. (The page is in the
 # game's menu data; the console menu never linked to it.) The pause menu's X does nothing. A test that sets its own

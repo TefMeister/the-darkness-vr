@@ -34,3 +34,20 @@ label `nc, <mark>LMENU_MULTIPLAYER` -> `LMENU_QUIT` (the word exists), command `
   (a scan for `cg_submenu('multiplayer')` after the front end is up). Moving the line to the bottom = swapping the
   rows' cell texts (`0, 8, 20, 1` and so on) the same way. `MODEL: OPUS`.
 The test copy's two files were put back (hashes equal the shared ones).
+
+## The visible QUIT line: done in memory (b028, same evening) `[verified-live 2026-11-12, simulator, n=2]`
+
+`port-project/src/vr_menu_quit.cpp` (`DK_MENU_QUIT=1`, set by the launch scripts): a thread of ours looks through the
+game's committed memory 3 s after the first frame and rewrites the Multiplayer line's two texts, same length, spaces as
+padding: label -> `LMENU_QUIT`, command -> `cg_submenu('quit_ask')`. Found at the first look: 2 labels, 1 command. It
+looks five more times, then stops (a look goes through all the game's memory and must not run into play). The main menu
+shows QUIT in the game's own font where MULTIPLAYER was (the 4th line); A opens the question; YES ends the game cleanly.
+The B button on the main menu still opens the same question.
+
+- Not done: QUIT at the BOTTOM of the list. The lines keep their places; swapping the texts needs OPTIONS' and EXTRA
+  CONTENT's commands to fit Multiplayer's 25 characters (they are 26 and 27). Way in: swap the three lines' text POINTERS
+  in the loaded menu tree (find what points at each string). `MODEL: OPUS`.
+- The picture taker (the simulator window grabbed through winshot) gives all-black pictures in some runs from a few
+  seconds after the first one, with the game running and answering normally: a capture fault, not the game's.
+- The two builds that had their own copy of the game files are links to the shared files again (Tefa's yes, 13.5 GB
+  back); b028 was made with a link from the start.

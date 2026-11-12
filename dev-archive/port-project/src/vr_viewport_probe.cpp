@@ -498,9 +498,12 @@ extern "C" __declspec(dllexport) int dk_sbs_swap_eye(uint64_t swap_index, uint32
   return static_cast<int>(tag & 0xFFu) - 8;  // fx2: eye + 8, so -4 fits
 }
 
+void DkMenuQuitTick(uint8_t* base);
+
 REX_HOOK_RAW(sub_82249580) {
   // The original, unchanged and first. Everything below is observation.
   __imp__sub_82249580(ctx, base);
+  DkMenuQuitTick(base);              // 2026-11-12: starts the QUIT-line look-through once (vr_menu_quit.cpp)
   dkview::Flat(base, kProjection);   // b018: the HUD and menus shrunk inside the wide view (vr_wide_view.cpp)
 
   float p[kMatrixFloats];
