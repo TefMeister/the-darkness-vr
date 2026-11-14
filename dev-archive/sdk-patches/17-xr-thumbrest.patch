@@ -1,0 +1,84 @@
+--- a/src/graphics/d3d12/xr_output.cpp
++++ b/src/graphics/d3d12/xr_output.cpp
+@@ -122,7 +122,8 @@
+   XrAction grip_action = XR_NULL_HANDLE, aim_action = XR_NULL_HANDLE;
+   // Patch 11: the buttons. One action per button (no subaction: a and b live on the right hand, x,
+   // y and menu on the left), and three two-handed actions (trigger, squeeze, thumbstick).
+-  enum { BTN_A, BTN_B, BTN_X, BTN_Y, BTN_MENU, BTN_LSTICK, BTN_RSTICK, BTN_COUNT };
++  // Patch 17 (2026-11-14): BTN_LTHUMBREST, the left thumb resting on the Touch's thumb rest (the gun / power picker).
++  enum { BTN_A, BTN_B, BTN_X, BTN_Y, BTN_MENU, BTN_LSTICK, BTN_RSTICK, BTN_LTHUMBREST, BTN_COUNT };
+   XrAction btn_action[BTN_COUNT] = {};
+   XrAction trigger_action = XR_NULL_HANDLE, squeeze_action = XR_NULL_HANDLE, stick_action = XR_NULL_HANDLE;
+   uint64_t button_calls = 0;
+@@ -259,7 +260,8 @@
+   {
+     static const char* const kBtnNames[State::BTN_COUNT][2] = {
+         {"a_click", "A"}, {"b_click", "B"}, {"x_click", "X"}, {"y_click", "Y"},
+-        {"menu_click", "Menu"}, {"lstick_click", "Left stick click"}, {"rstick_click", "Right stick click"}};
++        {"menu_click", "Menu"}, {"lstick_click", "Left stick click"}, {"rstick_click", "Right stick click"},
++        {"lthumbrest_touch", "Left thumb rest"}};
+     XrActionCreateInfo bci = {XR_TYPE_ACTION_CREATE_INFO};
+     bci.actionType = XR_ACTION_TYPE_BOOLEAN_INPUT;
+     for (int i = 0; i < rex::graphics::d3d12::State::BTN_COUNT; ++i) {
+@@ -300,6 +302,10 @@
+       {s.trigger_action, "/user/hand/left/input/trigger/value"}, {s.trigger_action, "/user/hand/right/input/trigger/value"},
+       {s.squeeze_action, "/user/hand/left/input/squeeze/value"}, {s.squeeze_action, "/user/hand/right/input/squeeze/value"},
+       {s.stick_action, "/user/hand/left/input/thumbstick"}, {s.stick_action, "/user/hand/right/input/thumbstick"}};
++  // Patch 17: the same plus the left thumb rest. Tried first; a runtime that refuses the path gets plain kTouch next,
++  // so the buttons never go with it.
++  std::vector<Bind> touch_rest(kTouch, kTouch + sizeof(kTouch) / sizeof(kTouch[0]));
++  touch_rest.push_back({s.btn_action[State::BTN_LTHUMBREST], "/user/hand/left/input/thumbrest/touch"});
+   const Bind kIndex[] = {   // Index: a and b on both hands; the left pair stands in for X and Y
+       {s.btn_action[State::BTN_A], "/user/hand/right/input/a/click"}, {s.btn_action[State::BTN_B], "/user/hand/right/input/b/click"},
+       {s.btn_action[State::BTN_X], "/user/hand/left/input/a/click"}, {s.btn_action[State::BTN_Y], "/user/hand/left/input/b/click"},
+@@ -315,16 +321,21 @@
+       {s.squeeze_action, "/user/hand/left/input/squeeze/click"}, {s.squeeze_action, "/user/hand/right/input/squeeze/click"},
+       {s.btn_action[State::BTN_MENU], "/user/hand/left/input/menu/click"},
+       {s.stick_action, "/user/hand/left/input/trackpad"}, {s.stick_action, "/user/hand/right/input/trackpad"}};
+-  struct Profile { const char* path; const Bind* extra; size_t count; };
++  // skip_if_previous: tried only when the profile just before it was refused (patch 17's thumb rest fallback).
++  struct Profile { const char* path; const Bind* extra; size_t count; bool skip_if_previous = false; };
+   const Profile kProfiles[] = {
+       {"/interaction_profiles/khr/simple_controller", kSimple, sizeof(kSimple) / sizeof(kSimple[0])},
+-      {"/interaction_profiles/oculus/touch_controller", kTouch, sizeof(kTouch) / sizeof(kTouch[0])},
++      {"/interaction_profiles/oculus/touch_controller", touch_rest.data(), touch_rest.size()},
++      {"/interaction_profiles/oculus/touch_controller", kTouch, sizeof(kTouch) / sizeof(kTouch[0]), true},
+       {"/interaction_profiles/valve/index_controller", kIndex, sizeof(kIndex) / sizeof(kIndex[0])},
+       {"/interaction_profiles/htc/vive_controller", kViveWmr, sizeof(kViveWmr) / sizeof(kViveWmr[0])},
+       {"/interaction_profiles/microsoft/motion_controller", kViveWmr, sizeof(kViveWmr) / sizeof(kViveWmr[0])},
+   };
+   int accepted = 0;
++  bool previous_ok = false;
+   for (const Profile& profile : kProfiles) {
++    if (profile.skip_if_previous && previous_ok) continue;
++    previous_ok = false;
+     XrInteractionProfileSuggestedBinding ipb = {XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
+     if (XR_FAILED(s.xrStringToPath(s.instance, profile.path, &ipb.interactionProfile))) continue;
+     std::vector<XrActionSuggestedBinding> sb;
+@@ -341,8 +352,14 @@
+     ipb.countSuggestedBindings = static_cast<uint32_t>(sb.size());
+     ipb.suggestedBindings = sb.data();
+     const XrResult sr = s.xrSuggestInteractionProfileBindings(s.instance, &ipb);
+-    if (XR_SUCCEEDED(sr)) ++accepted;
+-    else o.Log("[XR] profile %s refused its bindings (%d)", profile.path, int(sr));
++    if (XR_SUCCEEDED(sr)) {
++      ++accepted;
++      previous_ok = true;
++      if (profile.extra == touch_rest.data()) o.Log("[XR] Touch bindings accepted with the left thumb rest");
++    } else {
++      o.Log("[XR] profile %s refused its bindings (%d)%s", profile.path, int(sr),
++            profile.extra == touch_rest.data() ? " - trying it again without the thumb rest" : "");
++    }
+   }
+   if (accepted == 0) return HandsOff(o, "no controller profile accepted", XR_SUCCESS);
+ 
+@@ -879,7 +896,8 @@
+   if (s.xrSyncActions(s.session, &si) != XR_SUCCESS) return 0;
+   // XInput bits (rex/input/input.h): START 0x10, LEFT_THUMB 0x40, RIGHT_THUMB 0x80, LB 0x100, RB 0x200,
+   // A 0x1000, B 0x2000, X 0x4000, Y 0x8000
+-  static const uint32_t kBits[rex::graphics::d3d12::State::BTN_COUNT] = {0x1000, 0x2000, 0x4000, 0x8000, 0x0010, 0x0040, 0x0080};
++  // + patch 17: the left thumb rest as 0x0400 (no XInput button; the game's pad driver strips it)
++  static const uint32_t kBits[rex::graphics::d3d12::State::BTN_COUNT] = {0x1000, 0x2000, 0x4000, 0x8000, 0x0010, 0x0040, 0x0080, 0x0400};
+   uint32_t b = 0;
+   for (int i = 0; i < rex::graphics::d3d12::State::BTN_COUNT; ++i) {
+     XrActionStateGetInfo gi = {XR_TYPE_ACTION_STATE_GET_INFO};
