@@ -26,6 +26,7 @@
 #include "vr_wide_view.h"
 #include "vr_xr_head.h"
 #include "vr_hand_pose.h"
+#include "vr_quest_controls.h"
 
 #include <windows.h>
 
@@ -336,6 +337,19 @@ uint32_t RemapXr(uint32_t b) {
   return out;
 }
 
+// 2026-11-14: Tefa's Quest layout (vr_quest_controls.cpp, job 1 of the 2026-11-14 controls design) replaces the b009
+// map above. DK_VR_QUEST_CTL=0 in the start scripts gives the b009 map back.
+bool QuestLayoutOn() {
+  static const bool on = [] {
+    const char* e = std::getenv("DK_VR_QUEST_CTL");
+    const bool v = !(e && e[0] == '0');
+    REXGPU_INFO("[DKXR] Quest layout 2026-11-14 {}", v ? "on" : "OFF (DK_VR_QUEST_CTL=0: the b009 map)");
+    return v;
+  }();
+  return on;
+}
+dkqc::QuestControls g_quest;
+
 class BridgePadDriver final : public rex::input::InputDriver {
  public:
   BridgePadDriver() : InputDriver(nullptr, 0) {}
@@ -366,13 +380,45 @@ class BridgePadDriver final : public rex::input::InputDriver {
       if (const XrButtonsFn xr = XrButtons()) {   // 2026-10-29: the motion controllers laid over
         uint32_t b = 0; float ax[6];
         if (xr(&b, ax) && !dkpose::FeedPad(b, ax)) {   // the hand poser keeps the controllers while it is on
-          out->gamepad.buttons = static_cast<uint16_t>(out->gamepad.buttons | RemapXr(b));
           const auto trig = [](float v) { return static_cast<uint8_t>(v <= 0 ? 0 : v >= 1 ? 255 : v * 255.0f + 0.5f); };
           const auto axis = [](float v) { return static_cast<int16_t>(v <= -1 ? -32768 : v >= 1 ? 32767 : v * 32767.0f); };
-          if (trig(ax[0]) > out->gamepad.left_trigger) out->gamepad.left_trigger = trig(ax[0]);
-          if (trig(ax[1]) > out->gamepad.right_trigger) out->gamepad.right_trigger = trig(ax[1]);
           CtlVars();
           const bool in_level = dkview::InLevelNow();
+          if (QuestLayoutOn()) {   // 2026-11-14: Tefa's layout; sticks and triggers come out of the mapping
+            dkqc::QuestIn qi{};
+            qi.buttons = b;
+            std::memcpy(qi.ax, ax, sizeof(qi.ax));
+            qi.in_level = in_level;
+            qi.now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::steady_clock::now().time_since_epoch()).count();
+            const dkqc::PadOut p = g_quest.Step(qi);
+            static uint16_t last_logged = 0;   // one line per change, so a run shows what the game was sent
+            if (p.buttons != last_logged) {
+              REXGPU_INFO("[DKXR] quest pad 0x{:04X} (raw 0x{:04X}, {})", p.buttons, b, in_level ? "level" : "menu");
+              last_logged = p.buttons;
+            }
+            out->gamepad.buttons = static_cast<uint16_t>(out->gamepad.buttons | p.buttons);
+            if (trig(p.lt) > out->gamepad.left_trigger) out->gamepad.left_trigger = trig(p.lt);
+            if (trig(p.rt) > out->gamepad.right_trigger) out->gamepad.right_trigger = trig(p.rt);
+            if (std::fabs(p.lx) > kXrStickDead || std::fabs(p.ly) > kXrStickDead) {
+              float lx = p.lx, ly = p.ly, yaw = 0.0f;
+              if (in_level && g_head_walk == 1 && HeadYaw(&yaw)) {
+                const float c = std::cos(yaw), sn = std::sin(yaw);
+                const float nx = lx * c + ly * sn, ny = -lx * sn + ly * c;
+                lx = nx; ly = ny;
+                g_head_yaw_deg = yaw * 57.29578f;
+              }
+              out->gamepad.thumb_lx = axis(lx); out->gamepad.thumb_ly = axis(ly);
+            }
+            if (std::fabs(p.rx) > kXrStickDead || std::fabs(p.ry) > kXrStickDead) {
+              out->gamepad.thumb_rx = axis(p.rx);
+              out->gamepad.thumb_ry = axis(p.ry);
+            }
+            return X_ERROR_SUCCESS;
+          }
+          out->gamepad.buttons = static_cast<uint16_t>(out->gamepad.buttons | RemapXr(b));
+          if (trig(ax[0]) > out->gamepad.left_trigger) out->gamepad.left_trigger = trig(ax[0]);
+          if (trig(ax[1]) > out->gamepad.right_trigger) out->gamepad.right_trigger = trig(ax[1]);
           if (std::fabs(ax[2]) > kXrStickDead || std::fabs(ax[3]) > kXrStickDead) {
             float lx = ax[2], ly = ax[3], yaw = 0.0f;
             if (in_level && g_head_walk == 1 && HeadYaw(&yaw)) {

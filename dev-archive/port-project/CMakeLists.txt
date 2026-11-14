@@ -15,6 +15,7 @@ set(DARKNESSRECOMP_SOURCES
     src/main.cpp
     src/vr_viewport_probe.cpp
     src/vr_bridge.cpp
+    src/vr_quest_controls.cpp
     src/bridge/bridge.c
     src/vr_devmenu_unlock.cpp
     src/vr_xr_head.cpp

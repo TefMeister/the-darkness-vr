@@ -28,6 +28,8 @@ idle = float(sys.argv[2]) if len(sys.argv) > 2 else IDLE_DEFAULT_S
 if os.environ.get("DK_DRIVE_NO_LAUNCH") == "1":
     print(time.strftime("%H:%M:%S"), "not launching; presses only", flush=True)
 else:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import dk_clash; dk_clash.take_or_exit()   # 2026-11-14: one game at a time on this PC
     script = os.path.join(folder, "dk_vr_sim_hands.ps1")
     if not os.path.isfile(script):
         sys.exit("no dk_vr_sim_hands.ps1 in " + folder)

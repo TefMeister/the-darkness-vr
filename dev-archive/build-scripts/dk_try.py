@@ -123,6 +123,8 @@ def main():
     for e in a.env:
         k, v = e.split("=", 1)
         env[k] = v
+    import dk_clash; dk_clash.take_or_exit()   # 2026-11-14: one game at a time on this PC
+    env[dk_clash.TAKEN_ENV] = "1"
     exe = os.path.join(a.folder, "darknessrecomp.exe")
     subprocess.run([sys.executable, VRBENCH, "start", exe], capture_output=True, text=True)
     drive = subprocess.Popen([sys.executable, os.path.join(HERE, "dk_sim_drive.py"), a.folder, str(a.idle)],
@@ -142,6 +144,8 @@ def main():
     if a.shot:
         take_shot(a.shot)
     closed = close_game()
+    if closed:
+        dk_clash.release()   # 2026-11-14: give the one-game lock back
     fmt = lambda x: "none" if x is None else "%.1f" % x
     line = "\t".join([dt.datetime.now().strftime("%Y-%m-%d %H:%M"), a.label, " ".join(a.settings + a.env) or "-",
                       fmt(frames), fmt(pairs_s), fmt(load), "closed" if closed else "STILL RUNNING"])

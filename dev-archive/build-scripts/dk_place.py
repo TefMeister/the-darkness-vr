@@ -27,7 +27,15 @@ STEP_S = 4.5             # between menu presses
 TAP_HOLD_S = 0.2         # how long a tapped button is held (KNOWN.md: 150 ms registers on every menu)
 POLL_S = 1.0             # between looks at the log
 DOORWAY_TRIES = 5        # presses of the doorway button before giving up
-DOORWAY_BUTTON = "b"     # the Quest's B is the game's X (the b009 map)
+DOORWAY_BUTTON = "b"     # the Quest's B is the game's X (the b009 map, builds up to b029)
+# 2026-11-14: builds with Tefa's Quest layout (b030 on) are the plain pad in menus: the game's X is the Quest's X (left hand).
+QUEST_LAYOUT_MARK = b"Quest layout 2026-11-14"
+
+
+def doorway(folder):
+    with open(os.path.join(folder, "darknessrecomp.exe"), "rb") as f:
+        new = QUEST_LAYOUT_MARK in f.read()
+    return ("x", S.HAND_LEFT) if new else (DOORWAY_BUTTON, S.HAND_RIGHT)
 LEVEL_WAIT_S = 90        # how long a level may take to load
 WIDE_LINE = re.compile(r"^\[(.{23})\].*\[VIEW\] a perspective view built.*(\d+)x\d+ fov.*\(widened\)")
 RATE_WINDOW_S = 20.0
@@ -99,6 +107,8 @@ def main():
         sys.exit("refused: no load set found for %s (look in Content/Xdf), and no --state given" % a.map)
     print("story state:", state, "| this map has:", ", ".join(have) or "none found", flush=True)
     env = dict(os.environ, DK_DEVMENU="1", DK_DEVMENU_MAIN_CMD=JUMP_LINE % (state, a.map))
+    door = doorway(a.folder)
+    import dk_clash; dk_clash.take_or_exit()   # 2026-11-14: one game at a time on this PC
     exe = os.path.join(a.folder, "darknessrecomp.exe")
     subprocess.run([sys.executable, T.VRBENCH, "start", exe], capture_output=True, text=True)
     began = dt.datetime.now()
@@ -112,7 +122,7 @@ def main():
     jumped = False
     for k in range(DOORWAY_TRIES):
         time.sleep(STEP_S)
-        press(DOORWAY_BUTTON)
+        press(door[0], hand=door[1])
         time.sleep(POLL_S)
         if log_has(a.folder, began, "[DEVMENU] cheat"):
             jumped = True

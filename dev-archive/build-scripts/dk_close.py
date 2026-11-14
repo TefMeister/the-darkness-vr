@@ -12,6 +12,7 @@ It also waits until no darknessrecomp.exe is left, so the next launch never star
 Never forces: when it returns 1 the caller decides.
 """
 import ctypes
+import os
 import ctypes.wintypes as W
 import subprocess
 import sys
@@ -48,11 +49,18 @@ def windows(pid):
     return found
 
 
+def release_hold():   # 2026-11-14: the one-game lock our launch scripts took (dk_clash.py)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import dk_clash
+    dk_clash.release()
+
+
 def main():
     wait_s = float(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_WAIT_S
     running = pids()
     if not running:
         print("not running")
+        release_hold()
         return 0
     asked = 0
     for pid in running:
@@ -66,6 +74,7 @@ def main():
     while time.time() - start < wait_s:
         if not pids():
             print("closed after %.1f s" % (time.time() - start))
+            release_hold()
             return 0
         time.sleep(POLL_S)
     print("STILL RUNNING after %.0f s" % wait_s)
