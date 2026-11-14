@@ -35,3 +35,17 @@ magazines are two 16-bit counts at ClientData + 0x1BC4 (12 and 12) `[measured 20
 Many weapon templates carry `throwawayonempty` (most with `nolastthrowaway`, `cloneattachitem`, `autopickup`)
 `[measured 2026-11-14, strings]`: the game's own "empty gun is thrown away" (probably the flip Tefa saw) and its own
 pickups. That is where the "guns as world objects" look (job 4) starts.
+
+### Lead 1, narrowed (static, later the same day)
+
+The game program holds the character flag names as one table of 30 pointers at 0x82AE5910 (stunnable, waitspawn, ...,
+autounequipweapons = 25, **dualwieldsupported = 26**, projectileinvulnerable, attachforcetriggers, disableik)
+`[measured 2026-11-14, unpacked image]`. If the parser sets bit N for name N, dual wield is bit 26 = 0x04000000 of the
+character's flags word `[hypothesis]`; `rlwinm rX,rY,6,31,31` reads exactly that bit, and `sub_821DC6F8` does so
+`[inferred-static, one candidate, not followed]`. Live test (next): find the player's flags word (snapshot / diff with
+the bridge's `gsnap` / `gdiff`, or the word that holds bits 8 and 25 set: alwaysvisible, autounequipweapons), clear
+bit 26, draw the pistols: one pistol? The same table names `throwawayonempty` / `nolastthrowaway` for weapons
+(0x82069E6C / 0x82069E5C).
+
+In the journal (a paused level) the level map stays on, so Y and the left trigger send LB / RB there: they may switch
+the journal's pages. Noticed while reviewing; harmless, see on the wear.
