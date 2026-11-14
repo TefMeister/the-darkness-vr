@@ -63,14 +63,14 @@ int main() {
   });
   Test("rs_up_held_jumps", [] {
     QuestControls q;
-    CHECK(!(Run(q, 0, 250, 0, 0.0f, 0.9f) & pY));
-    CHECK(q.Step(In(300, 0, 0.0f, 0.9f)).buttons & pY);
+    CHECK(!(Run(q, 0, 150, 0, 0.0f, 0.9f) & pY));
+    CHECK(q.Step(In(200, 0, 0.0f, 0.9f)).buttons & pY);   // Tefa 2026-11-14: 0.3 s -> 0.2 s
     CHECK(q.Step(In(500, 0, 0.0f, 0.9f)).buttons & pY);
     CHECK(!(q.Step(In(510, 0, 0.0f, 0.0f)).buttons & pY));
   });
   Test("rs_up_short_does_nothing", [] {
     QuestControls q;
-    uint16_t seen = Run(q, 0, 200, 0, 0.0f, 0.9f) | Run(q, 210, 600, 0);
+    uint16_t seen = Run(q, 0, 150, 0, 0.0f, 0.9f) | Run(q, 160, 600, 0);
     CHECK(!(seen & pY));
   });
   Test("turning_never_jumps", [] {
@@ -135,6 +135,14 @@ int main() {
     in.ax[0] = 0.3f;
     in.now_ms = 10;
     CHECK(!(q.Step(in).buttons & pRB));
+  });
+  Test("lg_lt_fires_left_gun", [] {   // Tefa 2026-11-14: left grip + left trigger = the left gun, never the power
+    QuestControls q;
+    QuestIn in = In(0, kLGrip);
+    in.ax[0] = 0.8f;
+    PadOut o = q.Step(in);
+    CHECK(!(o.buttons & pRB));
+    CHECK(o.lt > 0.79f && o.lt < 0.81f);
   });
   Test("rt_fires", [] {
     QuestControls q;

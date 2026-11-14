@@ -8,10 +8,11 @@
 // Tefa's layout in a level (2026-11-14):
 //   A = use (A)              X = send the darkling (X)        Y = the Darkness out / in (LB)
 //   left trigger = the power (RB)                              right trigger = fire (RT)
+//   left grip + left trigger = the left gun (LT), never the power
 //   B tap = reload (B; the hand reload of job 5 replaces it)   B held 1 s = drop the gun (job 4; nothing yet)
 //   menu tap = journal (Back)                                  menu held 0.3 s = pause (Start)
-//   right stick left / right = turn                            right stick up held 0.3 s = jump (Y)
-//   right stick down held 0.3 s = crouch (left stick click)
+//   right stick left / right = turn                            right stick up held 0.2 s = jump (Y)
+//   right stick down held 0.2 s = crouch (left stick click)
 //   left thumb on its rest + right stick = the D-pad (up / down a power, left / right a gun), one press per push
 //   grips, stick clicks: nothing here (holsters, the dodge: later jobs)
 // Out of a level (menus, films, the journal): the plain pad, so menus work as the game expects.
@@ -22,7 +23,7 @@
 namespace dkqc {
 namespace {
 // ---- settings (one table, 2026-11-14) ----
-constexpr int64_t kFlickHoldMs = 300;   // a right-stick push held this long = jump / crouch
+constexpr int64_t kFlickHoldMs = 200;   // a right-stick push held this long = jump / crouch (Tefa 2026-11-14: 0.3 -> 0.2 s)
 constexpr float kFlickConeDeg = 35.0f;  // within this many degrees of straight up / down (or left / right on the rest)
 constexpr float kFlickReach = 0.70f;    // and past this much of the stick's travel
 constexpr float kStickDead = 0.15f;     // below this the stick is at rest
@@ -33,6 +34,7 @@ constexpr float kTriggerAsButton = 0.5f;
 
 // ---- bits ----
 constexpr uint32_t qA = 0x1000, qB = 0x2000, qX = 0x4000, qY = 0x8000, qMenu = 0x0010, qThumbRest = 0x0400;
+constexpr uint32_t qLGrip = 0x0100;   // the left grip squeezed past half (SDK patch 11)
 constexpr uint16_t pUp = 0x1, pDown = 0x2, pLeft = 0x4, pRight = 0x8, pStart = 0x10, pBack = 0x20, pLS = 0x40;
 constexpr uint16_t pLB = 0x100, pRB = 0x200, pA = 0x1000, pB = 0x2000, pX = 0x4000, pY = 0x8000;
 
@@ -73,7 +75,9 @@ PadOut QuestControls::Step(const QuestIn& in) {
   if (b & qA) o.buttons |= pA;
   if (b & qX) o.buttons |= pX;
   if (b & qY) o.buttons |= pLB;
-  if (in.ax[0] > kTriggerAsButton) o.buttons |= pRB;
+  // Left grip + left trigger = the left gun (the game's secondary fire, LT), never the power (Tefa 2026-11-14).
+  if (b & qLGrip) o.lt = in.ax[0];
+  else if (in.ax[0] > kTriggerAsButton) o.buttons |= pRB;
   o.rt = in.ax[1];
   o.lx = in.ax[2]; o.ly = in.ax[3];
 
