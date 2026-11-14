@@ -1,0 +1,37 @@
+# 2026-11-14: Tefa's Quest controls (job 1 built), and two leads for the one gun
+
+Developer PC, Opus, no game launched (Fallout held the PC). Design: `dev-archive/design/2026-11-14-quest-controls-design.md`;
+plan: `dev-archive/design/2026-11-14-quest-controls-job1-plan.md`.
+
+## The game's own pad layout
+
+The game's controls page (`Content/Gui/CubeWnd.xcr`, `gamepad_config_templates_1`, preset 1) places these labels on the
+controller picture `[inferred-static 2026-11-14, from label positions; not yet checked in play]`:
+Back journal, Start pause, LT secondary fire, RT primary fire, LB drain (the Darkness out / in), RB the Darkness (use
+the power), left stick move, left stick click crouch, right stick look, right stick click aim, Y jump, A use, B reload,
+X redirect (darklings), D-pad up / down a power, D-pad left / right a weapon. There are six presets
+(`option_setdefaultbinds(1..6)`).
+
+## Job 1 built (not yet run)
+
+- `dkqc::QuestControls` (`port-project/src/vr_quest_controls.cpp`): Tefa's layout as presses of that pad; 19 tests
+  (`build-scripts/test_quest_controls.bat`) `[compile-verified 2026-11-14, tests pass]`.
+- SDK patch 17: the left thumb rest as bit 0x0400 (Touch only; Touch suggested again without it if refused).
+- Wired into `BridgePadDriver`; `DK_VR_QUEST_CTL=0` = the b009 map. Log line `[DKXR] quest pad 0x....` per change.
+- Test copy `C:/NonSteam/the-darkness/build-test-b030` (b029 + this). Test: `build-scripts/dk_controls_test.py`.
+- Because LT now goes to RB (the power), the game's secondary fire (the left pistol) is never pressed any more.
+- Our launch scripts now refuse while another game holds the PC (`dk_clash.py`, Lanes `clash.py check live`).
+
+## Lead 1: one gun in the right hand
+
+The player's character template `CharPlayer` (`Content/Registry/Sv.xcr`) carries the flags
+`nohud+alwaysvisible+autounequipweapons+dualwieldsupported` `[measured 2026-11-14, strings]`. Dropping
+`dualwieldsupported` from the player is the first thing to try for "one gun only" `[hypothesis]`. The loose menu files
+were not what the game read for the QUIT line (2026-11-12), so this may need the same in-memory edit. The two pistols'
+magazines are two 16-bit counts at ClientData + 0x1BC4 (12 and 12) `[measured 2026-11-10]`.
+
+## Lead 2: the game already throws away empty guns
+
+Many weapon templates carry `throwawayonempty` (most with `nolastthrowaway`, `cloneattachitem`, `autopickup`)
+`[measured 2026-11-14, strings]`: the game's own "empty gun is thrown away" (probably the flip Tefa saw) and its own
+pickups. That is where the "guns as world objects" look (job 4) starts.
