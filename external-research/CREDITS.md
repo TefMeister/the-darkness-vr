@@ -34,3 +34,9 @@ are not, or you are a rights holder who wants something corrected or removed, op
 - **datamothra** (rexglue-sdk PRs #535 and #536: uploads ahead of the render pass), **mkalkhoven-po** (#548 and #549: hot pages), **crabinacrabic** (#520: the ROV research fork) — https://github.com/rexglue/rexglue-sdk/pulls
 - **Xenia canary** developers, including **goldislead** and **has207** (95545f8e) — https://github.com/xenia-canary/xenia-canary
 - **invinceble55-wq**, Estacado (checked, no change) — https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp
+
+## Sources (2026-11-14)
+
+- **jedeyesniv-art** (rexglue-sdk issue #525: heap corruption when the title ends itself), **Mystixor** (#336), **JTM-rootstorm** (#502) — https://github.com/rexglue/rexglue-sdk/issues
+- **portingpete**, The Darkness Recomp (v0.1.10 release notes, PRs #158 to #168) — https://github.com/portingpete/The-Darkness-Recomp
+- **invinceble55-wq**, Estacado (checked, no change) — https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp
