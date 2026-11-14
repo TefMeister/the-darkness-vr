@@ -389,6 +389,7 @@ class BridgePadDriver final : public rex::input::InputDriver {
             qi.buttons = b;
             std::memcpy(qi.ax, ax, sizeof(qi.ax));
             qi.in_level = in_level;
+            qi.darkness = dkpose::DarknessOut();
             qi.now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                             std::chrono::steady_clock::now().time_since_epoch()).count();
             const dkqc::PadOut p = g_quest.Step(qi);

@@ -28,6 +28,7 @@ QuestIn In(int64_t ms, uint32_t b = 0, float rx = 0, float ry = 0, bool level = 
   in.ax[5] = ry;
   in.in_level = level;
   in.now_ms = ms;
+  in.darkness = -1;
   return in;
 }
 
@@ -143,6 +144,19 @@ int main() {
     PadOut o = q.Step(in);
     CHECK(!(o.buttons & pRB));
     CHECK(o.lt > 0.79f && o.lt < 0.81f);
+  });
+  Test("lt_power_only_when_darkness_out", [] {   // Tefa 2026-11-14: "LT uses darkness powers even when darkness is not out"
+    QuestControls q;
+    QuestIn in = In(0);
+    in.ax[0] = 0.8f;
+    in.darkness = 0;
+    CHECK(!(q.Step(in).buttons & pRB));
+    in.darkness = 1;
+    in.now_ms = 10;
+    CHECK(q.Step(in).buttons & pRB);
+    in.darkness = -1;   // not known (no reading): as before, the power
+    in.now_ms = 20;
+    CHECK(q.Step(in).buttons & pRB);
   });
   Test("rt_fires", [] {
     QuestControls q;

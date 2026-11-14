@@ -20,6 +20,11 @@ bool HandRows(int hand, const float h[3][3], const float c[3][3], float out[3][3
 // The held-gun number read from the game this solve (0 = empty hands): the pose slot follows it (pose.auto).
 void NoteHeld(uint32_t value);
 
+// The player's ClientData + 0x1DF0 this solve: bits 0x00300000 are set while the Darkness is out (found live
+// 2026-11-14, five toggles). DarknessOut(): 1 out, 0 put away, -1 no reading in the last second (hands off, a menu).
+void NoteDarkness(uint32_t word);
+int DarknessOut();
+
 // Line a hand up at its next solve: bit 0 left, bit 1 right (ik.calib=1 asks for both).
 void RequestLineUp(uint32_t hands);
 

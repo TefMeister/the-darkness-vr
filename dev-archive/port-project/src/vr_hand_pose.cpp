@@ -39,6 +39,7 @@ extern "C" {
 #include "bridge/bridge.h"
 }
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -278,6 +279,25 @@ bool FeedPad(uint32_t raw, const float ax[6]) {
     trig_was[0] = trig_was[1] = false;
   }
   return g_mode != 0 || combo;
+}
+
+namespace {
+std::atomic<uint32_t> g_dark_word{0};
+std::atomic<int64_t> g_dark_ms{0};   // when it was read (steady clock, ms); 0 = never
+int64_t NowMs() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+}  // namespace
+
+void NoteDarkness(uint32_t word) {
+  g_dark_word.store(word, std::memory_order_relaxed);
+  g_dark_ms.store(NowMs(), std::memory_order_release);
+}
+
+int DarknessOut() {
+  const int64_t at = g_dark_ms.load(std::memory_order_acquire);
+  if (at == 0 || NowMs() - at > 1000) return -1;
+  return (g_dark_word.load(std::memory_order_relaxed) & 0x00300000u) ? 1 : 0;
 }
 
 void NoteHeld(uint32_t value) {

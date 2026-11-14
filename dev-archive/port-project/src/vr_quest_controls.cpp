@@ -7,7 +7,7 @@
 //
 // Tefa's layout in a level (2026-11-14):
 //   A = use (A)              X = send the darkling (X)        Y = the Darkness out / in (LB)
-//   left trigger = the power (RB)                              right trigger = fire (RT)
+//   left trigger = the power (RB), only while the Darkness is out    right trigger = fire (RT)
 //   left grip + left trigger = the left gun (LT), never the power
 //   B tap = reload (B; the hand reload of job 5 replaces it)   B held 1 s = drop the gun (job 4; nothing yet)
 //   menu tap = journal (Back)                                  menu held 0.3 s = pause (Start)
@@ -77,7 +77,8 @@ PadOut QuestControls::Step(const QuestIn& in) {
   if (b & qY) o.buttons |= pLB;
   // Left grip + left trigger = the left gun (the game's secondary fire, LT), never the power (Tefa 2026-11-14).
   if (b & qLGrip) o.lt = in.ax[0];
-  else if (in.ax[0] > kTriggerAsButton) o.buttons |= pRB;
+  // The power only while the Darkness is out (Tefa 2026-11-14); not known (no reading) = as before.
+  else if (in.ax[0] > kTriggerAsButton && in.darkness != 0) o.buttons |= pRB;
   o.rt = in.ax[1];
   o.lx = in.ax[2]; o.ly = in.ax[3];
 

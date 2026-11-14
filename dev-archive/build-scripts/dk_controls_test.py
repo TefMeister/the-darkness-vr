@@ -35,6 +35,7 @@ GESTURES = [
     ("turn right 1 s, no jump", R, {"stick": (0.9, 0.5)},   1.0, None,   False),
     ("stick down 0.6 s = crouch", R, {"stick": (0.0, -0.9)}, 0.6, 0x0040, True),
     ("stick down again",        R, {"stick": (0.0, -0.9)},  0.6, 0x0040, True),
+    ("left trigger, no Darkness", L, {"trigger": 0.9},      0.4, None,   False),   # 2026-11-14: the power only while it is out
     ("Y = the Darkness",        L, {"y": True},             0.2, 0x0100, True),
     ("left trigger = power",    L, {"trigger": 0.9},        0.4, 0x0200, True),
     ("Y = the Darkness away",   L, {"y": True},             0.2, 0x0100, False),

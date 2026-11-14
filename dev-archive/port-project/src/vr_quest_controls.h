@@ -14,6 +14,9 @@ struct QuestIn {
   float ax[6];
   bool in_level;
   int64_t now_ms;
+  // The Darkness: 1 out, 0 put away, -1 not known (no fresh reading). From the player's ClientData + 0x1DF0, bits
+  // 0x00300000 (found live 2026-11-14, vr_hand_pose.cpp NoteDarkness).
+  int darkness;
 };
 
 // buttons: XInput bits. Sticks -1..1, triggers 0..1. The left stick is handed through untouched (the caller turns it

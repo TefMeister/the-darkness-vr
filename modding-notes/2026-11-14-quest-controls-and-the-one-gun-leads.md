@@ -65,3 +65,20 @@ the journal's pages. Noticed while reviewing; harmless, see on the wear.
   The HUD showed two weapon icons with their own counts, left and right: each hand has its own gun and ammo in the game.
 - New tools: `gwrite` on the bridge (refuses unless the game starts with DK_GWRITE=1); `dk_place.py --keep` leaves the
   game running in the level for live work.
+
+## The second live run (evening), and b032
+
+- **"The Darkness is out" is found:** the player's ClientData + 0x1DF0 gains bits 0x00300000 while the Darkness is out
+  (0x000000D2 -> 0x003000D2; 0x74 -> 0x300074 after a respawn); five toggles in a row, pictures agree
+  `[verified-live 2026-11-14, simulator, n=5]`. Both of the player's IK objects' ClientData carry it; `ik.player`
+  picks one of them.
+- **b032:** the left trigger uses the power only while that bit is set (`dkpose::DarknessOut`, read each solve from the
+  player's ClientData by `vr_hand_ik.cpp`; no reading for 1 s = as before). Controls test: 17 of 17 gestures right,
+  including "left trigger with the Darkness away = nothing" `[verified-live 2026-11-14, simulator, n=1]`. Installed
+  `build-home-xr-b032`.
+- **The dual-wield flag is NOT what gives two pistols.** After a checkpoint restart the player is rebuilt with the flag
+  set again (from the template); cleared at once, before any weapon was drawn, the D-pad still brought out the pair
+  (0x82, magazines 7 / 7) `[verified-live, n=1]`. The pair looks like a weapon of its own (0x82) beside a one-magazine
+  choice (0xD5). Next for one gun: what 0xD5 is (nothing showed in the hands), and the left gun's model / its slot in
+  the per-hand weapon data, rather than the character flag.
+- Tefa: **B skips cutscenes** (in the Quest layout: B tap = pad B).
