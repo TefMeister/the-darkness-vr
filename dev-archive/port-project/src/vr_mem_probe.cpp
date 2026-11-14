@@ -7,7 +7,7 @@
 //   gfind <hex value> <hex addr> <hex len>   where that 32-bit value sits in a stretch (word-aligned)
 //
 // Reads go through ReadProcessMemory on our own process, so an unmapped guest page is an error line, not a crash.
-// Nothing here writes.
+// Nothing here writes, except gwrite (2026-11-14), which refuses unless the game was started with DK_GWRITE=1.
 
 #include "generated/default/darknessrecomp_pch.h"
 
@@ -110,6 +110,26 @@ void CmdFind(int argc, const char** argv, bridge_reply* r, void*) {
   }
   bridge_reply_line(r, "%d found", found);
 }
+
+// 2026-11-14: one word written, for live tests only (the one-gun flag). DK_GWRITE=1 at launch, or it refuses: no
+// installed build writes guest memory from outside unless asked to.
+void CmdWrite(int argc, const char** argv, bridge_reply* r, void*) {
+  const char* on = std::getenv("DK_GWRITE");
+  if (!(on && on[0] == '1')) { bridge_reply_err(r, "gwrite is off (start with DK_GWRITE=1)"); return; }
+  if (argc < 3) { bridge_reply_err(r, "gwrite <hex addr> <hex value>"); return; }
+  const uint32_t addr = Hex(argv[1]) & ~3u, v = Hex(argv[2]);
+  uint32_t before = 0;
+  uint8_t old[4];
+  if (!Read(addr, old, 4)) { bridge_reply_err(r, "cannot read %08X", addr); return; }
+  before = Be(old);
+  const uint8_t be[4] = {uint8_t(v >> 24), uint8_t(v >> 16), uint8_t(v >> 8), uint8_t(v)};
+  SIZE_T put = 0;
+  if (!WriteProcessMemory(GetCurrentProcess(), g_base + addr, be, 4, &put) || put != 4) {
+    bridge_reply_err(r, "cannot write %08X", addr);
+    return;
+  }
+  bridge_reply_line(r, "%08X: %08X -> %08X", addr, before, v);
+}
 }  // namespace
 
 // called from a guest hook (it has the guest memory's base); registers the commands once
@@ -122,4 +142,5 @@ void DkMemProbeInit(uint8_t* base) {
   bridge_cmd("gsnap", CmdSnap, nullptr, 0, "gsnap <hex addr> <hex len>: keep a copy of a stretch of guest memory");
   bridge_cmd("gdiff", CmdDiff, nullptr, 0, "gdiff [max]: words that differ between the two newest copies");
   bridge_cmd("gfind", CmdFind, nullptr, 0, "gfind <hex value> <hex addr> <hex len>: where a 32-bit value sits");
+  bridge_cmd("gwrite", CmdWrite, nullptr, 0, "gwrite <hex addr> <hex value>: write one word (only with DK_GWRITE=1)");
 }

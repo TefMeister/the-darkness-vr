@@ -49,3 +49,19 @@ bit 26, draw the pistols: one pistol? The weapon flag names `throwawayonempty` /
 
 In the journal (a paused level) the in-level button map stays on, so Y and the left trigger send LB / RB there: they may switch
 the journal's pages. Noticed while reviewing; harmless, see on the wear.
+
+## Live, the same evening (simulator, NY3_Mansion by the level jump, test copy build-test-b030 + `gwrite`)
+
+- **The power picks work.** With the Darkness out (pad LB), D-pad up changed the power twice: the power icon (top left)
+  and the colour of the heads' glow went yellow -> red -> green `[verified-live 2026-11-14, simulator, n=2]`. Tefa's
+  b030 wear was early in the game, with one power. Pictures `D:/the-darkness-build/pics/2026-11-14-live/pp.png`.
+- **The player's flags word is found:** the object at ClientData + 0x10, + 0x2B4, reads exactly 0x06000100 = bits 8, 25,
+  26 = alwaysvisible + autounequipweapons + dualwieldsupported (the table order holds) `[verified-live, n=1]`.
+  Cleared live (0x02000100), then the weapon stepped away and back: the two pistols came out as before `[n=1]`. So the
+  flag is read somewhere else (at spawn, at pick-up) or is not what puts the left pistol in the hand. Next: clear it
+  before the level spawns the player (from the start of the run), or find its readers.
+- **The held word:** ClientData + 0x1BE8 reads 0x00820000 with the two pistols (magazines 7 / 7 at + 0x1BC4) and
+  0x00D50000 for the other choice D-pad right gives (one count, 7; nothing seen in the hands) `[measured, n=2 each]`.
+  The HUD showed two weapon icons with their own counts, left and right: each hand has its own gun and ammo in the game.
+- New tools: `gwrite` on the bridge (refuses unless the game starts with DK_GWRITE=1); `dk_place.py --keep` leaves the
+  game running in the level for live work.

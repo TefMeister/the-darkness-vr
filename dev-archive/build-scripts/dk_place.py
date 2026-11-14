@@ -89,6 +89,7 @@ def main():
     ap.add_argument("--at", default="15,30")
     ap.add_argument("--press", default="")
     ap.add_argument("--state", default="", help="the story state, e.g. ny2+layer1; default: the map's lowest load set")
+    ap.add_argument("--keep", action="store_true", help="leave the game running in the level (live work through the bridge); close it with dk_close.py and switch VR Bench off after")
     a = ap.parse_args()
     if "test" not in os.path.basename(os.path.normpath(a.folder)).lower():
         sys.exit("refused: the folder name has no 'test' in it")
@@ -153,6 +154,9 @@ def main():
                 print(time.strftime("%H:%M:%S"), "picture", path, flush=True)
             else:
                 press(what)
+    if a.keep:   # 2026-11-14: live work through the bridge; dk_close.py and `vrbench.py stop` end it
+        print("kept running: close with dk_close.py, then vrbench.py stop", flush=True)
+        return 0 if live else 1
     since = dt.datetime.now() - dt.timedelta(seconds=RATE_WINDOW_S)
     frames = T.rate(T.readings(a.folder, T.FRAME_LINE, since))
     pairs = T.rate(T.readings(a.folder, T.PAIR_LINE, since))
