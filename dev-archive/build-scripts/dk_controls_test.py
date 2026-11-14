@@ -70,8 +70,8 @@ def pad_lines(folder, since):
             for line in f:
                 m = PAD_LINE.match(line)
                 if m:
-                    t = dt.datetime.strptime(m.group(1)[:19], "%Y-%m-%d %H:%M:%S")
-                    if t >= since.replace(microsecond=0):
+                    t = dt.datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S.%f")
+                    if t >= since:
                         out.append((t, int(m.group(2), 16), m.group(4)))
     return out
 
@@ -110,7 +110,7 @@ def main():
         end = results[k + 1][2] if k + 1 < len(results) else dt.datetime.now()
         seen = 0
         for t, b, mode in lines:
-            if began.replace(microsecond=0) <= t < end.replace(microsecond=0) + dt.timedelta(seconds=1):
+            if began <= t < end:   # 2026-11-14: to the millisecond; the first run's +1 s spilled into the next gesture
                 seen |= b
         good = (seen & bit) != 0 if bit else seen == 0
         ok_all &= good
