@@ -44,8 +44,8 @@ autounequipweapons = 25, **dualwieldsupported = 26**, projectileinvulnerable, at
 character's flags word `[hypothesis]`; `rlwinm rX,rY,6,31,31` reads exactly that bit, and `sub_821DC6F8` does so
 `[inferred-static, one candidate, not followed]`. Live test (next): find the player's flags word (snapshot / diff with
 the bridge's `gsnap` / `gdiff`, or the word that holds bits 8 and 25 set: alwaysvisible, autounequipweapons), clear
-bit 26, draw the pistols: one pistol? The same table names `throwawayonempty` / `nolastthrowaway` for weapons
+bit 26, draw the pistols: one pistol? The weapon flag names `throwawayonempty` / `nolastthrowaway` sit elsewhere
 (0x82069E6C / 0x82069E5C).
 
-In the journal (a paused level) the level map stays on, so Y and the left trigger send LB / RB there: they may switch
+In the journal (a paused level) the in-level button map stays on, so Y and the left trigger send LB / RB there: they may switch
 the journal's pages. Noticed while reviewing; harmless, see on the wear.
