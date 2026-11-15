@@ -22,6 +22,7 @@ set(DARKNESSRECOMP_SOURCES
     src/vr_skin_probe.cpp
     src/vr_hand_ik.cpp
     src/vr_hand_pose.cpp
+    src/vr_hand_poser_link.cpp
     src/vr_wide_view.cpp
     src/vr_plain_clear.cpp
     src/vr_no_velocity.cpp

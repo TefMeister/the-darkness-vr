@@ -38,6 +38,7 @@ extern "C" {
 #include <mutex>
 
 #include "vr_hand_pose.h"
+#include "vr_hand_poser_link.h"
 #include "vr_xr_head.h"
 
 namespace {
@@ -317,7 +318,9 @@ DECLARE_REX_FUNC(sub_821BF988);
 
 REX_HOOK_RAW(sub_821BF988) {
   RegisterVars();
+  dkposer::Start();   // 2026-11-15: the Hand Poser window's link (vr_hand_poser_link.cpp); idle unless poser.on / DK_POSER=1
   const uint32_t ik = ctx.r3.u32;
+  const uint32_t skel = ctx.r4.u32, si_in = ctx.r5.u32;   // kept for the poser link, after the original
   if (ik != 0u) {
     std::lock_guard<std::mutex> lock(g_mu);
     ++g_calls;
@@ -327,6 +330,12 @@ REX_HOOK_RAW(sub_821BF988) {
       REXGPU_INFO("[IK] calls={} set={} no_hands={} src={} last: {}", g_calls, g_set, g_no_hands, g_src, g_last_text);
   }
   __imp__sub_821BF988(ctx, base);
+  uint32_t player_si;
+  {
+    std::lock_guard<std::mutex> lock(g_mu);
+    player_si = g_player_si;
+  }
+  if (si_in != 0u && si_in == player_si) dkposer::AfterIk(ctx, base, skel, si_in);   // held finger / hand joints, after the game's IK
 }
 
 // ---- the controller's ROTATION into the hand (2026-10-28, from the reader's static pass) -------------------------
@@ -395,7 +404,7 @@ REX_HOOK_RAW(sub_821EE4E0) {
       if (picked && dkxr::LastHands(&h) && dkxr::LastView(rows) && (h.flags & (hand ? 0x10u : 0x01u))) {
         float c[3][3];
         ControllerAxes(h, hand, rows, c);
-        if (ik == g_player) dkpose::NoteHeld(REX_LOAD_U32(ik - kClientDataBack + kHeldGun));   // 2026-11-10: the slot follows the gun (the player's own data only)
+        if (ik == g_player) { dkpose::NoteHeld(REX_LOAD_U32(ik - kClientDataBack + kHeldGun)); dkposer::NoteGun(REX_LOAD_U32(ik - kClientDataBack + kHeldGun)); }   // 2026-11-10: the slot follows the gun (the player's own data only)
         if (ik == g_player) dkpose::NoteDarkness(REX_LOAD_U32(ik - kClientDataBack + kDarknessWord));   // 2026-11-14: the left trigger's gate
         if (g_calib == 1) { dkpose::RequestLineUp(3u); g_calib = 0; }
         float hm[3][3], out[3][3];
