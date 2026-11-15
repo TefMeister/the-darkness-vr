@@ -75,6 +75,9 @@ constexpr int kHand[2] = {16, 21};            // 0 left, 1 right
 constexpr int kHandParent[2] = {14, 19};      // the forearms
 constexpr int kFingerRoot[2][5] = {{38, 41, 44, 47, 50}, {53, 56, 59, 62, 65}};
 constexpr const char* kFingerName[5] = {"Thumb", "IndexF", "MiddleF", "RingF", "PinkyF"};
+constexpr uint32_t kSharedBones = 68u;   // bones 0-67: the engine's shared human skeleton, checked against the table
+constexpr uint32_t kMaxBones = 1024u;    // a skeleton bigger than this is not read (a bad pointer)
+constexpr int kUnknownLogMax = 20;       // log lines for joint names that are not hand joints
 
 // ---- timing, the same as hand_poser.lua -------------------------------------------------------------------------
 constexpr int kPollMs = 50;                   // command.json looked at (the Lua: every 3 frames)
@@ -221,14 +224,14 @@ bool ReadLiveSkeleton(uint8_t* base, uint32_t skel) {
   const uint32_t nodes = REX_LOAD_U32(skel + kSkelNodes);
   if (nodes == 0u) return false;
   const uint32_t count = REX_LOAD_U32(nodes);
-  if (count < 68u || count > 1024u) {
+  if (count < kSharedBones || count > kMaxBones) {
     g_error = "skeleton has " + std::to_string(count) + " bones, expected 68 or more";
     return false;
   }
   std::vector<int> parent(count, -1);
   for (uint32_t b = 1; b < count; ++b)
     parent[b] = REX_LOAD_U16(nodes + kNodesHeader + kNodeBytes * b + kNodeParent);
-  for (int b = 0; b < 68; ++b) {
+  for (int b = 0; b < static_cast<int>(kSharedBones); ++b) {
     const int want = TableParent(b);
     if (want >= 0 && parent[b] != want) {
       g_error = "bone " + std::to_string(b) + " has parent " + std::to_string(parent[b]) + ", the table says " +
@@ -404,7 +407,7 @@ void ReadCommand(const std::wstring& dir) {
       const int b = BoneOf(kv.first);
       int root_bone;
       if (b < 0 || HandOf(b, &root_bone) < 0) {
-        if (unknown_lines++ < 20) REXGPU_INFO("[POSER] not a hand joint, not held: {}", kv.first);
+        if (unknown_lines++ < kUnknownLogMax) REXGPU_INFO("[POSER] not a hand joint, not held: {}", kv.first);
         continue;
       }
       if (kv.second.kind != JVal::kArr || kv.second.arr.size() < 3) continue;
