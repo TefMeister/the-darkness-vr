@@ -1477,3 +1477,154 @@ is an independent second location to compare with our set-view hook `[hypothesis
   input system's shutdown `[reported]`. b027's QUIT line runs the game's own `quit()`, the same trigger `[inferred-static]`.
 - Check and cure (board row): one dump's stack for the input driver's destructor under the runtime's shutdown; if so,
   shut the input system down in our app's shutdown hook before the window goes, then quit through the menu a few times.
+
+## 6i. The hand skeleton: finger bones, parents, and where the local turns live (2026-11-15, /lm reader, static)
+
+### How it was read
+
+- The models are not loose on the disc: they sit inside the `.XDF` archives (dossier §"The `.XDF` format"). New fact
+  `[measured 2026-11-15]`: the XDF payload after the tables is **one zlib stream**; the resource records' "arena
+  offset" is an offset into the decompressed arena, and "offset-within-source" places each piece back in the
+  original file. Only the parts the engine reads are stored (the player model: 178,448 of 1,068,534 bytes), and the
+  skeleton is among them.
+- The player model is **`models\characters\j_e\j_e_noguns.xmd`** ("J_E" = Jackie Estacado), in
+  `GameContext_Create.XDF` and `GUIPrecache.XDF` only (loaded once, kept for the whole game; no level XDF names
+  another Jackie model) `[measured]` that it is there; that it is the first-person body `[inferred-static]`.
+- An `.xmd` is a `MOS DATAFILE2.0` (48-byte directory entries: 24-byte name, next, child, data offset, data size,
+  two user words), **little-endian** inside the archive. `SKELETON` → `NODES` (293 records of 34 bytes; count in
+  the first user word) and `NODEINDICES` (276 u16, the child lists) `[measured]`.
+- NODES record (34 bytes) `[measured]` as far as used here: +0 u16 flags (0x0100), +2 vec3 the joint's pivot in the
+  model's bind space, +14 u16 0, +16 u16 first child in NODEINDICES, +18 u16 child count, +20 u16 **parent**,
+  +22/+26 two floats (1.0), +30 u16 rotation track (= own index, or 0xFFFF for empty slots), +32 u16 a second track
+  or attach slot (0xFFFF for most). **No node names anywhere in the file** `[measured]`: the bones have numbers only.
+- Bind space `[inferred-static]`: +X forward (the toes 68/69 sit at +3.6 in front of the ankles), +Z up, Y across the
+  body. The hands are at Y = ±18.67 (a T-pose). The IK chains read from the code (dossier §6e: A = 18-19-21 + grip
+  23, B = 13-14-16 + grip 22) match this file's parent links exactly, and the swat body (`swat_b01.xmd`,
+  70 nodes) has the **identical bones 0-67** (same pivots, same parents): bones 0-67 are the engine's shared human
+  skeleton, which is why the IK code can hard-code 16/21 `[measured: the two files agree; inferred-static: shared]`.
+- Scripts (kept out of the repo): `staging/the-darkness-vr/hand-skel-2026-11-15/` (`xdf.py`, `arena.py`,
+  `nodes.py`; run `python -I arena.py <XDF> 'models\characters\j_e\j_e_noguns.xmd' <out>` then
+  `python -I nodes.py <out>`).
+
+### The bone table (player body, `j_e_noguns.xmd`)
+
+Right = +Y side = chain A (bones 18-19-21), LEFT = -Y side = chain B (13-14-16): the side comes from the live
+result of 2026-10-28 (`[verified-live 2026-10-28, n=1]` that chain A moves the right hand); the file itself cannot
+say which side is "right" `[inferred-static]`.
+
+Finger identity `[inferred-static, from the bind pivots]`: every hand bone has exactly five 3-joint chains plus the
+grip. The thumb is the chain whose first joint is closest to the wrist (1.6 units, others 3.3) and that runs
+forward (+X); the other four sit in a row from front to back, index → little, and their lengths fit a hand
+(middle longest: 3.33+1.58+0.81; little shortest: 3.26+1.29+0.57). Joint 1 = the knuckle next to the hand (direct
+child of the hand bone), joint 3 = the outermost, a leaf (there is no separate fingertip node). For the thumb, joint
+1 is the thumb's base near the wrist. Hand Poser names in Village's style suggested in the last column.
+
+| bone | parent | what | bind pivot (x, y, z) | Hand Poser name |
+| --- | --- | --- | --- | --- |
+| 16 | 14 | LEFT hand (wrist) | (-0.92, -18.67, 34.63) | `L_Hand` |
+| 38 | 16 | left thumb 1 | (0.17, -19.40, 33.66) | `L_ThumbF1` |
+| 39 | 38 | left thumb 2 | (0.63, -19.98, 32.69) | `L_ThumbF2` |
+| 40 | 39 | left thumb 3 | (1.02, -20.48, 31.85) | `L_ThumbF3` |
+| 41 | 16 | left index 1 | (0.05, -21.48, 33.06) | `L_IndexF1` |
+| 42 | 41 | left index 2 | (0.08, -22.64, 32.15) | `L_IndexF2` |
+| 43 | 42 | left index 3 | (0.09, -23.14, 31.65) | `L_IndexF3` |
+| 44 | 16 | left middle 1 | (-0.63, -21.60, 33.08) | `L_MiddleF1` |
+| 45 | 44 | left middle 2 | (-0.60, -22.86, 32.12) | `L_MiddleF2` |
+| 46 | 45 | left middle 3 | (-0.59, -23.44, 31.55) | `L_MiddleF3` |
+| 47 | 16 | left ring 1 | (-1.36, -21.53, 33.08) | `L_RingF1` |
+| 48 | 47 | left ring 2 | (-1.34, -22.72, 32.19) | `L_RingF2` |
+| 49 | 48 | left ring 3 | (-1.32, -23.29, 31.66) | `L_RingF3` |
+| 50 | 16 | left little 1 | (-2.02, -21.29, 33.04) | `L_PinkyF1` |
+| 51 | 50 | left little 2 | (-2.04, -22.34, 32.29) | `L_PinkyF2` |
+| 52 | 51 | left little 3 | (-2.05, -22.79, 31.94) | `L_PinkyF3` |
+| 22 | 16 | left grip point (IK end, no mesh) | (-0.79, -20.19, 32.46) | (hide) |
+| 21 | 19 | RIGHT hand (wrist) | (-0.92, 18.67, 34.63) | `R_Hand` |
+| 53 | 21 | right thumb 1 | (0.17, 19.40, 33.66) | `R_ThumbF1` |
+| 54 | 53 | right thumb 2 | (0.63, 19.98, 32.69) | `R_ThumbF2` |
+| 55 | 54 | right thumb 3 | (1.02, 20.48, 31.85) | `R_ThumbF3` |
+| 56 | 21 | right index 1 | (0.05, 21.48, 33.06) | `R_IndexF1` |
+| 57 | 56 | right index 2 | (0.08, 22.64, 32.15) | `R_IndexF2` |
+| 58 | 57 | right index 3 | (0.09, 23.14, 31.65) | `R_IndexF3` |
+| 59 | 21 | right middle 1 | (-0.63, 21.60, 33.08) | `R_MiddleF1` |
+| 60 | 59 | right middle 2 | (-0.60, 22.86, 32.12) | `R_MiddleF2` |
+| 61 | 60 | right middle 3 | (-0.59, 23.44, 31.55) | `R_MiddleF3` |
+| 62 | 21 | right ring 1 | (-1.36, 21.53, 33.08) | `R_RingF1` |
+| 63 | 62 | right ring 2 | (-1.34, 22.72, 32.19) | `R_RingF2` |
+| 64 | 63 | right ring 3 | (-1.32, 23.29, 31.66) | `R_RingF3` |
+| 65 | 21 | right little 1 | (-2.02, 21.29, 33.04) | `R_PinkyF1` |
+| 66 | 65 | right little 2 | (-2.04, 22.34, 32.29) | `R_PinkyF2` |
+| 67 | 66 | right little 3 | (-2.05, 22.79, 31.94) | `R_PinkyF3` |
+| 23 | 21 | right grip point (IK end, no mesh) | (-0.79, 20.19, 32.46) | (hide) |
+
+Every parent, child list and pivot above is `[measured]` from the file; the finger/joint labels are
+`[inferred-static]`; L/R as said above.
+
+The rest of the body, for `state.json`'s whole-skeleton list (parents `[measured]`, labels `[hypothesis]`):
+0 root (parent itself) · 1 pelvis (0) · 2-3-4 left thigh, shin, foot (1) · 68 left toe (4) · 5-6-7 right leg (1) ·
+69 right toe (7) · 8 spine 1 (1) · 9 spine 2 (8) · 15 chest (9) · 10 neck (15) · 11 head (10) · 12 left collar (15)
+· 13 left upper arm (12) · 14 left forearm (13) · 17 right collar (15) · 18 right upper arm (17) · 19 right forearm
+(18) · 20 (11; children 25, 26, 28: face/jaw?) · 24, 30-32, 34, 36, 70-71, 73-84, 86-90 face bones (11) ·
+**100-219**: fifteen 8-joint chains hanging from bone 9 at the waist down to the knees (the coat's tails, cloth) ·
+**220-292**: twelve 3-5-joint chains from the head (11) down to the neck (hair) · 27, 29, 33, 35, 37, 72, 85, 91-99
+empty slots (parent 0, no track). No twist bones in the arms (nothing between 14 and 16 or 19 and 21).
+
+### Where the LOCAL turns are, and the function that composes them
+
+From the generated code, `[inferred-static 2026-11-15]` unless tagged:
+
+- **`CXR_SkeletonInstance` holds two arrays of 64-byte 4x4 matrices, one per bone, indexed by the node numbers
+  above:** `*(SI+32)` = the **local** matrix of each bone (relative to its parent), `*(SI+36)` = the **composed**
+  bone-to-world matrix (what the IK reads at `*(SI+36)+1344` = bone 21, and what the palette is built from).
+  Row-major, rows = axes, row 3 = translation, vectors multiply as rows (dossier §6e, `sub_82114670`).
+- **The composer is `sub_82420678(r3 = skeleton, r4 = start bone, r5 = &parent's world 4x4, r6 = SI)`.** It walks
+  the skeleton from the start bone down through every descendant (its own small stack of up to (bone, parent
+  world) pairs, children taken from the skeleton's child lists), and for each bone:
+  1. copies the local matrix `*(SI+32) + 64*b` to the stack;
+  2. replaces its row 3 with a pivot term built from the bone's bind pivot (`*(skel+12) + 16 + 48*b`, a vec4):
+     `row3 = p - (p·R + p.w·t)` (R = the local 3x3, t = the local row 3); so the local rotation turns the bone
+     **about its own bind pivot**. With p.w = 0 the local translation is ignored (pure rotation about the
+     joint) `[hypothesis: the runtime p.w is not read]`;
+  3. multiplies by the parent's world matrix and stores the result at `*(SI+36) + 64*b`;
+  4. pushes its children with this bone's new world matrix as their parent.
+  Runtime skeleton node records `[inferred-static]`: 48 bytes from `*(skel+12)+16` (`*(skel+12)+0` = node count):
+  +0 pivot vec4, +26 u16 first child (index into the u16 list at `*(skel+8)+4`), +28 u16 parent (the "+44 from
+  `*(skel+12)`" of the 2026-10-28 reader), +34 u8 child count.
+- **The game itself re-composes a sub-tree this way after editing one local:** the hand-IK solver `sub_821EE4E0`
+  stores the hand's new local in `*(SI+32)` and then calls `sub_82420678` from the hand down (2026-10-28 reader);
+  `sub_821CEC18` calls it with start bone 1 and `r5 = *(SI+36)` (bone 0's world); `sub_826D4BA8`, `sub_822D3370`
+  and `sub_827357E0` call it with start bone 0 (the whole skeleton). Other callers: `sub_8212B238` (start 1),
+  `sub_821BD498`, `sub_821C5308`, `sub_82165D20`, `sub_821CED18`.
+
+**So the fork in the plan resolves to the cheap side** `[inferred-static]`: the local turns are reachable. A poser
+hook can, after the game's last IK write for the frame (at the exit of `sub_821BF988` / of the solver
+`sub_821EE4E0` for the player, i.e. after the hand's own world matrix is final), overwrite the 3x3 of
+`*(SI+32) + 64*f` for each held finger joint f and call `sub_82420678(skel, firstJointOfThatFinger,
+*(SI+36) + 64*hand, SI)` (or once per hand from bone 16/21 with its parent's world), and the children follow by
+themselves. No parent table is needed in the port for the carrying; the table above is still wanted for
+`state.json`.
+
+### What is NOT established
+
+- That `j_e_noguns.xmd` is the model drawn in first person, rather than a menu or third-person copy. Strong but
+  indirect: it is the only Jackie body in the always-loaded set, and bones 0-67 are the shared human layout the IK
+  code hard-codes. The finger indices hold for any body on that shared layout.
+- Which way each local axis points for a finger (which local turn is "curl"): not in the data; the bind pivots
+  give the bone's length direction only (roughly +Y on the right hand, -Y on the left, tipping down in Z).
+- The runtime pivot's `.w` (does the local translation count?), and whether the runtime pivot equals the file's
+  pivot or is scaled (`SKELETONSCALE`).
+- That nothing re-composes or overwrites `*(SI+36)` for the fingers between the IK step and the palette copy (e.g.
+  a later full-skeleton pass from bone 0 would undo a pose only if it ran AFTER our write; if it reruns from the
+  locals, our local writes survive it anyway).
+- That the palette source `*(attr+640)+0` is the player's `*(SI+36)` itself (still the one pointer comparison
+  owed from the 2026-10-28 reader, part 2 §1).
+
+### What a live run should measure (cheapest first)
+
+1. One log line at `sub_821BF988` exit for the player's SI: bone 21's and bone 56's parent from the runtime records
+   (`*(skel+12)+16+48*56+28` should read 21), and `*(skel+12)+16+48*56` (the pivot, compare with
+   (0.05, 21.48, 33.06), and its `.w`).
+2. Nudge one local: multiply `*(SI+32)+64*56` by a 30° turn about each local axis in turn, call
+   `sub_82420678(skel, 56, *(SI+36)+64*21, SI)`, and look: the right index finger should bend at its knuckle with
+   57 and 58 carried along. The axis that curls it is the poser's "bend" axis. Repeat once on 41 for the left hand.
+3. If step 2's bend snaps back or flickers, something re-composes after the hook: log which caller of
+   `sub_82420678` runs after it in the frame and move the hook there.
