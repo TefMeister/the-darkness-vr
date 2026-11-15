@@ -1480,6 +1480,11 @@ is an independent second location to compare with our set-view hook `[hypothesis
 
 ## 6i. The hand skeleton: finger bones, parents, and where the local turns live (2026-11-15, /lm reader, static)
 
+> ⚠️ **Live correction, the same day:** in the table below read **L and R swapped**: bone 16 and fingers 38-52 are the
+> RIGHT hand (the one the right controller drives, `ik.right_chain = 1` since 2026-10-29), bone 21 and 53-67 the LEFT
+> `[verified-live 2026-11-15, simulator, n=1]`. Holding a finger or wrist after the IK step turns the drawn hand; the
+> curl is about X (`modding-notes/2026-11-15b-fingers-posed-live.md`).
+
 ### How it was read
 
 - The models are not loose on the disc: they sit inside the `.XDF` archives (dossier §"The `.XDF` format"). New fact
