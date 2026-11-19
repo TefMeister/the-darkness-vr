@@ -152,10 +152,24 @@ uint32_t RunOwnText(PPCContext& ctx, uint8_t* base, const std::string& text) {
   return ran;
 }
 
+const char kExtraAlias[] = "dk_extra";
+const char kExtraCmd[] = "cg_submenu('extra_content')";
+
 }  // namespace
 
 REX_HOOK_RAW(sub_8236F300) {
   const Settings& s = Get();
+  // 2026-11-19: the main menu's EXTRA CONTENT line sits in Multiplayer's old place since QUIT went to the bottom
+  // (vr_menu_quit.cpp); its real command does not fit there, so the line runs cheat("dk_extra"). Works with the
+  // developer-menu unlock on or off.
+  if (ReadCStr(base, ctx.r4.u32) == kExtraAlias) {
+    const uint64_t alias_lr = ctx.lr;
+    ctx.r3.u64 = ctx.r4.u32;
+    sub_821F8AD0(ctx, base);  // we own the argument and are not using it
+    RunOwnText(ctx, base, kExtraCmd);
+    ctx.lr = alias_lr;
+    return;
+  }
   if (!s.on) {
     __imp__sub_8236F300(ctx, base);  // retail: vtable +260, which destroys the string
     return;
@@ -192,6 +206,31 @@ REX_HOOK_RAW(sub_8236F300) {
                 front_end, text.substr(0, kMaxLoggedChars),
                 (replace != nullptr ? *replace : text).substr(0, kMaxLoggedChars), ran);
   }
+}
+
+// 2026-11-19: the main menu's shared labels follow the page the player is on (vr_menu_quit.cpp). These are the game's
+// own handlers for cg_submenu / cg_prevmenu / cg_rootmenu / cg_clearmenus (registered in sub_8237E660; each is a
+// thunk to the front end's vtable, like cheat()). We only look, then run the game's own.
+void DkMenuQuitPage(int what, const char* page);
+DECLARE_REX_FUNC(sub_8237EAF8);  // cg_submenu(page): vtable +128
+DECLARE_REX_FUNC(sub_8237EA78);  // cg_prevmenu(): vtable +136
+DECLARE_REX_FUNC(sub_8237EB08);  // cg_rootmenu(page): vtable +144
+DECLARE_REX_FUNC(sub_8237EB28);  // cg_clearmenus(): vtable +132
+REX_HOOK_RAW(sub_8237EAF8) {
+  DkMenuQuitPage(0, ReadCStr(base, ctx.r4.u32).c_str());
+  __imp__sub_8237EAF8(ctx, base);
+}
+REX_HOOK_RAW(sub_8237EA78) {
+  DkMenuQuitPage(1, nullptr);
+  __imp__sub_8237EA78(ctx, base);
+}
+REX_HOOK_RAW(sub_8237EB08) {
+  DkMenuQuitPage(2, nullptr);
+  __imp__sub_8237EB08(ctx, base);
+}
+REX_HOOK_RAW(sub_8237EB28) {
+  DkMenuQuitPage(2, nullptr);
+  __imp__sub_8237EB28(ctx, base);
 }
 
 // 2026-11-12: every command text the game hands to its console, written down (DK_CMD_LOG=1; at most kCmdLogLines), to

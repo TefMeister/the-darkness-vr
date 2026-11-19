@@ -3,6 +3,7 @@
     python dk_memfind.py text "cg_submenu('options')"      every place the text sits (host and guest address)
     python dk_memfind.py word 0x4012AB40 [0x4012AB5C ...]  every place a 32-bit big-endian value sits (who points at it)
     python dk_memfind.py read 0x4012AB40 [bytes=128]       a hex + text dump at a GUEST address
+    python dk_memfind.py hex "00 02 0c f9"                 every place these bytes sit
 
 Only reads (OpenProcess with read rights, ReadProcessMemory); never writes. The guest's 4 GB sit at one host base;
 it is found by itself: the first text hit of the game's own name table is not needed, the base is the mapping whose
@@ -100,7 +101,7 @@ def find(h, base, needles, align=1):
 
 
 def main():
-    if len(sys.argv) < 3 or sys.argv[1] not in ("text", "word", "read"):
+    if len(sys.argv) < 3 or sys.argv[1] not in ("text", "word", "read", "hex"):
         sys.exit(__doc__)
     h = k32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, pid_of(EXE))
     if not h:
@@ -111,6 +112,10 @@ def main():
         for g, _ in find(h, base, [sys.argv[2].encode("latin-1")]):
             around = read(h, base + g - 16, 16 + len(sys.argv[2]) + 24)
             print("guest 0x%08X  before: %s  after: %r" % (g, around[:16].hex(" "), around[16 + len(sys.argv[2]):]))
+    elif sys.argv[1] == "hex":
+        for g, needle in find(h, base, [bytes.fromhex(sys.argv[2])]):
+            ctx = read(h, base + g - 8, 8 + len(needle) + 16)
+            print("guest 0x%08X  %s" % (g, ctx.hex(" ")))
     elif sys.argv[1] == "word":
         values = [int(v, 16) for v in sys.argv[2:]]
         for g, needle in find(h, base, [struct.pack(">I", v) for v in values], align=4):
@@ -119,7 +124,7 @@ def main():
                 struct.unpack(">I", needle)[0], g, " ".join("%08X" % w for w in struct.unpack(">12I", ctx))))
     else:
         g = int(sys.argv[2], 16)
-        n = int(sys.argv[3]) if len(sys.argv) > 3 else 128
+        n = int(sys.argv[3], 0) if len(sys.argv) > 3 else 128
         data = read(h, base + g, n)
         for i in range(0, len(data), 16):
             row = data[i:i + 16]

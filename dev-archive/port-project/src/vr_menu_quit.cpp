@@ -41,16 +41,88 @@ const Swap kSwaps[] = {
 
 std::atomic<bool> g_started{false};
 
+// 2026-11-19: QUIT AT THE BOTTOM (Tefa: "replace multiplayer with quit and move it to the bottom"). The loaded menu data
+// is the file's text table, each text stored once and used by both main-menu pages; nothing points at the texts
+// (looked for live, 2026-11-19), so a line moves only by rewriting texts in place, and a text cannot grow. The three
+// lines' texts sit at fixed distances from each other (measured live in b033, guest 0xB03B77EA..0xB03B78C1):
+//     Multiplayer label -0x20 | Multiplayer command 0 | Extra Content label +0x7C | Extra Content command +0x9C
+// Extra Content's command (27 characters) does not fit Multiplayer's place (25), so that place runs the short
+// cheat("dk_extra"), which our cheat() hook (vr_devmenu_unlock.cpp) turns into cg_submenu('extra_content').
+// Result: ... CHECKPOINTS / EXTRA CONTENT / OPTIONS / QUIT (Options keeps its own place; its label does not fit elsewhere).
+// All four are written together, and only where all four originals are found, so a second look (or the same memory
+// seen again through the console's mirrored address ranges) finds nothing left to change.
+constexpr ptrdiff_t kMpLabelAt = -0x20, kExLabelAt = 0x7C, kExCmdAt = 0x9C;
+constexpr size_t kUnitBefore = 0x20, kUnitAfter = 0x9C + 28;
+const char kMpLabel[] = "nc, \xa7LMENU_MULTIPLAYER";              // 22 + null + one pad byte
+const char kMpCmd[] = "cg_submenu('multiplayer')";               // 25
+const char kExLabel[] = "nc, \xa7LMENU_EXTRACONTENT";             // 23
+const char kExCmd[] = "cg_submenu('extra_content')";             // 27
+const char kTopLabel[] = "nc, \xa7LMENU_EXTRACONTENT";            // 23 + null: uses the pad byte
+const char kTopCmd[] = "cheat(\"dk_extra\")        ";             // 25
+const char kBottomLabel[] = "nc,         \xa7LMENU_QUIT";         // 23
+const char kBottomCmd[] = "cg_submenu('quit_ask')     ";         // 27
+static_assert(sizeof(kTopLabel) - 1 == sizeof(kMpLabel), "the label uses the pad byte: one longer than Multiplayer's");
+static_assert(sizeof(kTopCmd) == sizeof(kMpCmd), "same length");
+static_assert(sizeof(kBottomLabel) == sizeof(kExLabel), "same length");
+static_assert(sizeof(kBottomCmd) == sizeof(kExCmd), "same length");
+
+std::atomic<int> g_bottom{0};   // complete menus where QUIT went to the bottom
+
+// 2026-11-19, seen live: each text is stored ONCE and shared. The Extra Content label is also that page's heading,
+// and Multiplayer's label is also a line on the OPTIONS page. So the two labels are set by where the player is: the
+// game copies a page's texts when it builds the page, and the menu commands' own handlers are hooked (DkMenuQuitPage).
+//     main menu:           place 4 reads EXTRA CONTENT, the bottom line reads QUIT
+//     inside EXTRA CONTENT: the bottom line's text is EXTRA CONTENT again (the page's heading)
+//     inside OPTIONS:       place 4's text is MULTIPLAYER again (the options line the game shipped with)
+std::atomic<uint8_t*> g_unit{nullptr};   // the Multiplayer command of the menu that was moved (host address)
+enum Where { kMain, kExtra, kOptions };
+int g_where = kMain, g_depth = 0;        // the game's own thread only
+
+void ApplyLabels(uint8_t* q, int where) {
+  uint8_t* top = q + kMpLabelAt;
+  if (where == kOptions) {
+    std::memcpy(top, kMpLabel, sizeof(kMpLabel));   // 22 + null
+    top[sizeof(kMpLabel)] = 0;                      // the pad byte
+  } else {
+    std::memcpy(top, kTopLabel, sizeof(kTopLabel));
+  }
+  std::memcpy(q + kExLabelAt, where == kExtra ? kExLabel : kBottomLabel, sizeof(kExLabel) - 1);
+}
+
+// true when the four original texts sit around q (q = the Multiplayer command), and then rewrites all four
+bool MoveQuitToBottom(uint8_t* q) {
+  uint8_t* mp_label = q + kMpLabelAt;
+  uint8_t* ex_label = q + kExLabelAt;
+  uint8_t* ex_cmd = q + kExCmdAt;
+  if (std::memcmp(mp_label, kMpLabel, sizeof(kMpLabel)) != 0 || mp_label[sizeof(kMpLabel)] != 0) return false;
+  if (std::memcmp(ex_label, kExLabel, sizeof(kExLabel)) != 0) return false;
+  if (std::memcmp(ex_cmd, kExCmd, sizeof(kExCmd)) != 0) return false;
+  std::memcpy(mp_label, kTopLabel, sizeof(kTopLabel));         // 24 bytes, its own null in the old pad byte
+  std::memcpy(q, kTopCmd, sizeof(kTopCmd) - 1);
+  std::memcpy(ex_label, kBottomLabel, sizeof(kBottomLabel) - 1);
+  std::memcpy(ex_cmd, kBottomCmd, sizeof(kBottomCmd) - 1);
+  uint8_t* none = nullptr;
+  g_unit.compare_exchange_strong(none, q);
+  return true;
+}
+
 int Rewrite(uint8_t* p, size_t n, const Swap& s) {
   const size_t len = std::strlen(s.from);
   int hits = 0;
   if (n < len + 1) return 0;
+  const bool is_cmd = !s.need_null;
   const uint8_t first = static_cast<uint8_t>(s.from[0]);
   for (uint8_t* q = p; q + len + 1 <= p + n;) {
     q = static_cast<uint8_t*>(std::memchr(q, first, static_cast<size_t>(p + n - q) - len));
     if (q == nullptr) break;
     if (std::memcmp(q, s.from, len) == 0 && (!s.need_null || q[len] == 0)) {
-      std::memcpy(q, s.to, len);
+      // the whole menu (all four texts in place): QUIT goes to the bottom; a stray part copy: the old rewrite
+      if (is_cmd && static_cast<size_t>(q - p) >= kUnitBefore && static_cast<size_t>(p + n - q) >= kUnitAfter &&
+          MoveQuitToBottom(q)) {
+        ++g_bottom;
+      } else {
+        std::memcpy(q, s.to, len);
+      }
       ++hits;
       q += len;
     } else {
@@ -59,7 +131,6 @@ int Rewrite(uint8_t* p, size_t n, const Swap& s) {
   }
   return hits;
 }
-
 void Worker(uint8_t* base) {
   int total[2] = {0, 0};
   int after_hit = 0;
@@ -78,7 +149,7 @@ void Worker(uint8_t* base) {
         const uint64_t lo = start < a ? a : start, hi = end > kHi ? kHi : end;
         if (hi > lo) {
           __try {
-            for (int i = 0; i < 2; ++i) now[i] += Rewrite(base + lo, static_cast<size_t>(hi - lo), kSwaps[i]);
+            for (int i = 1; i >= 0; --i) now[i] += Rewrite(base + lo, static_cast<size_t>(hi - lo), kSwaps[i]);
           } __except (EXCEPTION_EXECUTE_HANDLER) {
           }
         }
@@ -95,7 +166,8 @@ void Worker(uint8_t* base) {
                   now[1], t + kEvery, total[0], total[1]);
     }
   }
-  REXGPU_INFO("[QUIT] done looking: {} label(s) and {} command(s) rewritten", total[0], total[1]);
+  REXGPU_INFO("[QUIT] done looking: {} label(s) and {} command(s) rewritten; QUIT moved to the bottom in {} whole menu(s)",
+              total[0], total[1], g_bottom.load());
 }
 
 }  // namespace
@@ -107,4 +179,38 @@ void DkMenuQuitTick(uint8_t* base) {
   const bool on = v != nullptr && v[0] == '1';
   REXGPU_INFO("[QUIT] DK_MENU_QUIT={}: a QUIT line in Multiplayer's place {}", v ? v : "(unset)", on ? "ON" : "off");
   if (on) std::thread(Worker, base).detach();
+}
+
+// Called from the hooks on the game's own menu commands (vr_devmenu_unlock.cpp), on the game's thread, BEFORE the
+// command runs. what: 0 = cg_submenu(page), 1 = cg_prevmenu, 2 = cg_rootmenu / cg_clearmenus. (Menu clicks do not pass
+// the console hook: seen live 2026-11-19, so the commands' own handlers are hooked.)
+void DkMenuQuitPage(int what, const char* page) {
+  uint8_t* q = g_unit.load();
+  if (q == nullptr) return;
+  int where = g_where, depth = g_depth;
+  if (what == 0) {
+    if (page != nullptr && std::strcmp(page, "extra_content") == 0) {
+      where = kExtra;
+      depth = 1;
+    } else if (where == kMain && page != nullptr && std::strcmp(page, "options_main") == 0) {
+      where = kOptions;
+      depth = 1;
+    } else if (where != kMain) {
+      ++depth;
+    }
+  } else if (what == 1) {
+    if (where != kMain && --depth <= 0) {
+      where = kMain;
+      depth = 0;
+    }
+  } else {
+    where = kMain;
+    depth = 0;
+  }
+  if (where != g_where) {
+    ApplyLabels(q, where);
+    REXGPU_INFO("[QUIT] menu labels set for {}", where == kExtra ? "the EXTRA CONTENT page" : where == kOptions ? "the OPTIONS pages" : "the main menu");
+  }
+  g_where = where;
+  g_depth = depth;
 }
