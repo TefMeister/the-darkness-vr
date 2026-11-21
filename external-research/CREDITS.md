@@ -40,3 +40,9 @@ are not, or you are a rights holder who wants something corrected or removed, op
 - **jedeyesniv-art** (rexglue-sdk issue #525: heap corruption when the title ends itself), **Mystixor** (#336), **JTM-rootstorm** (#502) — https://github.com/rexglue/rexglue-sdk/issues
 - **portingpete**, The Darkness Recomp (v0.1.10 release notes, PRs #158 to #168) — https://github.com/portingpete/The-Darkness-Recomp
 - **invinceble55-wq**, Estacado (checked, no change) — https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp
+
+## Sources (2026-11-21)
+
+- **portingpete**, The Darkness Recomp (main-branch PRs #173, #175, #179 and commits 2026-11-13 to 11-18) — https://github.com/portingpete/The-Darkness-Recomp
+- **ReXGlue** SDK developers (v0.11.0 and nightlies to 2026-11-17; issue #525 re-checked) — https://github.com/rexglue/rexglue-sdk
+- **invinceble55-wq**, Estacado (checked, no change) — https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp

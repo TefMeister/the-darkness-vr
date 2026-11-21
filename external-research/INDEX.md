@@ -1,6 +1,8 @@
 # Research index
 
-**Last `/gr` pass: 2026-11-14 — FULL.** The four `0xC0000374` heap-corruption dumps of b027 match an open ReXGlue report (#525): heap corruption on exit whenever the title ends itself (as our new QUIT line does) because the keyboard-and-mouse driver unhooks from an already-freed window; app-side workaround described, pointer in `engine-research/inbox/`. portingpete's v0.1.10 (movement, FOV slider) and a main-branch fix for area-load freezes from worker-thread priorities; Estacado unchanged.
+**Last `/gr` pass: 2026-11-21 — CHECK-IN.** portingpete's main branch (11-13 to 11-18) fixed a skipped-turn fault that makes the game's own camera step at about 120 frames a second and above (we run faster), a camera jump after wall contact, and added an Unlock All Weapons switch; ReXGlue v0.11.0 is stable, #525 still open; one topic.
+
+_Previous: **Last `/gr` pass: 2026-11-14 — FULL.** The four `0xC0000374` heap-corruption dumps of b027 match an open ReXGlue report (#525): heap corruption on exit whenever the title ends itself (as our new QUIT line does) because the keyboard-and-mouse driver unhooks from an already-freed window; app-side workaround described, pointer in `engine-research/inbox/`. portingpete's v0.1.10 (movement, FOV slider) and a main-branch fix for area-load freezes from worker-thread priorities; Estacado unchanged._
 
 _Previous: **Last `/gr` pass: 2026-11-11 — FULL.** portingpete's v0.1.9 (today) shows the engine draws a motion-blur velocity pass even with blur off (17-23 % of draws, emitter 0x82276148), and the ReXGlue D3D12 upload path puts a whole-buffer barrier pair between draws, which two Vulkan-only pull requests fix; two topics, one pointer to the dossier inbox, one to the cross-engine library._
 
@@ -26,6 +28,7 @@ write-up in `topics/`. Status tags:
 
 | Date | Topic | Status | Why it matters |
 | --- | --- | --- | --- |
+| 2026-11-21 | [portingpete's main branch: skipped look updates at high frame rates, a camera jump after wall contact, and Unlock All Weapons](topics/2026-11-21-portingpete-stepped-look-and-weapon-unlocks.md) | 🆕 | The game's camera update skips turns just under 1/120 s, a stepped-motion fault our 112-180 frames a second can hit; the weapon grant is the unlock-all route and the test bed for the one-gun rows |
 | 2026-11-14 | [ReXGlue: heap corruption (0xC0000374) when the title quits itself; two other open heap reports](topics/2026-11-14-rexglue-heap-corruption-when-the-title-quits-itself.md) | 🆕 | Issue #525 is the exact code and trigger of b027's four dumps (the QUIT line runs `quit()`); the fix is an app-side shutdown order, our own code |
 | 2026-11-14 | [portingpete's port v0.1.10, and a fix for area-load freezes from worker-thread priorities](topics/2026-11-14-portingpete-v0110-and-the-area-load-freezes.md) | 🆕 | Resource-pool workers above the engine's priority starved it for seconds on few-core CPUs; the first thing to compare if a headset run hitches on entering an area |
 | 2026-11-11 | [portingpete's port v0.1.9: the engine draws a velocity pass nobody reads with motion blur off (17-23 % of draws), plus OW depth fog, draw distance and FOV draw counts](topics/2026-11-11-portingpete-v019-fewer-draws-from-the-engine.md) | 🆕 | Fewer draws is the direct cure for the card's ~2-3 microseconds a draw; guest addresses given |
